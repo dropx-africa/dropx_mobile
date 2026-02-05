@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/home/presentation/home_tab.dart';
+import 'package:dropx_mobile/src/features/group/presentation/group_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/orders_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/profile_screen.dart';
+import 'package:dropx_mobile/src/features/discover/presentation/discover_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isGuest;
@@ -55,10 +59,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final List<Widget> tabs = [
       HomeTab(isGuest: widget.isGuest),
-      const Center(child: Text('Discover')), // Placeholder
-      const Center(child: Text('Orders')), // Placeholder
-      const Center(child: Text('Group')), // Placeholder
-      const Center(child: Text('Profile')), // Placeholder
+      const DiscoverScreen(),
+      const OrdersScreen(),
+      const GroupScreen(),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
