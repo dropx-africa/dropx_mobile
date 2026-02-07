@@ -179,15 +179,33 @@ class _ManualLocationScreenState extends State<ManualLocationScreen> {
                   CustomButton(
                     text: 'Confirm Location',
                     backgroundColor: AppColors.primaryOrange,
-                    onPressed: () {
+                    onPressed: () async {
+                      // Enforce Location Permission
+                      final status = await Permission.location.status;
+                      if (!status.isGranted) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Location permission is required to use the app.",
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          _requestLocationPermission();
+                        }
+                        return;
+                      }
+
                       // Navigate to dashboard
-                      // For now, assume guest mode - will be updated with auth state management
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRoute.dashboard,
-                        (route) => false,
-                        arguments: {'isGuest': widget.isGuest},
-                      );
+                      if (context.mounted) {
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          AppRoute.dashboard,
+                          (route) => false,
+                          arguments: {'isGuest': widget.isGuest},
+                        );
+                      }
                     },
                   ),
                 ],
