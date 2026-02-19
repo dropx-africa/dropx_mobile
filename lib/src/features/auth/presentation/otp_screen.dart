@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
@@ -7,25 +8,61 @@ import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/common_widgets/app_otp_field.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
 
   const OtpScreen({super.key, required this.phoneNumber});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final TextEditingController _pinController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  String? _otpError;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _pinController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _verifyAndLogin() async {
+    final pin = _pinController.text.trim();
+
+    // Validate OTP is exactly 4 digits
+    if (pin.length != 4 || !RegExp(r'^\d{4}$').hasMatch(pin)) {
+      setState(() {
+        _otpError = 'Please enter a valid 4-digit code';
+      });
+      return;
+    }
+    setState(() {
+      _otpError = null;
+      _isLoading = true;
+    });
+
+    try {
+      // Persist login state
+      await ref.read(sessionServiceProvider).saveLogin();
+
+      if (mounted) {
+        Navigator.pushNamed(
+          context,
+          AppRoute.manualLocation,
+          arguments: {'isGuest': false},
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -42,7 +79,7 @@ class _OtpScreenState extends State<OtpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Matches LoginScreen Logo placement
+            // Logo
             Center(
               child: Column(
                 children: [
@@ -71,9 +108,21 @@ class _OtpScreenState extends State<OtpScreen> {
               controller: _pinController,
               focusNode: _focusNode,
               onCompleted: (pin) {
-                // Determine next step based on needs, typically navigate or auto-submit
+                // Auto-submit when 4 digits entered
+                _verifyAndLogin();
               },
             ),
+
+            // Validation error
+            if (_otpError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: AppText(
+                  _otpError!,
+                  color: AppColors.errorRed,
+                  fontSize: 12,
+                ),
+              ),
 
             AppSpaces.v32,
 
@@ -82,14 +131,8 @@ class _OtpScreenState extends State<OtpScreen> {
               text: 'Verify & Login',
               backgroundColor: AppColors.primaryOrange,
               textColor: AppColors.white,
-              onPressed: () {
-                // Navigate directly to Manual Location (system will request permission)
-                Navigator.pushNamed(
-                  context,
-                  AppRoute.manualLocation,
-                  arguments: {'isGuest': false},
-                );
-              },
+              isLoading: _isLoading,
+              onPressed: () => _verifyAndLogin(),
             ),
 
             AppSpaces.v24,

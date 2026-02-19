@@ -163,12 +163,18 @@ class _HomeTabState extends State<HomeTab> {
                   if (!widget.isGuest) const RecentOrdersSection(),
 
                   // Featured Section (filtered by category)
-                  FeaturedSection(isGuest: widget.isGuest),
+                  FeaturedSection(
+                    isGuest: widget.isGuest,
+                    category: _selectedCategory,
+                  ),
 
                   AppSpaces.v24,
 
                   // Fastest Section (filtered by category)
-                  FastestSection(isGuest: widget.isGuest),
+                  FastestSection(
+                    isGuest: widget.isGuest,
+                    category: _selectedCategory,
+                  ),
 
                   AppSpaces.v24,
                 ],

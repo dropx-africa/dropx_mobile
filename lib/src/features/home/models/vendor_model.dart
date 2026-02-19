@@ -12,6 +12,7 @@ class Vendor {
   final bool isFeatured;
   final bool isFastest;
   final String? accuracyBadge; // e.g., "98% Accurate"
+  final String category; // e.g., "Food", "Parcel", "Pharmacy", "Retail"
 
   const Vendor({
     required this.id,
@@ -24,6 +25,7 @@ class Vendor {
     required this.imageUrl,
     required this.logoUrl,
     required this.tags,
+    required this.category,
     this.isFeatured = false,
     this.isFastest = false,
     this.accuracyBadge,
@@ -39,6 +41,7 @@ class MenuItem {
   final String prepTime;
   final List<String> badges; // e.g., "156 ordered today", "Chef's Pick"
   final String category;
+  final String vendorId;
 
   const MenuItem({
     required this.id,
@@ -49,5 +52,6 @@ class MenuItem {
     required this.prepTime,
     this.badges = const [],
     required this.category,
+    required this.vendorId,
   });
 }

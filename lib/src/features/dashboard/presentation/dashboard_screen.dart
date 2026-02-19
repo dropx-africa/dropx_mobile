@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/route/page.dart';
+
 import 'package:dropx_mobile/src/features/home/presentation/home_tab.dart';
 import 'package:dropx_mobile/src/features/group/presentation/group_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/orders_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/profile_screen.dart';
 import 'package:dropx_mobile/src/features/discover/presentation/discover_screen.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool isGuest;
@@ -22,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _onTabTapped(int index) {
     // Check if guest is trying to access restricted tabs
     if (widget.isGuest && (index == 2 || index == 3 || index == 4)) {
-      _showLoginRequiredDialog();
+      _showSignUpSheet();
       return;
     }
 
@@ -31,27 +32,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  void _showLoginRequiredDialog() {
-    showDialog(
+  void _showSignUpSheet() {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Login Required'),
-        content: const Text('Please log in to access this feature.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigate to login
-              Navigator.pushNamed(context, AppRoute.login);
-            },
-            child: const Text('Login'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const SignUpToOrderSheet(),
     );
   }
 

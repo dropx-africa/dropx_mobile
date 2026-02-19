@@ -10,6 +10,7 @@ class AppColors {
   // Backgrounds
   static const Color darkBackground = Color(0xFF020B1C);
   static const Color white = Colors.white;
+  static const Color black = Colors.black;
   static const Color slate50 = Color(0xFFF8FAFC);
 
   // Status

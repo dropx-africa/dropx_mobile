@@ -9,6 +9,12 @@ class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final bool isPhone;
   final ValueChanged<PhoneNumber>? onPhoneChanged;
+  final String? label;
+  final String? Function(String?)? validator;
+  final bool obscureText;
+  final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
+  final Widget? suffixIcon;
 
   const AppTextField({
     super.key,
@@ -16,6 +22,12 @@ class AppTextField extends StatelessWidget {
     this.controller,
     this.isPhone = false,
     this.onPhoneChanged,
+    this.label,
+    this.validator,
+    this.obscureText = false,
+    this.keyboardType,
+    this.onChanged,
+    this.suffixIcon,
   });
 
   @override
@@ -64,20 +76,41 @@ class AppTextField extends StatelessWidget {
       );
     }
 
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        border: border,
-        enabledBorder: border,
-        focusedBorder: focusedBorder,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null) ...[
+          Text(
+            label!,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.slate500,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          validator: validator,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: border,
+            enabledBorder: border,
+            focusedBorder: focusedBorder,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            hintText: hintText,
+            suffixIcon: suffixIcon,
+          ),
         ),
-        hintText: hintText,
-      ),
+      ],
     );
   }
 }

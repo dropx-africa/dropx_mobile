@@ -6,32 +6,50 @@ import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart';
 
 class FastestSection extends StatelessWidget {
   final bool isGuest;
+  final String category;
 
-  const FastestSection({super.key, this.isGuest = false});
+  const FastestSection({
+    super.key,
+    this.isGuest = false,
+    required this.category,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Filter fastest vendors
-    final fastestVendors = mockVendors.where((v) => v.isFastest).toList();
-    // Fallback: If no dedicated "fastest" vendors, just show some vendors
+    // Filter fastest vendors by category
+    final fastestVendors = mockVendors
+        .where((v) => v.isFastest && v.category == category)
+        .toList();
+
     if (fastestVendors.isEmpty) {
-      fastestVendors.addAll(mockVendors.take(2));
+      return const SizedBox.shrink();
+    }
+
+    String title;
+    switch (category) {
+      case 'Parcel':
+        title = 'Express Logistics';
+        break;
+      case 'Pharmacy':
+        title = 'Quick Meds';
+        break;
+      case 'Retail':
+        title = 'Quick Retail';
+        break;
+      default:
+        title = 'Fastest Food';
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Icon(Icons.bolt, color: AppColors.primaryOrange, size: 20),
-              SizedBox(width: 8),
-              AppText(
-                'Fastest Food',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              const Icon(Icons.bolt, color: AppColors.primaryOrange, size: 20),
+              const SizedBox(width: 8),
+              AppText(title, fontSize: 18, fontWeight: FontWeight.bold),
             ],
           ),
         ),

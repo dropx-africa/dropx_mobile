@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/route/page.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key});
@@ -17,6 +18,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   final String _statusText = "Status"; // Lint fix: made final
   Color _statusColor = Colors.grey;
   Timer? _timer;
+  bool _isCodeShared = false;
 
   @override
   void initState() {
@@ -212,60 +214,124 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     ),
                   ] else ...[
                     // Order Completed & Paid -> Show OTP
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.green.shade100),
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.green.shade50,
+                    // Order Completed & Paid -> Show OTP or Success Options
+                    if (!_isCodeShared) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green.shade100),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.green.shade50,
+                        ),
+                        child: Column(
+                          children: [
+                            const AppText(
+                              "Order Completed",
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(height: 8),
+                            const AppText(
+                              "Provide this code to the rider:",
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 4),
+                            const AppText(
+                              "4 8 2 9",
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          const AppText(
-                            "Order Completed",
+                      const SizedBox(height: 16),
+                      // I have shared code button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isCodeShared = true;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryOrange,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const AppText(
+                            "I have shared the code",
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
                           ),
-                          const SizedBox(height: 8),
-                          const AppText(
-                            "Provide this code to the rider:",
-                            fontSize: 12,
-                            color: Colors.grey,
+                        ),
+                      ),
+                    ] else ...[
+                      // Code Shared -> Show Options
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoute.receipt,
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: AppColors.primaryOrange,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const AppText(
+                                  "View Receipt",
+                                  color: AppColors.primaryOrange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          const AppText(
-                            "4 8 2 9",
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoute.transactionDetails,
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryOrange,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const AppText(
+                                  "View Transaction",
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12, // Slightly smaller to fit
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Optional View Details button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(
-                            color: AppColors.primaryOrange,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const AppText(
-                          "View Order Details",
-                          color: AppColors.primaryOrange,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    ],
                   ],
                 ],
               ),

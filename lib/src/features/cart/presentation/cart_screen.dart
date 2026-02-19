@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
+
+import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart'; // Import mock data
 
 class CartScreen extends ConsumerWidget {
   final bool isGuest;
@@ -153,16 +157,19 @@ class CartScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _buildBillRow("Subtotal", "₦${_formatPrice(totalPrice)}"),
+                      _buildBillRow(
+                        "Subtotal",
+                        Formatters.formatNaira(totalPrice),
+                      ),
                       const SizedBox(height: 12),
                       _buildBillRow(
                         "Delivery Fee",
-                        "₦${_formatPrice(deliveryFee)}",
+                        Formatters.formatNaira(deliveryFee),
                       ),
                       const SizedBox(height: 12),
                       _buildBillRow(
                         "Service Fee",
-                        "₦${_formatPrice(serviceFee)}",
+                        Formatters.formatNaira(serviceFee),
                       ),
                       const SizedBox(height: 24),
                       const Divider(color: Colors.grey, thickness: 0.5),
@@ -177,7 +184,7 @@ class CartScreen extends ConsumerWidget {
                             fontWeight: FontWeight.bold,
                           ),
                           AppText(
-                            "₦${_formatPrice(totalAmount)}",
+                            Formatters.formatNaira(totalAmount),
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -194,9 +201,59 @@ class CartScreen extends ConsumerWidget {
                             if (isGuest) {
                               _showLoginRequiredDialog(context);
                             } else {
+                              // Determine Order Type based on first item
+                              final firstItem = cartItemsList.first.menuItem;
+                              OrderType orderType = OrderType.parcel;
+
+                              // Try to find vendor
+                              try {
+                                final vendor = mockVendors.firstWhere(
+                                  (v) => v.id == firstItem.vendorId,
+                                  orElse: () => mockVendors.first,
+                                );
+
+                                // Check vendor category
+                                switch (vendor.category) {
+                                  case "Parcel":
+                                    orderType = OrderType.parcel;
+                                    break;
+                                  case "Pharmacy":
+                                    orderType = OrderType.pharmacy;
+                                    break;
+                                  case "Retail":
+                                    orderType = OrderType.retail;
+                                    break;
+                                  default:
+                                    // Food or unknown -> Go to normal checkout
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoute.orderTracking,
+                                    );
+                                    return;
+                                }
+                              } catch (e) {
+                                // Fallback if vendor lookup fails
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoute.orderTracking,
+                                );
+                                return;
+                              }
+
+                              // Prepare pre-filled items string
+                              final itemsSummary = cartItemsList
+                                  .map(
+                                    (i) => "${i.quantity}x ${i.menuItem.name}",
+                                  )
+                                  .join(", ");
+
                               Navigator.pushNamed(
                                 context,
-                                AppRoute.orderTracking,
+                                AppRoute.genericOrder,
+                                arguments: {
+                                  'orderType': orderType,
+                                  'preFilledItem': itemsSummary,
+                                },
                               );
                             }
                           },
@@ -265,7 +322,7 @@ class CartScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     AppText(
-                      "₦${_formatPrice(item.price)}",
+                      Formatters.formatNaira(item.price),
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -317,13 +374,6 @@ class CartScreen extends ConsumerWidget {
           const Divider(height: 1, color: Colors.grey),
         ],
       ),
-    );
-  }
-
-  String _formatPrice(double price) {
-    return price.toInt().toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
     );
   }
 

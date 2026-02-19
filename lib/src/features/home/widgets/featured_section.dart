@@ -6,13 +6,39 @@ import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart';
 
 class FeaturedSection extends StatelessWidget {
   final bool isGuest;
+  final String category;
 
-  const FeaturedSection({super.key, this.isGuest = false});
+  const FeaturedSection({
+    super.key,
+    this.isGuest = false,
+    required this.category,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Filter featured vendors
-    final featuredVendors = mockVendors.where((v) => v.isFeatured).toList();
+    // Filter featured vendors by category
+    final featuredVendors = mockVendors
+        .where((v) => v.isFeatured && v.category == category)
+        .toList();
+
+    if (featuredVendors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    String title;
+    switch (category) {
+      case 'Parcel':
+        title = 'Top Logistics Partners';
+        break;
+      case 'Pharmacy':
+        title = 'Featured Pharmacies';
+        break;
+      case 'Retail':
+        title = 'Top Stores';
+        break;
+      default:
+        title = 'Featured Food';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -22,11 +48,7 @@ class FeaturedSection extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const AppText(
-                'Featured Food',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              AppText(title, fontSize: 18, fontWeight: FontWeight.bold),
               TextButton(
                 onPressed: () {},
                 child: const Text(

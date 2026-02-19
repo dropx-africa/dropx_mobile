@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/login_screen.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/sign_up_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/otp_screen.dart';
 import 'package:dropx_mobile/src/features/location/presentation/manual_location_screen.dart';
 import 'package:dropx_mobile/src/features/dashboard/presentation/dashboard_screen.dart';
@@ -10,6 +11,10 @@ import 'package:dropx_mobile/src/features/menu/presentation/vendor_menu_screen.d
 import 'package:dropx_mobile/src/features/home/models/vendor_model.dart';
 import 'package:dropx_mobile/src/features/cart/presentation/cart_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/order_tracking_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/receipt_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/transaction_details_screen.dart';
+import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
+import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -26,6 +31,12 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const LoginScreen(),
+        );
+
+      case AppRoute.signUp:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const SignUpScreen(),
         );
 
       case AppRoute.otp:
@@ -74,6 +85,44 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const OrderTrackingScreen(),
+        );
+
+      case AppRoute.receipt:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        // Pass empty map if null, screen handles defaults
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ReceiptScreen(orderDetails: args),
+        );
+
+      case AppRoute.transactionDetails:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => TransactionDetailsScreen(orderDetails: args),
+        );
+
+      case AppRoute.genericOrder:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final orderType = args['orderType'] as OrderType? ?? OrderType.parcel;
+        final preFilledItem = args['preFilledItem'] as String?;
+        final quantity = args['quantity'] as int?;
+        final isGroupOrder = args['isGroupOrder'] as bool? ?? false;
+
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => GenericOrderScreen(
+            orderType: orderType,
+            preFilledItem: preFilledItem,
+            quantity: quantity,
+            isGroupOrder: isGroupOrder,
+          ),
+        );
+
+      case AppRoute.pollResult:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const PollResultScreen(),
         );
 
       // Default Route (e.g., Onboarding)

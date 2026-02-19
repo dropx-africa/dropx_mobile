@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -6,15 +7,16 @@ import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
@@ -95,9 +97,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 backgroundColor: AppColors.primaryOrange,
                 textColor: AppColors.white,
                 icon: const Icon(Icons.arrow_forward, color: AppColors.white),
-                onPressed: () {
+                onPressed: () async {
                   if (_currentPage == _onboardingData.length - 1) {
-                    Navigator.pushReplacementNamed(context, AppRoute.login);
+                    await ref.read(sessionServiceProvider).markOnboardingDone();
+                    if (context.mounted) {
+                      Navigator.pushReplacementNamed(context, AppRoute.login);
+                    }
                   } else {
                     _pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
@@ -115,8 +120,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
                 child: CustomButton(
                   text: "I already have an account",
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, AppRoute.login);
+                  onPressed: () async {
+                    await ref.read(sessionServiceProvider).markOnboardingDone();
+                    if (context.mounted) {
+                      Navigator.pushReplacementNamed(context, AppRoute.login);
+                    }
                   },
                   backgroundColor: Colors.transparent,
                   textColor: AppColors.darkBackground,

@@ -7,6 +7,7 @@ import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/bottom_cart_bar.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
 class VendorMenuScreen extends ConsumerStatefulWidget {
   final Vendor vendor;
@@ -24,23 +25,35 @@ class VendorMenuScreen extends ConsumerStatefulWidget {
 
 class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
   String _selectedCategory = "All";
+  List<String> _categories = ["All"];
 
-  // Mock Categories for now
-  final List<String> _categories = [
-    "All",
-    "Most Popular",
-    "Quick Prep",
-    "Chef's Specials",
-    "Swallow",
-    "Rice",
-    "Drinks",
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _generateCategories();
+  }
+
+  void _generateCategories() {
+    final vendorItems = mockMenuItems
+        .where((item) => item.vendorId == widget.vendor.id)
+        .toList();
+    final categories = vendorItems
+        .map((item) => item.category)
+        .toSet()
+        .toList();
+    setState(() {
+      _categories = ["All", ...categories];
+    });
+  }
 
   List<MenuItem> get _filteredItems {
+    final vendorItems = mockMenuItems
+        .where((item) => item.vendorId == widget.vendor.id)
+        .toList();
     if (_selectedCategory == "All") {
-      return mockMenuItems;
+      return vendorItems;
     }
-    return mockMenuItems
+    return vendorItems
         .where((item) => item.category == _selectedCategory)
         .toList();
   }
@@ -291,8 +304,18 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                     return MenuItemCard(
                       item: item,
                       quantity: quantity,
-                      onAdd: () =>
-                          ref.read(cartProvider.notifier).addToCart(item),
+                      onAdd: () {
+                        if (widget.isGuest) {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => const SignUpToOrderSheet(),
+                          );
+                        } else {
+                          ref.read(cartProvider.notifier).addToCart(item);
+                        }
+                      },
                       onIncrement: () =>
                           ref.read(cartProvider.notifier).increment(item.id),
                       onDecrement: () =>

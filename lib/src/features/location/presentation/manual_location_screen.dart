@@ -1,219 +1,571 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/route/page.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/features/location/data/places_service.dart';
 
-class ManualLocationScreen extends StatefulWidget {
+class ManualLocationScreen extends ConsumerStatefulWidget {
   final bool isGuest;
   const ManualLocationScreen({super.key, this.isGuest = false});
 
   @override
-  State<ManualLocationScreen> createState() => _ManualLocationScreenState();
+  ConsumerState<ManualLocationScreen> createState() =>
+      _ManualLocationScreenState();
 }
 
-class _ManualLocationScreenState extends State<ManualLocationScreen> {
-  // Lagos, Nigeria
-  static const CameraPosition _validLagos = CameraPosition(
-    target: LatLng(6.5244, 3.3792),
+class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
+  final TextEditingController _addressController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  GoogleMapController? _mapController;
+  bool _mapReady = false;
+
+  static const LatLng _lagosDefault = LatLng(6.5244, 3.3792);
+  static const CameraPosition _initialPosition = CameraPosition(
+    target: _lagosDefault,
     zoom: 14.4746,
   );
 
-  GoogleMapController? _controller;
+  LatLng _pinPosition = _lagosDefault;
+  bool _locationGranted = false;
+  bool _locationLoading = true;
+  String? _gpsAddress;
+
+  Timer? _debounce;
+  List<PlacePrediction> _predictions = [];
+  bool _isSearching = false;
+  bool _showDropdown = false;
+  String? _selectedAddress;
 
   @override
   void initState() {
     super.initState();
-    _requestLocationPermission();
-  }
-
-  Future<void> _requestLocationPermission() async {
-    // Request location permission from the system
-    final status = await Permission.location.request();
-
-    if (status.isGranted) {
-      // Permission granted - location will be picked automatically by myLocationEnabled
-      // The map will center on user's location
-    } else {
-      // Permission denied - user can manually select location on the map
-      // Map stays centered on Lagos
-    }
+    _initLocation();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // 1. Google Map
-          GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: _validLagos,
-            onMapCreated: (GoogleMapController controller) {
-              _controller = controller;
-            },
-            myLocationEnabled: true,
-            myLocationButtonEnabled:
-                false, // Custom button if needed, or false for clean UI
-            zoomControlsEnabled: false,
-          ),
+  void dispose() {
+    _addressController.dispose();
+    _searchFocusNode.dispose();
+    _debounce?.cancel();
+    _mapController?.dispose();
+    super.dispose();
+  }
 
-          // 2. Top Bar (Back + Search)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          const BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.search, color: AppColors.slate500),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              decoration: InputDecoration(
-                                hintText: "Enter your address manually",
-                                border: InputBorder.none,
-                                hintStyle: TextStyle(color: AppColors.slate400),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+  // ── Location ─────────────────────────────────────────────────────────────
+
+  Future<void> _initLocation() async {
+    final granted = await _requestLocationPermission();
+    if (!mounted) return;
+    setState(() {
+      _locationGranted = granted;
+      _locationLoading = false;
+    });
+    if (granted && _mapReady) await _moveToCurrentLocation();
+  }
+
+  Future<bool> _requestLocationPermission() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) _showLocationServiceDialog();
+      return false;
+    }
+    LocationPermission perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied) return false;
+    }
+    if (perm == LocationPermission.deniedForever) {
+      if (mounted) _showSettingsDialog();
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _moveToCurrentLocation() async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+      final ll = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
+      setState(() {
+        _pinPosition = ll;
+        _gpsAddress = 'Your current location';
+      });
+      _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
+      );
+    } catch (_) {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null && mounted) {
+        final ll = LatLng(last.latitude, last.longitude);
+        setState(() {
+          _pinPosition = ll;
+          _gpsAddress = 'Your last known location';
+        });
+        _mapController?.animateCamera(
+          CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
+        );
+      }
+    }
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    if (query.isEmpty) {
+      setState(() {
+        _predictions = [];
+        _isSearching = _showDropdown = false;
+        _selectedAddress = null;
+      });
+      return;
+    }
+    setState(() {
+      _isSearching = true;
+      _showDropdown = false;
+      _selectedAddress = null;
+    });
+    _debounce = Timer(const Duration(milliseconds: 400), () async {
+      final results = await ref
+          .read(placesServiceProvider)
+          .getAutocomplete(query);
+      if (mounted) {
+        setState(() {
+          _predictions = results;
+          _isSearching = false;
+          _showDropdown = results.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  Future<void> _onPlaceSelected(PlacePrediction p) async {
+    _addressController.text = p.description;
+    _searchFocusNode.unfocus();
+    setState(() {
+      _predictions = [];
+      _showDropdown = false;
+      _isSearching = true;
+      _selectedAddress = null;
+    });
+    final details = await ref
+        .read(placesServiceProvider)
+        .getPlaceDetails(p.placeId);
+    if (!mounted) return;
+    if (details != null) {
+      setState(() {
+        _isSearching = false;
+        _selectedAddress = details.formattedAddress;
+        _pinPosition = details.location;
+      });
+      _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: details.location, zoom: 16),
+        ),
+      );
+    } else {
+      setState(() {
+        _isSearching = false;
+        _selectedAddress = p.description;
+      });
+    }
+  }
+
+  // ── Dialogs ───────────────────────────────────────────────────────────────
+
+  void _showLocationServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Location Services Off'),
+        content: const Text(
+          'Your device location is turned off. Enable it for better accuracy, '
+          'or search your delivery address manually.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Search Manually',
+              style: TextStyle(color: AppColors.slate500),
             ),
           ),
-
-          // 3. Bottom Sheet (Location content)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  const BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          // User said "aint using green". Using Orange tint.
-                          color: AppColors.primaryOrange.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.location_on,
-                          color: AppColors.primaryOrange,
-                        ),
-                      ),
-                      AppSpaces.h16,
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText(
-                              "123 Delivery Lane",
-                              fontWeight: FontWeight.bold,
-                            ),
-                            AppSubText(
-                              "Manhattan, New York, NY 10001",
-                              fontSize: 13,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  AppSpaces.v24,
-                  CustomButton(
-                    text: 'Confirm Location',
-                    backgroundColor: AppColors.primaryOrange,
-                    onPressed: () async {
-                      // Enforce Location Permission
-                      final status = await Permission.location.status;
-                      if (!status.isGranted) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Location permission is required to use the app.",
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          _requestLocationPermission();
-                        }
-                        return;
-                      }
-
-                      // Navigate to dashboard
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          AppRoute.dashboard,
-                          (route) => false,
-                          arguments: {'isGuest': widget.isGuest},
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Geolocator.openLocationSettings();
+            },
+            child: const Text(
+              'Enable Location',
+              style: TextStyle(color: AppColors.primaryOrange),
             ),
           ),
         ],
       ),
     );
   }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Location Permission Denied'),
+        content: const Text(
+          'You can still find your address using the search bar, '
+          'or enable location in your device settings.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Search Manually',
+              style: TextStyle(color: AppColors.slate500),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await Geolocator.openAppSettings();
+            },
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(color: AppColors.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final String? displayAddress = _selectedAddress ?? _gpsAddress;
+    final bool canConfirm = displayAddress != null;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) SystemNavigator.pop();
+      },
+      child: GestureDetector(
+        onTap: () {
+          _searchFocusNode.unfocus();
+          setState(() => _showDropdown = false);
+        },
+        child: Scaffold(
+          body: Stack(
+            children: [
+              _buildMap(displayAddress),
+              if (_locationLoading)
+                Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryOrange,
+                    ),
+                  ),
+                ),
+              _buildSearchBar(),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: canConfirm
+                      ? _buildConfirmCard(displayAddress!)
+                      : _buildHintCard(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Build Helpers ─────────────────────────────────────────────────────────
+
+  static BoxDecoration get _cardDecor => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: const [
+      BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+    ],
+  );
+
+  Widget _buildMap(String? displayAddress) {
+    return GoogleMap(
+      mapType: MapType.normal,
+      initialCameraPosition: _initialPosition,
+      myLocationEnabled: _locationGranted,
+      myLocationButtonEnabled: _locationGranted,
+      zoomControlsEnabled: false,
+      onMapCreated: (c) {
+        _mapController = c;
+        _mapReady = true;
+        if (_locationGranted) _moveToCurrentLocation();
+      },
+      onCameraMove: (p) => setState(() => _pinPosition = p.target),
+      markers: {
+        Marker(
+          markerId: const MarkerId('selected_location'),
+          position: _pinPosition,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: InfoWindow(title: displayAddress),
+        ),
+      },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _circleButton(Icons.close, () => SystemNavigator.pop()),
+                const SizedBox(width: 12),
+                Expanded(child: _searchField()),
+              ],
+            ),
+            if (_showDropdown && _predictions.isNotEmpty) _buildDropdown(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _circleButton(IconData icon, VoidCallback onTap) => Container(
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: IconButton(icon: Icon(icon), onPressed: onTap),
+  );
+
+  Widget _searchField() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    height: 50,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(25),
+      boxShadow: const [
+        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+      ],
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.search, color: AppColors.slate500),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            controller: _addressController,
+            focusNode: _searchFocusNode,
+            onChanged: _onSearchChanged,
+            onTap: () {
+              if (_predictions.isNotEmpty) setState(() => _showDropdown = true);
+            },
+            decoration: const InputDecoration(
+              hintText: 'Search delivery address...',
+              border: InputBorder.none,
+              hintStyle: TextStyle(color: AppColors.slate400),
+            ),
+          ),
+        ),
+        if (_isSearching)
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primaryOrange,
+            ),
+          )
+        else if (_addressController.text.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              _addressController.clear();
+              setState(() {
+                _predictions = [];
+                _showDropdown = false;
+                _selectedAddress = null;
+              });
+            },
+            child: const Icon(Icons.close, color: AppColors.slate400, size: 20),
+          ),
+      ],
+    ),
+  );
+
+  Widget _buildDropdown() => Container(
+    margin: const EdgeInsets.only(top: 8, left: 52),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: const [
+        BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4)),
+      ],
+    ),
+    constraints: const BoxConstraints(maxHeight: 280),
+    child: ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      shrinkWrap: true,
+      itemCount: _predictions.length,
+      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
+      itemBuilder: (ctx, i) {
+        final p = _predictions[i];
+        return ListTile(
+          dense: true,
+          leading: const Icon(
+            Icons.location_on,
+            size: 20,
+            color: AppColors.primaryOrange,
+          ),
+          title: Text(
+            p.mainText,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          subtitle: Text(
+            p.secondaryText,
+            style: const TextStyle(fontSize: 12, color: AppColors.slate500),
+          ),
+          onTap: () => _onPlaceSelected(p),
+        );
+      },
+    ),
+  );
+
+  /// Shown when a GPS/searched address exists.
+  /// The subtitle is tappable and shows the location dialog when in GPS-only mode.
+  Widget _buildConfirmCard(String displayAddress) {
+    final bool isGpsOnly = _selectedAddress == null;
+    return Container(
+      key: const ValueKey('confirm'),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.location_on,
+                  color: AppColors.primaryOrange,
+                ),
+              ),
+              AppSpaces.h16,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      displayAddress,
+                      fontWeight: FontWeight.bold,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // ── Tappable subtitle ──────────────────────────────────
+                    // When GPS-only: tapping opens the location service dialog
+                    GestureDetector(
+                      onTap: isGpsOnly ? _showLocationServiceDialog : null,
+                      child: AppSubText(
+                        isGpsOnly
+                            ? 'Or search for a specific address above'
+                            : 'Tap confirm to use this address',
+                        fontSize: 12,
+                        color: isGpsOnly
+                            ? AppColors.primaryOrange
+                            : AppColors.slate500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!isGpsOnly) ...[
+            AppSpaces.v16,
+            CustomButton(
+              text: 'Confirm Location',
+              backgroundColor: AppColors.primaryOrange,
+              onPressed: () async {
+                await ref
+                    .read(sessionServiceProvider)
+                    .confirmLocation(address: _selectedAddress!);
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRoute.dashboard,
+                    (route) => false,
+                    arguments: {'isGuest': widget.isGuest},
+                  );
+                }
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Shown when no location or search selection exists.
+  /// Tapping this card opens the location service dialog.
+  Widget _buildHintCard() => GestureDetector(
+    key: const ValueKey('hint'),
+    onTap: _showLocationServiceDialog,
+    child: Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: _cardDecor,
+      child: const Row(
+        children: [
+          Icon(Icons.location_off_outlined, color: AppColors.primaryOrange),
+          SizedBox(width: 12),
+          Expanded(
+            child: AppSubText(
+              'Tap here to enable location or search above',
+              fontSize: 13,
+              color: AppColors.primaryOrange,
+              // fontWeight: FontWeight.w600,
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            size: 14,
+            color: AppColors.primaryOrange,
+          ),
+        ],
+      ),
+    ),
+  );
 }

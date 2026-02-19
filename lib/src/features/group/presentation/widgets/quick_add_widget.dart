@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/constants/app_colors.dart';
 
 class QuickAddWidget extends StatelessWidget {
   final Function(String) onAdd;
+  final List<String> selectedOptions;
 
-  const QuickAddWidget({super.key, required this.onAdd});
+  const QuickAddWidget({
+    super.key,
+    required this.onAdd,
+    this.selectedOptions = const [],
+  });
 
   final List<Map<String, String>> _quickOptions = const [
     {'emoji': '🍚', 'text': 'Jollof Rice'},
@@ -28,17 +34,25 @@ class QuickAddWidget extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: _quickOptions.map((option) {
+              final isSelected = selectedOptions.contains(option['text']);
               return GestureDetector(
                 onTap: () => onAdd(option['text']!),
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(right: 12),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
+                    color: isSelected
+                        ? AppColors.primaryOrange.withValues(alpha: 0.1)
+                        : Colors.white,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primaryOrange
+                          : Colors.grey.shade200,
+                    ),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
@@ -51,7 +65,10 @@ class QuickAddWidget extends StatelessWidget {
                       AppText(
                         option['text']!,
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        color: isSelected ? AppColors.primaryOrange : null,
                       ),
                     ],
                   ),

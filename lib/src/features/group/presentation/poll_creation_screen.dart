@@ -22,16 +22,22 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
     // Start with 2 empty options
     _addOption();
     _addOption();
+    _addOption(); // Start with 3 fields for convenience since min is 3
   }
 
   void _addOption([String? initialText]) {
     if (_controllers.length >= _maxOptions) return;
+    final controller = TextEditingController(text: initialText);
+    controller.addListener(() {
+      setState(() {}); // Rebuild to update button state
+    });
     setState(() {
-      _controllers.add(TextEditingController(text: initialText));
+      _controllers.add(controller);
     });
   }
 
   void _removeOption(int index) {
+    if (_controllers.length <= 3) return; // Prevent removing below minimum
     setState(() {
       _controllers[index].dispose();
       _controllers.removeAt(index);
@@ -43,9 +49,7 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
     for (var controller in _controllers) {
       if (controller.text.isEmpty) {
         controller.text = text;
-        setState(
-          () {},
-        ); // specific field update usually doesn't need setstate if controller is bound, but for safety
+        // setstate called by listener
         return;
       }
     }
@@ -69,6 +73,11 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final validOptionsCount = _controllers
+        .where((c) => c.text.trim().isNotEmpty)
+        .length;
+    final bool isReady = validOptionsCount >= 3;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -119,15 +128,17 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
                           ),
                           child: TextField(
                             controller: _controllers[index],
+                            maxLength: 50,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
                               hintText: "Option",
                               hintStyle: TextStyle(color: AppColors.slate400),
+                              counterText: '', // Hide character counter
                             ),
                           ),
                         ),
                       ),
-                      if (_controllers.length > 2)
+                      if (_controllers.length > 3)
                         IconButton(
                           icon: const Icon(
                             Icons.close,
@@ -157,8 +168,6 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
                     borderRadius: BorderRadius.circular(12),
                     color: Colors.white,
                   ),
-                  // Dashed border is complex in flutter without external pkg, using solid for now or dotted decoration
-                  // Simply using outline with dashed effect requires CustomPainter, keeping it simple.
                   child: Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -181,33 +190,30 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
               ),
 
             const SizedBox(height: 32),
-            QuickAddWidget(onAdd: _onQuickAdd),
+            QuickAddWidget(
+              onAdd: _onQuickAdd,
+              selectedOptions: _controllers.map((c) => c.text).toList(),
+            ),
             const SizedBox(height: 48),
 
-            // Create Poll Button
+            // Create Poll Button (Dynamic State)
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: () {
-                  final options = _controllers
-                      .map((c) => c.text.trim())
-                      .where((t) => t.isNotEmpty)
-                      .toList();
-
-                  if (options.length < 2) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please add at least 2 options'),
-                      ),
-                    );
-                    return;
-                  }
-                  widget.onPollCreated(options);
-                },
+                onPressed: isReady
+                    ? () {
+                        final options = _controllers
+                            .map((c) => c.text.trim())
+                            .where((t) => t.isNotEmpty)
+                            .toList();
+                        widget.onPollCreated(options);
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors
-                      .slate200, // Disabled look initially per design, but functional here
+                  backgroundColor: isReady
+                      ? AppColors.primaryOrange
+                      : AppColors.slate200,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
@@ -215,12 +221,17 @@ class _PollCreationScreenState extends State<PollCreationScreen> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.check_box_outlined, color: AppColors.slate500),
-                    SizedBox(width: 8),
+                  children: [
+                    Icon(
+                      Icons.check_box_outlined,
+                      color: isReady ? Colors.white : AppColors.slate500,
+                    ),
+                    const SizedBox(width: 8),
                     AppText(
-                      "Create Poll (0/3 min)",
-                      color: AppColors.slate500,
+                      isReady
+                          ? "Create Poll"
+                          : "Enter 3 options ($validOptionsCount/3)",
+                      color: isReady ? Colors.white : AppColors.slate500,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
