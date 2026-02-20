@@ -13,18 +13,20 @@ class ApiEndpoints {
   // Auth
   static const String login = '/auth/login';
   static const String register = '/auth/register';
-  static const String verifyOtp = '/auth/verify-otp';
+  static const String requestOtp = '/auth/otp/request';
+  static const String resendOtp = '/auth/otp/resend';
+  static const String verifyOtp = '/auth/otp/verify';
   static const String refreshToken = '/auth/refresh';
   static const String profile = '/auth/profile';
 
-  // Google
-  static const String googlePlacesAutocomplete =
-      'https://maps.googleapis.com/maps/api/place/autocomplete/json';
+  // Maps / Geocoding
+  static const String geocode = '/maps/geocode';
 
   // Vendors
   static const String vendors = '/vendors';
   static String vendorById(String id) => '/vendors/$id';
   static String vendorMenu(String vendorId) => '/vendors/$vendorId/menu';
+  static String storeCatalog(String vendorId) => '/stores/$vendorId/catalog';
 
   // Orders
   static const String orders = '/orders';
@@ -35,7 +37,7 @@ class ApiEndpoints {
   static const String cart = '/cart';
 
   // Location
-  static const String searchLocation = '/locations/search';
+  static const String searchLocation = '/locations/search'; // legacy
 
   // Group Orders
   static const String groups = '/groups';

@@ -9,12 +9,13 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
-import 'package:dropx_mobile/src/features/location/data/places_service.dart';
+import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
 
 class ManualLocationScreen extends ConsumerStatefulWidget {
-  final bool isGuest;
-  const ManualLocationScreen({super.key, this.isGuest = false});
+
+  const ManualLocationScreen({super.key});
 
   @override
   ConsumerState<ManualLocationScreen> createState() =>
@@ -40,7 +41,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   String? _gpsAddress;
 
   Timer? _debounce;
-  List<PlacePrediction> _predictions = [];
+  List<GeocodeResult> _geocodeResults = [];
   bool _isSearching = false;
   bool _showDropdown = false;
   String? _selectedAddress;
@@ -101,7 +102,18 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
       if (!mounted) return;
       setState(() {
         _pinPosition = ll;
-        _gpsAddress = 'Your current location';
+        _gpsAddress = 'Locating...';
+      });
+      // Reverse-geocode to get a real address
+      final address = await ref.read(placesServiceProvider).reverseGeocode(ll);
+      if (!mounted) return;
+      setState(() {
+        if (address != null && address.isNotEmpty) {
+          _selectedAddress = address;
+          _gpsAddress = address;
+        } else {
+          _gpsAddress = 'Your current location';
+        }
       });
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
@@ -112,7 +124,19 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         final ll = LatLng(last.latitude, last.longitude);
         setState(() {
           _pinPosition = ll;
-          _gpsAddress = 'Your last known location';
+          _gpsAddress = 'Locating...';
+        });
+        final address2 = await ref
+            .read(placesServiceProvider)
+            .reverseGeocode(ll);
+        if (!mounted) return;
+        setState(() {
+          if (address2 != null && address2.isNotEmpty) {
+            _selectedAddress = address2;
+            _gpsAddress = address2;
+          } else {
+            _gpsAddress = 'Your last known location';
+          }
         });
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
@@ -127,7 +151,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     if (query.isEmpty) {
       setState(() {
-        _predictions = [];
+        _geocodeResults = [];
         _isSearching = _showDropdown = false;
         _selectedAddress = null;
       });
@@ -139,49 +163,45 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
       _selectedAddress = null;
     });
     _debounce = Timer(const Duration(milliseconds: 400), () async {
-      final results = await ref
-          .read(placesServiceProvider)
-          .getAutocomplete(query);
-      if (mounted) {
-        setState(() {
-          _predictions = results;
-          _isSearching = false;
-          _showDropdown = results.isNotEmpty;
-        });
+      try {
+        final results = await ref
+            .read(locationRepositoryProvider)
+            .geocode(query);
+        if (mounted) {
+          setState(() {
+            _geocodeResults = results;
+            _isSearching = false;
+            _showDropdown = results.isNotEmpty;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _geocodeResults = [];
+            _isSearching = false;
+            _showDropdown = false;
+          });
+        }
       }
     });
   }
 
-  Future<void> _onPlaceSelected(PlacePrediction p) async {
-    _addressController.text = p.description;
+  void _onGeocodeResultSelected(GeocodeResult result) {
+    _addressController.text = result.formattedAddress;
     _searchFocusNode.unfocus();
+    final location = LatLng(result.lat, result.lng);
     setState(() {
-      _predictions = [];
+      _geocodeResults = [];
       _showDropdown = false;
-      _isSearching = true;
-      _selectedAddress = null;
+      _isSearching = false;
+      _selectedAddress = result.formattedAddress;
+      _pinPosition = location;
     });
-    final details = await ref
-        .read(placesServiceProvider)
-        .getPlaceDetails(p.placeId);
-    if (!mounted) return;
-    if (details != null) {
-      setState(() {
-        _isSearching = false;
-        _selectedAddress = details.formattedAddress;
-        _pinPosition = details.location;
-      });
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: details.location, zoom: 16),
-        ),
-      );
-    } else {
-      setState(() {
-        _isSearching = false;
-        _selectedAddress = p.description;
-      });
-    }
+    _mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: location, zoom: 16),
+      ),
+    );
   }
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
@@ -198,7 +218,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             child: const Text(
               'Search Manually',
               style: TextStyle(color: AppColors.slate500),
@@ -206,7 +226,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              AppNavigator.pop(ctx);
               await Geolocator.openLocationSettings();
             },
             child: const Text(
@@ -231,7 +251,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             child: const Text(
               'Search Manually',
               style: TextStyle(color: AppColors.slate500),
@@ -239,7 +259,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              AppNavigator.pop(ctx);
               await Geolocator.openAppSettings();
             },
             child: const Text(
@@ -288,7 +308,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
                   child: canConfirm
-                      ? _buildConfirmCard(displayAddress!)
+                      ? _buildConfirmCard(displayAddress)
                       : _buildHintCard(),
                 ),
               ),
@@ -347,7 +367,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
                 Expanded(child: _searchField()),
               ],
             ),
-            if (_showDropdown && _predictions.isNotEmpty) _buildDropdown(),
+            if (_showDropdown && _geocodeResults.isNotEmpty) _buildDropdown(),
           ],
         ),
       ),
@@ -385,7 +405,9 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
             focusNode: _searchFocusNode,
             onChanged: _onSearchChanged,
             onTap: () {
-              if (_predictions.isNotEmpty) setState(() => _showDropdown = true);
+              if (_geocodeResults.isNotEmpty) {
+                setState(() => _showDropdown = true);
+              }
             },
             decoration: const InputDecoration(
               hintText: 'Search delivery address...',
@@ -408,7 +430,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
             onTap: () {
               _addressController.clear();
               setState(() {
-                _predictions = [];
+                _geocodeResults = [];
                 _showDropdown = false;
                 _selectedAddress = null;
               });
@@ -432,10 +454,10 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
     child: ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 4),
       shrinkWrap: true,
-      itemCount: _predictions.length,
+      itemCount: _geocodeResults.length,
       separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
       itemBuilder: (ctx, i) {
-        final p = _predictions[i];
+        final result = _geocodeResults[i];
         return ListTile(
           dense: true,
           leading: const Icon(
@@ -444,14 +466,12 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
             color: AppColors.primaryOrange,
           ),
           title: Text(
-            p.mainText,
+            result.formattedAddress,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text(
-            p.secondaryText,
-            style: const TextStyle(fontSize: 12, color: AppColors.slate500),
-          ),
-          onTap: () => _onPlaceSelected(p),
+          onTap: () => _onGeocodeResultSelected(result),
         );
       },
     ),
@@ -521,15 +541,15 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
               onPressed: () async {
                 await ref
                     .read(sessionServiceProvider)
-                    .confirmLocation(address: _selectedAddress!);
-                if (context.mounted) {
-                  Navigator.pushNamedAndRemoveUntil(
+                    .confirmLocation(address: _selectedAddress ?? '');
+                    if (!mounted) return;
+             
+                  AppNavigator.pushAndRemoveAll(
                     context,
                     AppRoute.dashboard,
-                    (route) => false,
-                    arguments: {'isGuest': widget.isGuest},
+                  
                   );
-                }
+                
               },
             ),
           ],

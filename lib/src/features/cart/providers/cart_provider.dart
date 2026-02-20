@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dropx_mobile/src/features/home/models/vendor_model.dart';
+import 'package:dropx_mobile/src/models/menu_item.dart';
 
 class CartItem {
   final MenuItem menuItem;

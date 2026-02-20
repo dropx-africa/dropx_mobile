@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -101,7 +102,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   if (_currentPage == _onboardingData.length - 1) {
                     await ref.read(sessionServiceProvider).markOnboardingDone();
                     if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, AppRoute.login);
+                      AppNavigator.pushReplacement(context, AppRoute.login);
                     }
                   } else {
                     _pageController.nextPage(
@@ -123,7 +124,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   onPressed: () async {
                     await ref.read(sessionServiceProvider).markOnboardingDone();
                     if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, AppRoute.login);
+                      AppNavigator.pushReplacement(context, AppRoute.login);
                     }
                   },
                   backgroundColor: Colors.transparent,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/home/models/vendor_model.dart';
+import 'package:dropx_mobile/src/models/vendor.dart';
 
 class VendorHeader extends StatelessWidget {
   final Vendor vendor;
@@ -21,7 +21,7 @@ class VendorHeader extends StatelessWidget {
               width: double.infinity,
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(vendor.imageUrl),
+                  image: AssetImage(vendor.imageUrl ?? ''),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -86,7 +86,7 @@ class VendorHeader extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       image: DecorationImage(
-                        image: AssetImage(vendor.logoUrl),
+                        image: AssetImage(vendor.logoUrl ?? ''),
                         fit: BoxFit.cover,
                       ),
                       border: Border.all(color: Colors.grey.shade200),
@@ -104,7 +104,7 @@ class VendorHeader extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         AppSubText(
-                          vendor.tags.join(" • "),
+                          (vendor.tags ?? []).join(" • "),
                           fontSize: 14,
                           color: Colors.grey,
                         ),
@@ -136,7 +136,7 @@ class VendorHeader extends StatelessWidget {
                   const Icon(Icons.access_time, color: Colors.grey, size: 16),
                   const SizedBox(width: 4),
                   AppText(
-                    vendor.deliveryTime,
+                    vendor.deliveryTime ?? '',
                     fontSize: 14,
                     color: Colors.grey.shade700,
                   ),
@@ -147,7 +147,7 @@ class VendorHeader extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   AppText(
-                    "₦${vendor.deliveryFee.toInt()}",
+                    "₦${(vendor.deliveryFee ?? 0).toInt()}",
                     fontSize: 14,
                     color: Colors.grey.shade700,
                   ),

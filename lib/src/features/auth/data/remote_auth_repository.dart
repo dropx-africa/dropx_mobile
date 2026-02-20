@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/features/auth/data/auth_repository.dart';
@@ -23,13 +24,38 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<AuthResponse> register(RegisterDto dto) async {
-    final response = await _apiClient.post<AuthResponse>(
-      ApiEndpoints.register,
-      data: dto.toJson(),
-      headers: ApiClient.traceHeaders(),
-      fromJson: (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
-    );
-    return response.data;
+    debugPrint('[RemoteAuthRepo] register() called with: ${dto.toJson()}');
+    try {
+      final response = await _apiClient.post<AuthResponse>(
+        ApiEndpoints.register,
+        data: dto.toJson(),
+        headers: ApiClient.traceHeaders(),
+        fromJson: (json) {
+          debugPrint('[RemoteAuthRepo] Raw register response JSON: $json');
+          debugPrint('[RemoteAuthRepo] JSON type: ${json.runtimeType}');
+          if (json is Map<String, dynamic>) {
+            debugPrint('[RemoteAuthRepo] Keys: ${json.keys.toList()}');
+            debugPrint(
+              '[RemoteAuthRepo] user_id: ${json['user_id']} (${json['user_id'].runtimeType})',
+            );
+            debugPrint(
+              '[RemoteAuthRepo] access_token: ${json['access_token'] != null ? 'present' : 'NULL'}',
+            );
+            debugPrint(
+              '[RemoteAuthRepo] refresh_token: ${json['refresh_token'] != null ? 'present' : 'NULL'}',
+            );
+          }
+          return AuthResponse.fromJson(json as Map<String, dynamic>);
+        },
+      );
+      debugPrint('[RemoteAuthRepo] register() success');
+      return response.data;
+    } catch (e, st) {
+      debugPrint('[RemoteAuthRepo] register() ERROR: $e');
+      debugPrint('[RemoteAuthRepo] register() ERROR type: ${e.runtimeType}');
+      debugPrint('[RemoteAuthRepo] register() Stack: $st');
+      rethrow;
+    }
   }
 
   @override

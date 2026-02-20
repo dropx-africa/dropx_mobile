@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -9,10 +10,10 @@ import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
-import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/login_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -27,7 +28,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -41,7 +41,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -59,21 +58,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         refreshToken: authResponse.refreshToken,
         userId: authResponse.userId,
       );
-
+      await session.saveLogin();
       // Set token on the API client
-      ApiClient().setAuthToken(authResponse.accessToken);
+      // ApiClient().setAuthToken(authResponse.accessToken);
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
+        AppToast.showSuccess(context, 'Login successful!');
+        AppNavigator.pushAndRemoveAll(
           context,
-          AppRoute.manualLocation,
-          (route) => false,
+          AppRoute.dashboard
         );
       }
     } on ApiException catch (e) {
-      setState(() => _errorMessage = e.message);
+      if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
-      setState(() => _errorMessage = 'Something went wrong. Please try again.');
+      if (mounted) {
+        AppToast.showError(context, 'Something went wrong. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -116,7 +117,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               AppSpaces.v8,
               GestureDetector(
-                onTap: () => Navigator.pushNamed(context, AppRoute.signUp),
+                onTap: () => AppNavigator.push(context, AppRoute.signUp),
                 child: const AppText(
                   "Don't have an account? Sign Up",
                   color: AppColors.primaryOrange,
@@ -170,31 +171,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               AppSpaces.v32,
 
-              // Error message
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: AppText(
-                    _errorMessage!,
-                    color: AppColors.errorRed,
-                    fontSize: 12,
-                  ),
-                ),
-
               // Login Button
               CustomButton(
-                text: _isLoading ? 'Logging in...' : 'Login',
+                text: 'Login',
                 isLoading: _isLoading,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white,
-                        ),
-                      )
-                    : const Icon(Icons.arrow_forward, color: AppColors.white),
                 onPressed: _isLoading ? () {} : _handleLogin,
                 backgroundColor: AppColors.darkBackground,
                 textColor: AppColors.white,
@@ -219,7 +199,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: () async {
                     await ref.read(sessionServiceProvider).saveGuestMode();
                     if (context.mounted) {
-                      Navigator.pushNamed(
+                      AppNavigator.push(
                         context,
                         AppRoute.manualLocation,
                         arguments: {'isGuest': true},

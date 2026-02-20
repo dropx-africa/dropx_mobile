@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 
 import 'package:dropx_mobile/src/features/home/widgets/category_button.dart';
@@ -9,25 +11,29 @@ import 'package:dropx_mobile/src/features/home/widgets/fastest_section.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/core/providers/core_providers.dart'; // session provider
 
-class HomeTab extends StatefulWidget {
-  final bool isGuest;
-
-  const HomeTab({super.key, this.isGuest = false});
+class HomeTab extends ConsumerStatefulWidget {
+  const HomeTab({super.key});
 
   @override
-  State<HomeTab> createState() => _HomeTabState();
+  ConsumerState<HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends State<HomeTab> {
-  String _selectedCategory = 'Food'; // Default category
+class _HomeTabState extends ConsumerState<HomeTab> {
+  // Note: ConsumerState gives access to `ref` through ConsumerStatefulWidget
+  VendorCategory _selectedCategory = VendorCategory.food; // Default category
 
   @override
   Widget build(BuildContext context) {
+    // Watch session provider for the saved address
+    final session = ref.watch(sessionServiceProvider);
+    final bool isGuest = session.isGuest;
+    final String displayAddress = session.savedAddress;
+
     return Scaffold(
       body: Column(
         children: [
-          // Fixed Orange Header
           // Fixed Orange Header
           Container(
             decoration: const BoxDecoration(
@@ -71,35 +77,39 @@ class _HomeTabState extends State<HomeTab> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       AppText(
-                                        _selectedCategory,
+                                        _selectedCategory.name
+                                                .substring(0, 1)
+                                                .toUpperCase() +
+                                            _selectedCategory.name.substring(1),
                                         color: Colors.white,
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
-                                      const AppText(
-                                        'FJ...04, Lagos, Nigeria',
+                                      AppText(
+                                        displayAddress,
                                         color: Colors.white70,
                                         fontSize: 12,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ),
                                 ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
+                                // const Icon(
+                                //   Icons.keyboard_arrow_down,
+                                //   color: Colors.white,
+                                //   size: 20,
+                                // ),
                               ],
                             ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.search, color: Colors.white),
-                          onPressed: () {
-                            // Navigate to discover/search screen
-                            // TODO: Create search/discover screen
-                          },
-                        ),
+                        // IconButton(
+                        //   icon: const Icon(Icons.search, color: Colors.white),
+                        //   onPressed: () {
+                        //     // Navigate to discover/search screen
+                        //   },
+                        // ),
                       ],
                     ),
                     AppSpaces.v16,
@@ -112,30 +122,38 @@ class _HomeTabState extends State<HomeTab> {
                           CategoryButton(
                             icon: Icons.restaurant,
                             label: 'Food',
-                            isSelected: _selectedCategory == 'Food',
-                            onTap: () =>
-                                setState(() => _selectedCategory = 'Food'),
+                            isSelected:
+                                _selectedCategory == VendorCategory.food,
+                            onTap: () => setState(
+                              () => _selectedCategory = VendorCategory.food,
+                            ),
                           ),
                           CategoryButton(
                             icon: Icons.local_pharmacy,
                             label: 'Pharmacy',
-                            isSelected: _selectedCategory == 'Pharmacy',
-                            onTap: () =>
-                                setState(() => _selectedCategory = 'Pharmacy'),
+                            isSelected:
+                                _selectedCategory == VendorCategory.pharmacy,
+                            onTap: () => setState(
+                              () => _selectedCategory = VendorCategory.pharmacy,
+                            ),
                           ),
                           CategoryButton(
                             icon: Icons.card_giftcard,
                             label: 'Parcel',
-                            isSelected: _selectedCategory == 'Parcel',
-                            onTap: () =>
-                                setState(() => _selectedCategory = 'Parcel'),
+                            isSelected:
+                                _selectedCategory == VendorCategory.parcel,
+                            onTap: () => setState(
+                              () => _selectedCategory = VendorCategory.parcel,
+                            ),
                           ),
                           CategoryButton(
                             icon: Icons.shopping_cart,
                             label: 'Retail',
-                            isSelected: _selectedCategory == 'Retail',
-                            onTap: () =>
-                                setState(() => _selectedCategory = 'Retail'),
+                            isSelected:
+                                _selectedCategory == VendorCategory.retail,
+                            onTap: () => setState(
+                              () => _selectedCategory = VendorCategory.retail,
+                            ),
                           ),
                         ],
                       ),
@@ -153,29 +171,12 @@ class _HomeTabState extends State<HomeTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppSpaces.v16,
-
-                  // Delivery Time Filters
                   const DeliveryFilter(),
-
                   AppSpaces.v24,
-
-                  // Recent Orders (hidden for guests)
-                  if (!widget.isGuest) const RecentOrdersSection(),
-
-                  // Featured Section (filtered by category)
-                  FeaturedSection(
-                    isGuest: widget.isGuest,
-                    category: _selectedCategory,
-                  ),
-
+                  if (!isGuest) const RecentOrdersSection(),
+                  FeaturedSection(category: _selectedCategory),
                   AppSpaces.v24,
-
-                  // Fastest Section (filtered by category)
-                  FastestSection(
-                    isGuest: widget.isGuest,
-                    category: _selectedCategory,
-                  ),
-
+                  FastestSection(category: _selectedCategory),
                   AppSpaces.v24,
                 ],
               ),

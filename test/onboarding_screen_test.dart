@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dropx_mobile/src/features/onboarding/presentation/onboarding_screen.dart';
 
 void main() {
-  testWidgets('OnboardingScreen renders correctly', (WidgetTester tester) async {
+  testWidgets('OnboardingScreen renders correctly', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
 
     // Verify initial page content

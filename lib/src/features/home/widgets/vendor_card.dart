@@ -1,8 +1,10 @@
+import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/home/models/vendor_model.dart';
+import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 
 class VendorCard extends StatelessWidget {
   final Vendor vendor;
@@ -20,10 +22,10 @@ class VendorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(
+        AppNavigator.push(
           context,
-          AppRoute.vendorMenu, // We will define this route later
-          arguments: {'vendor': vendor, 'isGuest': isGuest},
+          AppRoute.vendorMenu,
+          arguments: {'vendorId': vendor.id},
         );
       },
       child: Container(
@@ -54,7 +56,7 @@ class VendorCard extends StatelessWidget {
                       topRight: Radius.circular(16),
                     ),
                     image: DecorationImage(
-                      image: AssetImage(vendor.imageUrl),
+                      image: AssetImage(vendor.imageUrl ?? AppIcon.foodJollof),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -105,7 +107,7 @@ class VendorCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         AppText(
-                          '${vendor.rating} (${vendor.ratingCount}+)',
+                          '${vendor.rating ?? 0} (${vendor.ratingCount ?? 0}+)',
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -137,7 +139,7 @@ class VendorCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   AppSubText(
-                    vendor.tags.join(" • "),
+                    (vendor.tags ?? ['accuracy']).join(" • "),
                     fontSize: 12,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -150,7 +152,7 @@ class VendorCard extends StatelessWidget {
                         color: Colors.grey,
                       ),
                       const SizedBox(width: 4),
-                      AppSubText(vendor.deliveryTime, fontSize: 12),
+                      AppSubText(vendor.deliveryTime ?? '9:00AM', fontSize: 12),
                       const SizedBox(width: 12),
                       const Icon(
                         Icons.delivery_dining,
@@ -159,7 +161,7 @@ class VendorCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       AppSubText(
-                        "₦${vendor.deliveryFee.toInt()}",
+                        "₦${(vendor.deliveryFee ?? 0).toInt()}",
                         fontSize: 12,
                       ),
                     ],

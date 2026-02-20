@@ -10,11 +10,14 @@ void main() {
 
     // Verify static texts
     expect(find.text('Get Started'), findsOneWidget);
-    expect(find.text('Enter your phone number to login or sign up.'), findsOneWidget);
-    
+    expect(
+      find.text('Enter your phone number to login or sign up.'),
+      findsOneWidget,
+    );
+
     // Verify Inputs
-    expect(find.byIcon(Icons.phone_android), findsOneWidget); 
-    
+    expect(find.byIcon(Icons.phone_android), findsOneWidget);
+
     // Verify Buttons
     expect(find.text('Continue'), findsOneWidget);
     // expect(find.text('Google'), findsOneWidget); // Removed in this view

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/home/models/vendor_model.dart';
+import 'package:dropx_mobile/src/models/menu_item.dart';
+
+const _fallbackImagePath = 'assets/images/food_jollof.png';
 
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
@@ -41,18 +43,8 @@ class MenuItemCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: AssetImage(item.imageUrl),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              // Image – supports network, asset, or fallback
+              _buildItemImage(),
               const SizedBox(width: 12),
               // Content
               Expanded(
@@ -78,87 +70,113 @@ class MenuItemCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     // Badges
-                    Wrap(
-                      spacing: 8,
-                      children: item.badges.map((badge) {
-                        Color bgColor = Colors.purple.shade50;
-                        Color textColor = Colors.purple;
-                        if (badge.contains('ordered')) {
-                          bgColor = Colors.red.shade50;
-                          textColor = Colors.red;
-                        }
+                    if (item.badges != null && item.badges!.isNotEmpty)
+                      Wrap(
+                        spacing: 8,
+                        children: item.badges!.map((badge) {
+                          Color bgColor = Colors.purple.shade50;
+                          Color textColor = Colors.purple;
+                          if (badge.contains('ordered')) {
+                            bgColor = Colors.red.shade50;
+                            textColor = Colors.red;
+                          }
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (badge.contains('ordered'))
-                                Icon(
-                                  Icons.local_fire_department,
-                                  size: 10,
-                                  color: textColor,
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (badge.contains('ordered'))
+                                  Icon(
+                                    Icons.local_fire_department,
+                                    size: 10,
+                                    color: textColor,
+                                  ),
+                                if (badge.contains('ordered'))
+                                  const SizedBox(width: 4),
+                                if (badge.contains('Chef'))
+                                  Icon(
+                                    Icons.restaurant_menu,
+                                    size: 10,
+                                    color: textColor,
+                                  ),
+                                if (badge.contains('Chef'))
+                                  const SizedBox(width: 4),
+                                Text(
+                                  badge,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              if (badge.contains('ordered'))
-                                const SizedBox(width: 4),
-                              if (badge.contains('Chef'))
-                                Icon(
-                                  Icons.restaurant_menu,
-                                  size: 10,
-                                  color: textColor,
-                                ),
-                              if (badge.contains('Chef'))
-                                const SizedBox(width: 4),
-
-                              Text(
-                                badge,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     const SizedBox(height: 6),
                     AppSubText(
-                      item.description,
+                      item.description ?? '',
                       fontSize: 12,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.timer_outlined,
-                          size: 12,
-                          color: Colors.grey,
+                    if (item.prepTime != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 12,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          AppSubText(item.prepTime!, fontSize: 11),
+                        ],
+                      ),
+                    ],
+                    // Availability indicator
+                    if (!item.isAvailable) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
                         ),
-                        const SizedBox(width: 4),
-                        AppSubText(item.prepTime, fontSize: 11),
-                      ],
-                    ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Unavailable',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          // Add Button
+          // Add Button – disabled if item unavailable
           Align(
             alignment: Alignment.centerRight,
-            child: quantity > 0
+            child: !item.isAvailable
+                ? const SizedBox.shrink()
+                : quantity > 0
                 ? Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 4,
@@ -235,6 +253,46 @@ class MenuItemCard extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildItemImage() {
+    final url = item.imageUrl;
+
+    if (url != null && url.isNotEmpty) {
+      // Network image
+      if (url.startsWith('http')) {
+        return Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+          ),
+        );
+      }
+      // Asset image
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          image: DecorationImage(image: AssetImage(url), fit: BoxFit.cover),
+        ),
+      );
+    }
+
+    // Fallback to static image
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        image: const DecorationImage(
+          image: AssetImage(_fallbackImagePath),
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }

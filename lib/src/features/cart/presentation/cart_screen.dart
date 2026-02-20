@@ -5,6 +5,8 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
 
 import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart'; // Import mock data
@@ -44,7 +46,7 @@ class CartScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigator.pop(context),
         ),
       ),
       body: cartItemsList.isEmpty
@@ -214,13 +216,13 @@ class CartScreen extends ConsumerWidget {
 
                                 // Check vendor category
                                 switch (vendor.category) {
-                                  case "Parcel":
+                                  case VendorCategory.parcel:
                                     orderType = OrderType.parcel;
                                     break;
-                                  case "Pharmacy":
+                                  case VendorCategory.pharmacy:
                                     orderType = OrderType.pharmacy;
                                     break;
-                                  case "Retail":
+                                  case VendorCategory.retail:
                                     orderType = OrderType.retail;
                                     break;
                                   default:
@@ -297,7 +299,7 @@ class CartScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   image: DecorationImage(
-                    image: AssetImage(item.imageUrl),
+                    image: AssetImage(item.imageUrl ?? ''),
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -314,7 +316,7 @@ class CartScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     AppText(
-                      item.description,
+                      item.description ?? '',
                       fontSize: 12,
                       color: Colors.grey.shade600,
                       maxLines: 1,
@@ -400,13 +402,13 @@ class CartScreen extends ConsumerWidget {
         content: const AppText("Please log in to place an order."),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigator.pop(context),
             child: const AppText("Cancel", color: Colors.grey),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, AppRoute.login);
+              AppNavigator.pop(context);
+              AppNavigator.push(context, AppRoute.login);
             },
             child: const AppText(
               "Login",

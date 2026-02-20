@@ -4,6 +4,7 @@ import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 
 class SignUpToOrderSheet extends StatelessWidget {
   const SignUpToOrderSheet({super.key});
@@ -40,7 +41,7 @@ class SignUpToOrderSheet extends StatelessWidget {
 
           // Subtitle
           const AppSubText(
-            "Create an account to start ordering from 3+ vendors in Yaba",
+            "Create an account to start ordering your favorite meals and enjoy exclusive offers!",
             textAlign: TextAlign.center,
             fontSize: 16,
           ),
@@ -50,7 +51,7 @@ class SignUpToOrderSheet extends StatelessWidget {
           CustomButton(
             text: 'Sign Up Now',
             onPressed: () {
-              Navigator.pop(context); // Close sheet
+              AppNavigator.pop(context); // Close sheet
               Navigator.pushNamed(context, AppRoute.login);
             },
             backgroundColor: AppColors.primaryOrange,
@@ -60,7 +61,7 @@ class SignUpToOrderSheet extends StatelessWidget {
 
           // Continue Browsing
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigator.pop(context),
             child: const AppText(
               "Continue Browsing",
               color: AppColors.slate500,

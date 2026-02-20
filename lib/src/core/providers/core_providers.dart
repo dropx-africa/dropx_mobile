@@ -3,6 +3,8 @@ import 'package:dropx_mobile/src/core/network/api_client.dart';
 
 import 'package:dropx_mobile/src/core/services/session_service.dart';
 import 'package:dropx_mobile/src/features/location/data/places_service.dart';
+import 'package:dropx_mobile/src/features/location/data/location_repository.dart';
+import 'package:dropx_mobile/src/features/location/data/remote_location_repository.dart';
 
 /// Core-level Riverpod providers shared across the entire app.
 ///
@@ -23,7 +25,12 @@ final sessionServiceProvider = Provider<SessionService>((ref) {
   throw UnimplementedError('sessionServiceProvider must be overridden');
 });
 
-/// Provides the PlacesService for Google Places API.
+/// Provides the PlacesService for Google Places API (reverse geocoding).
 final placesServiceProvider = Provider<PlacesService>((ref) {
   return PlacesService();
+});
+
+/// Provides the LocationRepository for geocoding (address search).
+final locationRepositoryProvider = Provider<LocationRepository>((ref) {
+  return RemoteLocationRepository(ref.watch(apiClientProvider));
 });

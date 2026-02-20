@@ -53,11 +53,11 @@ class SessionService {
     await saveLogin();
   }
 
-  /// Shortcut kept for backward compatibility.
-  Future<void> saveUserToken(String token) async {
-    await _prefs.setString(_keyAuthToken, token);
-    await saveLogin();
-  }
+  // /// Shortcut kept for backward compatibility.
+  // Future<void> saveUserToken(String token) async {
+  //   await _prefs.setString(_keyAuthToken, token);
+  //   await saveLogin();
+  // }
 
   Future<void> saveGuestMode() async {
     await _prefs.setBool(_keyIsGuest, true);
@@ -88,6 +88,6 @@ class SessionService {
     if (!hasSeenOnboarding) return AppRoute.onboarding;
     if (!isLoggedIn && !isGuest) return AppRoute.login;
     if (!hasConfirmedLocation) return AppRoute.manualLocation;
-    return AppRoute.manualLocation;
+    return AppRoute.dashboard;
   }
 }
