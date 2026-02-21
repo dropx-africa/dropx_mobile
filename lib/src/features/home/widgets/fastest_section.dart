@@ -10,13 +10,9 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/home/widgets/vendor_card.dart';
 
 class FastestSection extends ConsumerWidget {
-
   final VendorCategory category;
 
-  const FastestSection({
-    super.key,
-    required this.category,
-  });
+  const FastestSection({super.key, required this.category});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,10 +20,8 @@ class FastestSection extends ConsumerWidget {
     final session = ref.watch(sessionServiceProvider);
     final bool isGuest = session.isGuest;
     return vendorsAsync.when(
-      loading: () => const SizedBox(
-        height: 250,
-        child: Center(child: AppLoadingWidget()),
-      ),
+      loading: () =>
+          const SizedBox(height: 250, child: Center(child: AppLoadingWidget())),
       error: (e, st) => const SizedBox.shrink(),
       data: (vendors) {
         final fastestVendors = vendors;

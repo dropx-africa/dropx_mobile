@@ -8,10 +8,6 @@ import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 
 /// ─── Repository Provider ──────────────────────────────────────
-///
-/// This is the single toggle point for swapping mock ↔ real API.
-/// When the API is ready, change [MockVendorRepository] to
-/// [VendorRepositoryImpl] and inject [apiClientProvider].
 final vendorRepositoryProvider = Provider<VendorRepository>((ref) {
   return RemoteVendorRepository(ref.watch(apiClientProvider));
 });
@@ -24,6 +20,14 @@ final vendorsProvider = FutureProvider.family<List<Vendor>, VendorCategory?>((
   category,
 ) {
   return ref.watch(vendorRepositoryProvider).getVendors();
+});
+
+/// Vendors filtered by zone ID — used in the cart to fetch vendor info.
+final vendorsByZoneProvider = FutureProvider.family<List<Vendor>, String>((
+  ref,
+  zoneId,
+) {
+  return ref.watch(vendorRepositoryProvider).getVendors(zoneId: zoneId);
 });
 
 /// Single vendor by ID.

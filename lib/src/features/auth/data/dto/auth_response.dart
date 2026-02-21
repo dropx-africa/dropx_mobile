@@ -1,29 +1,16 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'auth_response.g.dart';
+// AuthResponse uses hand-written fromJson/toJson to handle
+// both login (top-level user_id) and register (nested user.user_id) shapes.
 
 /// Response model for login and register endpoints.
 ///
-/// Matches the actual API response:
-/// ```json
-/// {
-///   "ok": true,
-///   "user_id": "c0a8012b-3d2c-4d3a-9b7c-9a0a4a1d2f33",
-///   "access_token": "<jwt>",
-///   "refresh_token": "<jwt>"
-/// }
-/// ```
-@JsonSerializable()
+/// Handles both response shapes:
+/// - Login:    `{ "ok": true, "user_id": "...", "access_token": "...", ... }`
+/// - Register: `{ "ok": true, "user": { "user_id": "..." }, "access_token": "...", ... }`
 class AuthResponse {
   final bool ok;
-
-  @JsonKey(name: 'user_id')
   final String userId;
 
-  @JsonKey(name: 'access_token')
   final String accessToken;
-
-  @JsonKey(name: 'refresh_token')
   final String refreshToken;
 
   const AuthResponse({
@@ -33,8 +20,27 @@ class AuthResponse {
     required this.refreshToken,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) =>
-      _$AuthResponseFromJson(json);
+  /// Custom fromJson that extracts user_id from either top-level or nested user object.
+  factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    // Extract user_id: try top-level first, then nested user object
+    String userId = json['user_id'] as String? ?? '';
+    if (userId.isEmpty && json['user'] is Map<String, dynamic>) {
+      final user = json['user'] as Map<String, dynamic>;
+      userId = user['user_id'] as String? ?? '';
+    }
 
-  Map<String, dynamic> toJson() => _$AuthResponseToJson(this);
+    return AuthResponse(
+      ok: json['ok'] as bool? ?? false,
+      userId: userId,
+      accessToken: json['access_token'] as String,
+      refreshToken: json['refresh_token'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'ok': ok,
+    'user_id': userId,
+    'access_token': accessToken,
+    'refresh_token': refreshToken,
+  };
 }

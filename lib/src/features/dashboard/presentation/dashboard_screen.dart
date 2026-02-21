@@ -8,13 +8,11 @@ import 'package:dropx_mobile/src/features/profile/presentation/profile_screen.da
 import 'package:dropx_mobile/src/features/discover/presentation/discover_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
-
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  ConsumerState<DashboardScreen> createState() =>
-      _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
@@ -46,8 +44,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-
-
     final List<Widget> tabs = [
       HomeTab(),
       const DiscoverScreen(),
@@ -56,10 +52,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: tabs,
-      ),
+      body: IndexedStack(index: _currentIndex, children: tabs),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
@@ -67,22 +60,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         selectedItemColor: AppColors.primaryOrange,
         unselectedItemColor: AppColors.slate400,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Discover',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Discover'),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long),
             label: 'Orders',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

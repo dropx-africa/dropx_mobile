@@ -1,5 +1,6 @@
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
@@ -60,35 +61,44 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         role: 'customer', // Default role
       );
 
-      debugPrint('[SignUp] DTO payload: ${dto.toJson()}');
+      if (kDebugMode) {
+        print('[SignUp] DTO payload: ${dto.toJson()}');
+      }
 
       final authResponse = await ref.read(authRepositoryProvider).register(dto);
-      debugPrint('[SignUp] Success — userId: ${authResponse.userId}');
+      if (kDebugMode) {
+        print('[SignUp] Success — userId: ${authResponse.userId}');
+      }
 
-      // Save session
       final session = ref.read(sessionServiceProvider);
       await session.saveAuthSession(
         accessToken: authResponse.accessToken,
         refreshToken: authResponse.refreshToken,
         userId: authResponse.userId,
+        fullName: _fullNameController.text.trim(),
+        phone: _phoneNumber,
       );
 
-      // // Set token on the API client
-      // ApiClient().setAuthToken(authResponse.accessToken);
+      // Set token on the API client for all subsequent requests
+      ApiClient().setAuthToken(authResponse.accessToken);
 
       if (mounted) {
         AppToast.showSuccess(context, 'Account created successfully!');
-        AppNavigator.pushReplacement(context, AppRoute.login);
+        AppNavigator.pushReplacement(context, AppRoute.manualLocation);
       }
     } on ApiException catch (e, st) {
-      debugPrint('[SignUp] ApiException: ${e.message}');
-      debugPrint('[SignUp] ApiException statusCode: ${e.statusCode}');
-      debugPrint('[SignUp] ApiException stack: $st');
+      if (kDebugMode) {
+        print('[SignUp] ApiException: ${e.message}');
+        print('[SignUp] ApiException statusCode: ${e.statusCode}');
+        print('[SignUp] ApiException stack: $st');
+      }
       if (mounted) AppToast.showError(context, e.message);
     } catch (e, st) {
-      debugPrint('[SignUp] Unexpected error: $e');
-      debugPrint('[SignUp] Unexpected error type: ${e.runtimeType}');
-      debugPrint('[SignUp] Stack trace: $st');
+      if (kDebugMode) {
+        print('[SignUp] Unexpected error: $e');
+        print('[SignUp] Unexpected error type: ${e.runtimeType}');
+        print('[SignUp] Stack trace: $st');
+      }
       if (mounted) {
         AppToast.showError(context, 'Something went wrong. Please try again.');
       }
@@ -134,13 +144,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               // Email
               AppTextField(
                 label: 'Email Address',
-                hintText: 'Enter your email: eg example@gmail.com',
+                hintText: 'eg example@gmail.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 validator: (val) {
-                  if (val == null || val.isEmpty)
-                    return 'Email Address isRequired';
-                  if (!val.contains('@')) return 'Invalid email';
+                  if (val == null || val.isEmpty) {
+                    return 'Email Address is Required';
+                  }
+
+                  if (!val.contains('@')) {
+                    return 'Invalid email';
+                  }
                   return null;
                 },
               ),

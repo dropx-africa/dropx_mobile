@@ -1,5 +1,6 @@
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
@@ -20,6 +21,12 @@ class VendorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      print(
+        'VendorCard build: ${vendor.name}, id: ${vendor.id}, '
+        'rating: ${vendor.rating}, deliveryFee: ${vendor.deliveryFee}',
+      );
+    }
     return GestureDetector(
       onTap: () {
         AppNavigator.push(
@@ -139,7 +146,7 @@ class VendorCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   AppSubText(
-                    (vendor.tags ?? ['accuracy']).join(" • "),
+                    (vendor.tags ?? ['rice']).join(" • "),
                     fontSize: 12,
                     overflow: TextOverflow.ellipsis,
                   ),

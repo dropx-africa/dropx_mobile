@@ -19,7 +19,8 @@ class SessionService {
   static const _keyAuthToken = 'auth_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyUserId = 'user_id';
-
+  static const _keyFullName = 'full_name';
+  static const _keyPhone = 'phone';
   // ── Getters ───────────────────────────────────────────────────────────
   bool get hasSeenOnboarding => _prefs.getBool(_keyOnboardingSeen) ?? false;
   bool get isLoggedIn => _prefs.getBool(_keyIsLoggedIn) ?? false;
@@ -30,6 +31,8 @@ class SessionService {
   String? get authToken => _prefs.getString(_keyAuthToken);
   String? get refreshToken => _prefs.getString(_keyRefreshToken);
   String? get userId => _prefs.getString(_keyUserId);
+  String get fullName => _prefs.getString(_keyFullName) ?? '';
+  String get phone => _prefs.getString(_keyPhone) ?? '';
 
   // ── Mutators ──────────────────────────────────────────────────────────
   Future<void> markOnboardingDone() async {
@@ -43,13 +46,27 @@ class SessionService {
 
   /// Persist tokens and user ID after a successful login or register.
   Future<void> saveAuthSession({
-    required String accessToken,
-    required String refreshToken,
-    required String userId,
+    String? accessToken,
+    String? refreshToken,
+    String? userId,
+    String? fullName,
+    String? phone,
   }) async {
-    await _prefs.setString(_keyAuthToken, accessToken);
-    await _prefs.setString(_keyRefreshToken, refreshToken);
-    await _prefs.setString(_keyUserId, userId);
+    if (accessToken != null && accessToken.isNotEmpty) {
+      await _prefs.setString(_keyAuthToken, accessToken);
+    }
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _prefs.setString(_keyRefreshToken, refreshToken);
+    }
+    if (userId != null && userId.isNotEmpty) {
+      await _prefs.setString(_keyUserId, userId);
+    }
+    if (fullName != null && fullName.isNotEmpty) {
+      await _prefs.setString(_keyFullName, fullName);
+    }
+    if (phone != null && phone.isNotEmpty) {
+      await _prefs.setString(_keyPhone, phone);
+    }
     await saveLogin();
   }
 
@@ -76,17 +93,18 @@ class SessionService {
     await _prefs.setBool(_keyIsLoggedIn, false);
     await _prefs.setBool(_keyIsGuest, false);
     await _prefs.setBool(_keyLocationConfirmed, false);
-    await _prefs.remove(_keySavedAddress);
     await _prefs.remove(_keyAuthToken);
     await _prefs.remove(_keyRefreshToken);
     await _prefs.remove(_keyUserId);
+    // await _prefs.remove(_keyFullName);
+    // await _prefs.remove(_keyPhone);
     // Note: we deliberately keep onboarding_seen = true
   }
 
   // ── Routing helper ────────────────────────────────────────────────────
   String getInitialRoute() {
     if (!hasSeenOnboarding) return AppRoute.onboarding;
-    if (!isLoggedIn && !isGuest) return AppRoute.login;
+    if (!isLoggedIn) return AppRoute.login;
     if (!hasConfirmedLocation) return AppRoute.manualLocation;
     return AppRoute.dashboard;
   }

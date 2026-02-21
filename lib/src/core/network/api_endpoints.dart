@@ -31,7 +31,19 @@ class ApiEndpoints {
   // Orders
   static const String orders = '/orders';
   static String orderById(String id) => '/orders/$id';
+  static String placeOrder(String id) => '/orders/$id/place';
+  static String generatePaymentLink(String id) => '/orders/$id/payment-link';
   static const String orderTracking = '/orders/tracking';
+
+  // Payments
+  static const String initializePayment = '/payments/initialize';
+  // Webhook only — not called from the client.
+  // static const String verifyPayment = '/payments/webhook/paystack';
+
+  // Pay Links
+  static String payLinkDetails(String token) => '/pay-links/$token';
+  static String initializePayLink(String token) =>
+      '/pay-links/$token/initialize';
 
   // Cart
   static const String cart = '/cart';

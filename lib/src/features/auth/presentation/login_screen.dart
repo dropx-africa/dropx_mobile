@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,16 +59,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         refreshToken: authResponse.refreshToken,
         userId: authResponse.userId,
       );
-      await session.saveLogin();
+
       // Set token on the API client
-      // ApiClient().setAuthToken(authResponse.accessToken);
+      ApiClient().setAuthToken(authResponse.accessToken);
 
       if (mounted) {
         AppToast.showSuccess(context, 'Login successful!');
-        AppNavigator.pushAndRemoveAll(
-          context,
-          AppRoute.dashboard
-        );
+        if (!session.hasConfirmedLocation) {
+          AppNavigator.pushReplacement(context, AppRoute.manualLocation);
+        } else {
+          AppNavigator.pushReplacement(context, AppRoute.dashboard);
+        }
       }
     } on ApiException catch (e) {
       if (mounted) AppToast.showError(context, e.message);

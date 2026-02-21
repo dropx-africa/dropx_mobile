@@ -1,4 +1,6 @@
+import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -6,18 +8,192 @@ import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
-import 'package:dropx_mobile/src/models/vendor_category.dart';
-import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/create_order_dto.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/create_order_item_dto.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/place_order_dto.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_dto.dart';
+import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
+import 'package:dropx_mobile/src/utils/currency_utils.dart';
+import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
+import 'package:dropx_mobile/src/models/vendor.dart';
 
-import 'package:dropx_mobile/src/features/home/data/mock_vendors.dart'; // Import mock data
-
-class CartScreen extends ConsumerWidget {
-  final bool isGuest;
-
-  const CartScreen({super.key, this.isGuest = false});
+class CartScreen extends ConsumerStatefulWidget {
+  const CartScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends ConsumerState<CartScreen> {
+  bool _isPlacingOrder = false;
+  String _selectedPaymentMethod = 'PAYSTACK'; // Default to Paystack
+
+  Future<void> _placeOrder() async {
+    final cartState = ref.read(cartProvider);
+    final session = ref.read(sessionServiceProvider);
+    final orderRepo = ref.read(orderRepositoryProvider);
+
+    final vendorId = cartState.vendorId;
+    final zoneId = cartState.zoneId;
+    final deliveryAddress = session.savedAddress;
+
+    if (vendorId == null || zoneId == null) {
+      _showSnackBar('Unable to place order. Please add items from a vendor.');
+      return;
+    }
+
+    setState(() => _isPlacingOrder = true);
+
+    try {
+      // 1. Build CreateOrderDto from cart items.
+      final orderItems = cartState.items.values.map((cartItem) {
+        return CreateOrderItemDto(
+          name: cartItem.menuItem.name,
+          qty: cartItem.quantity,
+          unitPriceKobo: CurrencyUtils.nairaToKobo(cartItem.menuItem.price),
+        );
+      }).toList();
+
+      final createDto = CreateOrderDto(
+        vendorId: vendorId,
+        zoneId: zoneId,
+        deliveryAddress: deliveryAddress,
+        items: orderItems,
+      );
+
+      // 2. Create the order.
+      final orderResponse = await orderRepo.createOrder(createDto);
+      final orderId = orderResponse.order.orderId;
+
+      // Determine logic based on selected payment method
+      if (_selectedPaymentMethod == 'WALLET') {
+        final walletDto = PlaceOrderDto(paymentMethod: 'WALLET');
+        await orderRepo.placeOrder(orderId, walletDto);
+
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, AppRoute.orderSuccess);
+      } else if (_selectedPaymentMethod == 'GENERATE_LINK') {
+        final linkDto = GeneratePaymentLinkDto(ttlMinutes: 30);
+        final linkResponse = await orderRepo.generatePaymentLink(
+          orderId,
+          linkDto,
+        );
+
+        if (!mounted) return;
+
+        if (!mounted) return;
+
+        final shareableLink =
+            'https://dropxwebapp.vercel.app/pay-link/${linkResponse.token}';
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const AppText(
+              'Payment Link Generated',
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppText(
+                  'Share this link with your friend to complete the payment:',
+                  fontSize: 14,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppText(
+                          shareableLink,
+                          fontSize: 14,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.copy,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: shareableLink));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Link copied to clipboard!'),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); 
+            
+                },
+                child: const AppText(
+                  'Close',
+                  color: AppColors.grayText,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // 3. Initialize payment (Default Paystack)
+        final paymentDto = InitializePaymentDto(orderId: orderId);
+        final paymentResponse = await orderRepo.initializePayment(paymentDto);
+
+        if (!mounted) return;
+
+        // 4. Navigate to Paystack checkout.
+        AppNavigator.push(
+          context,
+          AppRoute.paystackCheckout,
+          arguments: {
+            'authorizationUrl': paymentResponse.authorizationUrl,
+            'reference': paymentResponse.reference,
+            'orderId': orderId,
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Failed to place order: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) setState(() => _isPlacingOrder = false);
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.read(sessionServiceProvider);
+    final isGuest = session.isGuest;
+    final String displayAddress = session.savedAddress;
     final cartState = ref.watch(cartProvider);
     final cartItemsList = cartState.items.values.toList();
     final totalPrice = cartState.totalPrice;
@@ -30,17 +206,10 @@ class CartScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppText("My Cart", fontWeight: FontWeight.bold, fontSize: 18),
-            const SizedBox(height: 2),
-            AppText(
-              "Mama Put's Kitchen",
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ],
+        title: const AppText(
+          "My Cart",
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -74,6 +243,10 @@ class CartScreen extends ConsumerWidget {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
+                        // Vendor Info (fetched via getVendors with zoneId)
+                        if (cartState.zoneId != null)
+                          _buildVendorSection(cartState),
+
                         // Address Section
                         Container(
                           margin: const EdgeInsets.all(16),
@@ -112,14 +285,20 @@ class CartScreen extends ConsumerWidget {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              const Row(
+                              Row(
                                 children: [
-                                  Icon(Icons.location_on_outlined, size: 16),
-                                  SizedBox(width: 4),
-                                  AppText(
-                                    "12 Herbert Macaulay Way, Yaba",
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: AppText(
+                                      displayAddress,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -141,7 +320,44 @@ class CartScreen extends ConsumerWidget {
                                 .toList(),
                           ),
                         ),
-                        const SizedBox(height: 16), // Bottom padding for list
+                        const SizedBox(height: 16),
+                        // Payment Method Selection
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AppText(
+                                "PAYMENT METHOD",
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildPaymentMethodOption(
+                                'PAYSTACK',
+                                'Paystack',
+                                Icons.credit_card,
+                              ),
+                              _buildPaymentMethodOption(
+                                'WALLET',
+                                'Wallet',
+                                Icons.account_balance_wallet,
+                              ),
+                              _buildPaymentMethodOption(
+                                'GENERATE_LINK',
+                                'Generate Link',
+                                Icons.link,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -199,78 +415,34 @@ class CartScreen extends ConsumerWidget {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (isGuest) {
-                              _showLoginRequiredDialog(context);
-                            } else {
-                              // Determine Order Type based on first item
-                              final firstItem = cartItemsList.first.menuItem;
-                              OrderType orderType = OrderType.parcel;
-
-                              // Try to find vendor
-                              try {
-                                final vendor = mockVendors.firstWhere(
-                                  (v) => v.id == firstItem.vendorId,
-                                  orElse: () => mockVendors.first,
-                                );
-
-                                // Check vendor category
-                                switch (vendor.category) {
-                                  case VendorCategory.parcel:
-                                    orderType = OrderType.parcel;
-                                    break;
-                                  case VendorCategory.pharmacy:
-                                    orderType = OrderType.pharmacy;
-                                    break;
-                                  case VendorCategory.retail:
-                                    orderType = OrderType.retail;
-                                    break;
-                                  default:
-                                    // Food or unknown -> Go to normal checkout
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoute.orderTracking,
-                                    );
-                                    return;
-                                }
-                              } catch (e) {
-                                // Fallback if vendor lookup fails
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoute.orderTracking,
-                                );
-                                return;
-                              }
-
-                              // Prepare pre-filled items string
-                              final itemsSummary = cartItemsList
-                                  .map(
-                                    (i) => "${i.quantity}x ${i.menuItem.name}",
-                                  )
-                                  .join(", ");
-
-                              Navigator.pushNamed(
-                                context,
-                                AppRoute.genericOrder,
-                                arguments: {
-                                  'orderType': orderType,
-                                  'preFilledItem': itemsSummary,
+                          onPressed: _isPlacingOrder
+                              ? null
+                              : () {
+                                  _placeOrder();
                                 },
-                              );
-                            }
-                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryOrange,
+                            disabledBackgroundColor: AppColors.primaryOrange
+                                .withValues(alpha: 0.6),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const AppText(
-                            "Place Order",
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          child: _isPlacingOrder
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const AppText(
+                                  "Place Order",
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -298,11 +470,17 @@ class CartScreen extends ConsumerWidget {
                 height: 60,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: AssetImage(item.imageUrl ?? ''),
-                    fit: BoxFit.cover,
-                  ),
+                  image: item.imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(item.imageUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                  color: item.imageUrl == null ? Colors.grey.shade200 : null,
                 ),
+                child: item.imageUrl == null
+                    ? const Icon(Icons.fastfood, color: Colors.grey)
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -379,6 +557,119 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
+  /// Fetches vendors by zoneId and displays the matching vendor's info.
+  Widget _buildVendorSection(CartState cartState) {
+    final zoneId = cartState.zoneId!;
+    final vendorsAsync = ref.watch(vendorsByZoneProvider(zoneId));
+    final cartVendorId = cartState.vendorId;
+
+    return vendorsAsync.when(
+      loading: () => Container(
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (vendors) {
+        // Find the vendor that matches the cart items
+        Vendor? vendor;
+        if (cartVendorId != null && vendors.isNotEmpty) {
+          vendor = vendors.cast<Vendor?>().firstWhere(
+            (v) => v!.id == cartVendorId,
+            orElse: () => null,
+          );
+        }
+        vendor ??= vendors.isNotEmpty ? vendors.first : null;
+
+        if (vendor == null) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              // Vendor image
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.grey.shade200,
+                  image: vendor.imageUrl != null
+                      ? DecorationImage(
+                          image: NetworkImage(vendor.imageUrl!),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: vendor.imageUrl == null
+                    ? const Icon(Icons.store, color: Colors.grey)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppText(
+                      vendor.name,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (vendor.deliveryTime != null) ...[
+                          Icon(
+                            Icons.access_time,
+                            size: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          AppText(
+                            vendor.deliveryTime!,
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Icon(
+                          Icons.delivery_dining,
+                          size: 13,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        AppText(
+                          '₦${(vendor.deliveryFee ?? 0).toInt()}',
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildBillRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -394,29 +685,52 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  void _showLoginRequiredDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const AppText("Login Required", fontWeight: FontWeight.bold),
-        content: const AppText("Please log in to place an order."),
-        actions: [
-          TextButton(
-            onPressed: () => AppNavigator.pop(context),
-            child: const AppText("Cancel", color: Colors.grey),
+  Widget _buildPaymentMethodOption(String value, String title, IconData icon) {
+    final isSelected = _selectedPaymentMethod == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = value;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryOrange.withValues(alpha: 0.1)
+              : Colors.transparent,
+          border: Border.all(
+            color: isSelected ? AppColors.primaryOrange : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
           ),
-          TextButton(
-            onPressed: () {
-              AppNavigator.pop(context);
-              AppNavigator.push(context, AppRoute.login);
-            },
-            child: const AppText(
-              "Login",
-              color: AppColors.primaryOrange,
-              fontWeight: FontWeight.bold,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isSelected
+                  ? AppColors.primaryOrange
+                  : Colors.grey.shade600,
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppText(
+                title,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isSelected ? AppColors.primaryOrange : Colors.black87,
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.primaryOrange,
+                size: 20,
+              ),
+          ],
+        ),
       ),
     );
   }

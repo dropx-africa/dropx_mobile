@@ -69,10 +69,12 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
           final storeName = store['display_name'] as String? ?? 'Store';
           final storeImage = store['image_url'] as String?;
           // final storeLogo = store['logo_url'] as String?;
-          final storeTags = (store['tags'] as List?)?.cast<String>() ?? ["accuracy"];
+          final storeTags =
+              (store['tags'] as List?)?.cast<String>() ?? ["accuracy"];
           final storeRating = store['rating'] ?? 0;
           final storeRatingCount = store['rating_count'] ?? 0;
-          final storeDeliveryTime = store['delivery_time'] as String? ?? '9:00AM';
+          final storeDeliveryTime =
+              store['delivery_time'] as String? ?? '9:00AM';
           final storeDeliveryFee = store['delivery_fee'] ?? 0;
 
           return Stack(
@@ -147,7 +149,6 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                        
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +329,24 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                                     const SignUpToOrderSheet(),
                               );
                             } else {
-                              ref.read(cartProvider.notifier).addToCart(item);
+                              final storeZoneId =
+                                  store['zone_id'] as String? ?? '';
+                              final result = ref
+                                  .read(cartProvider.notifier)
+                                  .addToCart(
+                                    item,
+                                    vendorId: widget.vendorId,
+                                    zoneId: storeZoneId,
+                                  );
+
+                              if (result == AddToCartResult.vendorConflict) {
+                                _showVendorConflictDialog(
+                                  context,
+                                  ref,
+                                  item,
+                                  storeZoneId,
+                                );
+                              }
                             }
                           },
                           onIncrement: () => ref
@@ -366,6 +384,49 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showVendorConflictDialog(
+    BuildContext context,
+    WidgetRef ref,
+    MenuItem item,
+    String zoneId,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const AppText(
+          'Replace cart items?',
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+        content: const AppText(
+          'Your cart contains items from another vendor. '
+          'Would you like to clear the cart and add this item instead?',
+          fontSize: 14,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const AppText('Cancel', color: AppColors.slate400),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref
+                  .read(cartProvider.notifier)
+                  .clearAndAdd(item, vendorId: widget.vendorId, zoneId: zoneId);
+            },
+            child: const AppText(
+              'Clear & Add',
+              color: AppColors.primaryOrange,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

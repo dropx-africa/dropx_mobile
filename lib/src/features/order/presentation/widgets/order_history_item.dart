@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/order/models/order_model.dart';
+import 'package:dropx_mobile/src/models/order.dart';
+import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:intl/intl.dart';
 
 class OrderHistoryItem extends StatelessWidget {
-  final OrderModel order;
+  final Order order;
   final VoidCallback onReorder;
 
   const OrderHistoryItem({
@@ -17,6 +18,19 @@ class OrderHistoryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
+    final totalNaira = CurrencyUtils.koboToNaira(
+      int.tryParse(order.totalAmountKobo) ?? 0,
+    );
+
+    // Build items summary text from order items
+    final itemsSummary = order.items != null && order.items!.isNotEmpty
+        ? order.items!.map((i) => '${i.qty}x ${i.name}').join(', ')
+        : 'No items';
+
+    // Format date
+    final displayDate = order.createdAt != null
+        ? DateFormat.yMMMd().format(DateTime.parse(order.createdAt!))
+        : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -42,15 +56,12 @@ class OrderHistoryItem extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: AssetImage(order.vendorLogo), // Assuming asset path
-                    fit: BoxFit.cover,
-                  ),
+                  color: AppColors.slate200,
                 ),
-                // Fallback icon mostly for development/mocking if asset missing
-                child: order.vendorLogo.isEmpty
-                    ? const Icon(Icons.store, color: AppColors.slate400)
-                    : null,
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: AppColors.slate400,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -58,17 +69,19 @@ class OrderHistoryItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppText(
-                      order.vendorName,
+                      'Order #${order.orderId.substring(0, 8)}',
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                     const SizedBox(height: 4),
                     AppText(
-                      order.status,
+                      order.state,
                       fontSize: 12,
-                      color: order.status == 'Delivered'
+                      color: order.state == 'DELIVERED'
                           ? AppColors.secondaryGreen
-                          : AppColors.errorRed,
+                          : order.state == 'CANCELLED'
+                          ? AppColors.errorRed
+                          : AppColors.primaryOrange,
                       fontWeight: FontWeight.w600,
                     ),
                   ],
@@ -78,13 +91,13 @@ class OrderHistoryItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   AppText(
-                    currencyFormat.format(order.price),
+                    currencyFormat.format(totalNaira),
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primaryOrange,
                   ),
                   const SizedBox(height: 4),
-                  AppText(order.date, fontSize: 12, color: AppColors.slate400),
+                  AppText(displayDate, fontSize: 12, color: AppColors.slate400),
                 ],
               ),
             ],
@@ -96,7 +109,7 @@ class OrderHistoryItem extends StatelessWidget {
             children: [
               Expanded(
                 child: AppText(
-                  order.itemsSummary,
+                  itemsSummary,
                   fontSize: 13,
                   color: AppColors.slate500,
                   maxLines: 2,

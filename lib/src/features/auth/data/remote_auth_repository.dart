@@ -24,36 +24,44 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<AuthResponse> register(RegisterDto dto) async {
-    debugPrint('[RemoteAuthRepo] register() called with: ${dto.toJson()}');
+    if (kDebugMode) {
+      print('[RemoteAuthRepo] register() called with: ${dto.toJson()}');
+    }
     try {
       final response = await _apiClient.post<AuthResponse>(
         ApiEndpoints.register,
         data: dto.toJson(),
         headers: ApiClient.traceHeaders(),
         fromJson: (json) {
-          debugPrint('[RemoteAuthRepo] Raw register response JSON: $json');
-          debugPrint('[RemoteAuthRepo] JSON type: ${json.runtimeType}');
-          if (json is Map<String, dynamic>) {
-            debugPrint('[RemoteAuthRepo] Keys: ${json.keys.toList()}');
-            debugPrint(
-              '[RemoteAuthRepo] user_id: ${json['user_id']} (${json['user_id'].runtimeType})',
-            );
-            debugPrint(
-              '[RemoteAuthRepo] access_token: ${json['access_token'] != null ? 'present' : 'NULL'}',
-            );
-            debugPrint(
-              '[RemoteAuthRepo] refresh_token: ${json['refresh_token'] != null ? 'present' : 'NULL'}',
-            );
+          if (kDebugMode) {
+            print('[RemoteAuthRepo] Raw register response JSON: $json');
+            print('[RemoteAuthRepo] JSON type: ${json.runtimeType}');
+            if (json is Map<String, dynamic>) {
+              print('[RemoteAuthRepo] Keys: ${json.keys.toList()}');
+              print(
+                '[RemoteAuthRepo] user_id: ${json['user_id']} (${json['user_id'].runtimeType})',
+              );
+              print(
+                '[RemoteAuthRepo] access_token: ${json['access_token'] != null ? 'present' : 'NULL'}',
+              );
+              print(
+                '[RemoteAuthRepo] refresh_token: ${json['refresh_token'] != null ? 'present' : 'NULL'}',
+              );
+            }
           }
           return AuthResponse.fromJson(json as Map<String, dynamic>);
         },
       );
-      debugPrint('[RemoteAuthRepo] register() success');
+      if (kDebugMode) {
+        print('[RemoteAuthRepo] register() success');
+      }
       return response.data;
     } catch (e, st) {
-      debugPrint('[RemoteAuthRepo] register() ERROR: $e');
-      debugPrint('[RemoteAuthRepo] register() ERROR type: ${e.runtimeType}');
-      debugPrint('[RemoteAuthRepo] register() Stack: $st');
+      if (kDebugMode) {
+        print('[RemoteAuthRepo] register() ERROR: $e');
+        print('[RemoteAuthRepo] register() ERROR type: ${e.runtimeType}');
+        print('[RemoteAuthRepo] register() Stack: $st');
+      }
       rethrow;
     }
   }

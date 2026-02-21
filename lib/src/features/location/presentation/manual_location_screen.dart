@@ -14,7 +14,6 @@ import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
 
 class ManualLocationScreen extends ConsumerStatefulWidget {
-
   const ManualLocationScreen({super.key});
 
   @override
@@ -542,14 +541,9 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
                 await ref
                     .read(sessionServiceProvider)
                     .confirmLocation(address: _selectedAddress ?? '');
-                    if (!mounted) return;
-             
-                  AppNavigator.pushAndRemoveAll(
-                    context,
-                    AppRoute.dashboard,
-                  
-                  );
-                
+                if (!mounted) return;
+
+                AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
               },
             ),
           ],

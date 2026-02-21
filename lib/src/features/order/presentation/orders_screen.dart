@@ -1,45 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/order/models/order_model.dart';
+import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/presentation/widgets/order_history_item.dart';
 
-class OrdersScreen extends StatelessWidget {
+class OrdersScreen extends ConsumerWidget {
   const OrdersScreen({super.key});
 
-  final List<OrderModel> _orders = const [
-    OrderModel(
-      id: '1',
-      vendorName: 'Mama Put',
-      vendorLogo:
-          'assets/images/food_placeholder.png', // Ensure this exists or handle error
-      itemsSummary: '2x Jollof Rice, 1x Fried Plantain, 1x Grilled Chicken',
-      date: 'Today, 12:30 PM',
-      price: 4500,
-      status: 'Delivered',
-    ),
-    OrderModel(
-      id: '2',
-      vendorName: 'Chicken Republic',
-      vendorLogo: 'assets/images/food_placeholder.png',
-      itemsSummary: '1x Refuel Combo, 1x Coke (50cl)',
-      date: 'Yesterday, 6:45 PM',
-      price: 3200,
-      status: 'Delivered',
-    ),
-    OrderModel(
-      id: '3',
-      vendorName: 'MedPlus Pharmacy',
-      vendorLogo: 'assets/images/pharmacy_placeholder.png',
-      itemsSummary: '1x Panadol Extra, 1x Vitamin C',
-      date: 'Mon, 10:15 AM',
-      price: 1800,
-      status: 'Cancelled',
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(ordersProvider);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -51,10 +23,12 @@ class OrdersScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         centerTitle: false,
-        automaticallyImplyLeading: false, // Hide back button for tab
+        automaticallyImplyLeading: false,
       ),
-      body: _orders.isEmpty
-          ? Center(
+      body: ordersAsync.when(
+        data: (orders) {
+          if (orders.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -76,24 +50,34 @@ class OrdersScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _orders.length,
-              itemBuilder: (context, index) {
-                return OrderHistoryItem(
-                  order: _orders[index],
-                  onReorder: () {
-                    // TODO: Implement Reorder Logic (Add to cart)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Reordering... Added to cart'),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              return OrderHistoryItem(
+                order: orders[index],
+                onReorder: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reordering... Added to cart'),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
+          child: AppText(
+            'Failed to load orders: $error',
+            color: AppColors.errorRed,
+          ),
+        ),
+      ),
     );
   }
 }

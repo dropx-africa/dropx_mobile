@@ -7,7 +7,7 @@ import 'package:dropx_mobile/src/features/vendor/data/dto/vendor_response.dart';
 import 'package:dropx_mobile/src/features/vendor/data/vendor_repository.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class RemoteVendorRepository implements VendorRepository {
   final ApiClient _apiClient;
@@ -30,7 +30,9 @@ class RemoteVendorRepository implements VendorRepository {
     );
 
     final vendors = response.data.vendors;
-    debugPrint('[VENDOR] Fetched ${vendors.length} vendors');
+    if (kDebugMode) {
+      print('[VENDOR] Fetched ${vendors.length} vendors');
+    }
     if (category != null) {
       return vendors.where((v) => v.category == category).toList();
     }

@@ -4,12 +4,17 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/core/network/api_client.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionServiceProvider);
+    final displayName = session.fullName.isNotEmpty ? session.fullName : 'User';
+    final displayPhone = session.phone.isNotEmpty ? session.phone : '—';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
@@ -42,34 +47,37 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 32,
-                      backgroundColor: AppColors.slate200,
-                      backgroundImage: const AssetImage(
-                        'assets/images/user.png',
-                      ), // Mock
-                      child: const Icon(
-                        Icons.person,
-                        size: 32,
-                        color: AppColors.slate500,
+                      backgroundColor: AppColors.primaryOrange.withValues(
+                        alpha: 0.15,
+                      ),
+                      child: AppText(
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
+                            : 'U',
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryOrange,
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const AppText(
-                          "Musa Ibrahim",
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        const SizedBox(height: 4),
-                        AppText(
-                          "+234 812 345 6789",
-                          fontSize: 14,
-                          color: AppColors.slate400,
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppText(
+                            displayName,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          const SizedBox(height: 4),
+                          AppText(
+                            displayPhone,
+                            fontSize: 14,
+                            color: AppColors.slate400,
+                          ),
+                        ],
+                      ),
                     ),
-                    const Spacer(),
                     IconButton(
                       icon: const Icon(
                         Icons.edit_outlined,
@@ -93,7 +101,6 @@ class ProfileScreen extends ConsumerWidget {
               _buildProfileOption(
                 icon: Icons.group_add_outlined,
                 title: "Connect with Friends",
-
                 onTap: () {},
               ),
               _buildProfileOption(
@@ -136,16 +143,7 @@ class ProfileScreen extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () async {
-                    // Clear persisted session
-                    await ref.read(sessionServiceProvider).clearSession();
-                    if (context.mounted) {
-                      Navigator.of(context).pushNamedAndRemoveUntil(
-                        AppRoute.login,
-                        (route) => false,
-                      );
-                    }
-                  },
+                  onPressed: () => _showLogoutConfirmation(context, ref),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -159,6 +157,47 @@ class ProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const AppText(
+          "Log Out",
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+        content: const AppText(
+          "Are you sure you want to log out?",
+          fontSize: 14,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const AppText("Cancel", color: AppColors.slate400),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(sessionServiceProvider).clearSession();
+              ApiClient().clearAuthToken();
+              if (context.mounted) {
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoute.login, (route) => false);
+              }
+            },
+            child: const AppText(
+              "Log Out",
+              color: AppColors.errorRed,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

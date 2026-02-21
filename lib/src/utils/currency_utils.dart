@@ -31,4 +31,9 @@ class CurrencyUtils {
   static String formatNaira(double naira) {
     return '₦${_formatter.format(naira)}';
   }
+
+  /// Convert a naira [double] to kobo [int] for API payloads.
+  static int nairaToKobo(double naira) {
+    return (naira * 100).round();
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pinput/pinput.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 
@@ -53,7 +54,9 @@ class AppOtpField extends StatelessWidget {
       showCursor: true,
       onCompleted: onCompleted,
       onClipboardFound: (value) {
-        debugPrint('onClipboardFound: $value');
+        if (kDebugMode) {
+          print('onClipboardFound: $value');
+        }
         controller.text = value;
       },
     );

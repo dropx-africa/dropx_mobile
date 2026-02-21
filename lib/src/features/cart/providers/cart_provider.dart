@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 
+/// Result of an [addToCart] call.
+enum AddToCartResult { success, vendorConflict }
+
 class CartItem {
   final MenuItem menuItem;
   final int quantity;
@@ -18,10 +21,24 @@ class CartItem {
 class CartState {
   final Map<String, CartItem> items;
 
-  const CartState({this.items = const {}});
+  /// The vendor whose items are in the cart.
+  final String? vendorId;
 
-  CartState copyWith({Map<String, CartItem>? items}) {
-    return CartState(items: items ?? this.items);
+  /// The zone used when the vendor was loaded.
+  final String? zoneId;
+
+  const CartState({this.items = const {}, this.vendorId, this.zoneId});
+
+  CartState copyWith({
+    Map<String, CartItem>? items,
+    String? vendorId,
+    String? zoneId,
+  }) {
+    return CartState(
+      items: items ?? this.items,
+      vendorId: vendorId ?? this.vendorId,
+      zoneId: zoneId ?? this.zoneId,
+    );
   }
 
   int get totalItemCount =>
@@ -36,7 +53,22 @@ class CartState {
 class CartNotifier extends StateNotifier<CartState> {
   CartNotifier() : super(const CartState());
 
-  void addToCart(MenuItem item) {
+  /// Add an item to the cart.
+  ///
+  /// Returns [AddToCartResult.success] if added, or
+  /// [AddToCartResult.vendorConflict] if the cart already contains items
+  /// from a different vendor.
+  AddToCartResult addToCart(
+    MenuItem item, {
+    required String vendorId,
+    required String zoneId,
+  }) {
+    // Check vendor conflict: if cart has items from a different vendor
+    final existingVendorId = state.vendorId;
+    if (existingVendorId != null && vendorId != existingVendorId) {
+      return AddToCartResult.vendorConflict;
+    }
+
     if (state.items.containsKey(item.id)) {
       increment(item.id);
     } else {
@@ -45,8 +77,24 @@ class CartNotifier extends StateNotifier<CartState> {
           ...state.items,
           item.id: CartItem(menuItem: item, quantity: 1),
         },
+        vendorId: state.vendorId ?? vendorId,
+        zoneId: state.zoneId ?? zoneId,
       );
     }
+    return AddToCartResult.success;
+  }
+
+  /// Clear the cart and add the given item (used after vendor conflict confirm).
+  void clearAndAdd(
+    MenuItem item, {
+    required String vendorId,
+    required String zoneId,
+  }) {
+    state = CartState(
+      items: {item.id: CartItem(menuItem: item, quantity: 1)},
+      vendorId: vendorId,
+      zoneId: zoneId,
+    );
   }
 
   void increment(String itemId) {

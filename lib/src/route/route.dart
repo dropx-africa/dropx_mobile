@@ -13,8 +13,11 @@ import 'package:dropx_mobile/src/features/cart/presentation/cart_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/order_tracking_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/receipt_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/transaction_details_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/order_success_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/paystack_checkout_screen.dart';
 import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
 import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
+import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -115,6 +118,40 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const PollResultScreen(),
+        );
+
+      case AppRoute.paystackCheckout:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final authorizationUrl = args['authorizationUrl'] as String;
+        final reference = args['reference'] as String;
+        final orderId = args['orderId'] as String;
+
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => PaystackCheckoutScreen(
+            authorizationUrl: authorizationUrl,
+            reference: reference,
+            orderId: orderId,
+          ),
+        );
+
+      case AppRoute.orderSuccess:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final orderId = args['orderId'] as String?;
+        final reference = args['reference'] as String?;
+
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) =>
+              OrderSuccessScreen(orderId: orderId, reference: reference),
+        );
+
+      case AppRoute.payLink:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final token = args['token'] as String;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => PayLinkScreen(token: token),
         );
 
       // Default Route (e.g., Onboarding)
