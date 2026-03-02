@@ -23,7 +23,10 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -31,7 +34,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
   void dispose() {
+    _tabController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -40,9 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final dto = LoginDto(
@@ -52,16 +60,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       final authResponse = await ref.read(authRepositoryProvider).login(dto);
 
-      // Save session
+      ApiClient().setAuthToken(
+        authResponse.accessToken,
+        refreshToken: authResponse.refreshToken,
+      );
+
+
       final session = ref.read(sessionServiceProvider);
       await session.saveAuthSession(
         accessToken: authResponse.accessToken,
         refreshToken: authResponse.refreshToken,
         userId: authResponse.userId,
+     
       );
-
-      // Set token on the API client
-      ApiClient().setAuthToken(authResponse.accessToken);
 
       if (mounted) {
         AppToast.showSuccess(context, 'Login successful!');
@@ -93,133 +104,219 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Column(
-                  children: [
-                    const AppImage(AppIcon.logo2, height: 60),
-                    AppSpaces.v8,
-                    const AppSubText(
-                      "No Stories. Just Delivery.",
-                      textAlign: TextAlign.center,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Logo
+            Center(
+              child: Column(
+                children: [
+                  const AppImage(AppIcon.logo2, height: 60),
+                  AppSpaces.v8,
+                  const AppSubText(
+                    "No Stories. Just Delivery.",
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            AppSpaces.v48,
+            const AppHeader('Welcome Back'),
+            AppSpaces.v8,
+            const AppSubText(
+              'Login to your account to continue.',
+              fontSize: 16,
+            ),
+            AppSpaces.v8,
+            GestureDetector(
+              onTap: () => AppNavigator.push(context, AppRoute.signUp),
+              child: const AppText(
+                "Don't have an account? Sign Up",
+                color: AppColors.primaryOrange,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            AppSpaces.v24,
+
+            // Tab Bar
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6F8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  color: AppColors.primaryOrange,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-              ),
-              AppSpaces.v48,
-              const AppHeader('Welcome Back'),
-              AppSpaces.v8,
-              const AppSubText(
-                'Enter your email and password to login.',
-                fontSize: 16,
-              ),
-              AppSpaces.v8,
-              GestureDetector(
-                onTap: () => AppNavigator.push(context, AppRoute.signUp),
-                child: const AppText(
-                  "Don't have an account? Sign Up",
-                  color: AppColors.primaryOrange,
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: AppColors.slate500,
+                labelStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 15,
                 ),
-              ),
-              AppSpaces.v32,
-
-              // Email Input
-              AppTextField(
-                label: 'Email',
-                hintText: 'Enter your email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Email is required';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
-                    return 'Enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              AppSpaces.v16,
-
-              // Password Input
-              AppTextField(
-                label: 'Password',
-                hintText: 'Enter your password',
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    color: AppColors.slate500,
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                ),
+                tabs: const [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.email_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Email'),
+                      ],
+                    ),
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Password is required';
-                  }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              AppSpaces.v32,
-
-              // Login Button
-              CustomButton(
-                text: 'Login',
-                isLoading: _isLoading,
-                onPressed: _isLoading ? () {} : _handleLogin,
-                backgroundColor: AppColors.darkBackground,
-                textColor: AppColors.white,
-              ),
-
-              AppSpaces.v24,
-
-              // Terms
-              const Center(
-                child: AppSubText(
-                  "By continuing, you agree to our Terms & Privacy Policy.",
-                  textAlign: TextAlign.center,
-                  fontSize: 12,
-                ),
-              ),
-
-              AppSpaces.v40,
-
-              // Continue as Guest
-              Center(
-                child: TextButton(
-                  onPressed: () async {
-                    await ref.read(sessionServiceProvider).saveGuestMode();
-                    if (context.mounted) {
-                      AppNavigator.push(
-                        context,
-                        AppRoute.manualLocation,
-                        arguments: {'isGuest': true},
-                      );
-                    }
-                  },
-                  child: const AppText(
-                    "Continue as Guest",
-                    color: AppColors.primaryOrange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.phone_android_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Phone'),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+            AppSpaces.v24,
+
+            // Tab Content — using IndexedStack so the form state is preserved
+            SizedBox(
+              height: 380,
+              child: TabBarView(
+                controller: _tabController,
+                children: [_buildEmailTab(), _buildPhoneTab()],
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  // ── Email Tab ─────────────────────────────────────────────────
+  Widget _buildEmailTab() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Email Input
+          AppTextField(
+            label: 'Email',
+            hintText: 'Enter your email',
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email is required';
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+                return 'Enter a valid email';
+              }
+              return null;
+            },
+          ),
+          AppSpaces.v16,
+
+          // Password Input
+          AppTextField(
+            label: 'Password',
+            hintText: 'Enter your password',
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                color: AppColors.slate500,
+              ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Password is required';
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
+              return null;
+            },
+          ),
+          AppSpaces.v32,
+
+          // Login Button
+          CustomButton(
+            text: 'Login',
+            isLoading: _isLoading,
+            onPressed: _isLoading ? () {} : _handleLogin,
+            backgroundColor: AppColors.darkBackground,
+            textColor: AppColors.white,
+          ),
+
+          AppSpaces.v24,
+
+          // Terms
+          const Center(
+            child: AppSubText(
+              "By continuing, you agree to our Terms & Privacy Policy.",
+              textAlign: TextAlign.center,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Phone Tab (Coming Soon) ───────────────────────────────────
+  Widget _buildPhoneTab() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppColors.primaryOrange.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.phone_android_rounded,
+            color: AppColors.primaryOrange,
+            size: 48,
+          ),
+        ),
+        AppSpaces.v24,
+        const AppText(
+          'Coming Soon',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.darkBackground,
+          textAlign: TextAlign.center,
+        ),
+        AppSpaces.v8,
+        const AppSubText(
+          'Phone number login will be available soon.\nUse email login for now.',
+          textAlign: TextAlign.center,
+          fontSize: 14,
+        ),
+      ],
     );
   }
 }

@@ -128,30 +128,6 @@ class ReceiptScreen extends StatelessWidget {
                 );
               },
             ),
-            AppSpaces.v16,
-            CustomButton(
-              text: "Rate Your Experience",
-              backgroundColor: AppColors.primaryOrange,
-              textColor: Colors.white,
-              onPressed: () {
-                // Return to tracking screen or navigate to transaction details to rate?
-                // Plan said Transaction Details serves as entry point for rating,
-                // BUT wireframe shows Rate Your Experience button here too.
-                // Let's pop back or better yet, open the rating sheet directly here if needed,
-                Navigator.pop(context); // Go back to tracking/completed view
-                // OR navigate to transaction details?
-                // The prompt image shows this screen having "Rate Your Experience".
-                // I'll make it pop with a result indicating "rate" or handle rating here.
-                // For simplicity based on flow, let's assume the user rates via the main flow or here.
-                // I'll leave a TODO to open rating sheet or navigate to transaction details.
-                Navigator.pushNamed(
-                  context,
-                  AppRoute
-                      .transactionDetails, // Navigate to transaction details which has rating
-                  arguments: {'orderDetails': orderDetails},
-                );
-              },
-            ),
           ],
         ),
       ),

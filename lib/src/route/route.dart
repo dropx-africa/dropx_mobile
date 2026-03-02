@@ -45,9 +45,17 @@ abstract class AppRouter {
       case AppRoute.otp:
         final args = settings.arguments as Map<String, dynamic>?;
         final phoneNumber = args?['phoneNumber'] as String? ?? '';
+        final otpChallengeId = args?['otpChallengeId'] as String? ?? '';
+        final nextResendAt = args?['nextResendAt'] as String?;
+        final attemptsRemaining = args?['attemptsRemaining'] as int?;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => OtpScreen(phoneNumber: phoneNumber),
+          builder: (context) => OtpScreen(
+            phoneNumber: phoneNumber,
+            otpChallengeId: otpChallengeId,
+            nextResendAt: nextResendAt,
+            attemptsRemaining: attemptsRemaining,
+          ),
         );
 
       case AppRoute.manualLocation:
@@ -77,9 +85,11 @@ abstract class AppRouter {
         );
 
       case AppRoute.orderTracking:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final orderId = args['orderId'] as String?;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const OrderTrackingScreen(),
+          builder: (context) => OrderTrackingScreen(orderId: orderId),
         );
 
       case AppRoute.receipt:

@@ -7,6 +7,17 @@ import 'package:dropx_mobile/src/features/order/data/dto/place_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/place_order_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/order_tracking_live_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/order_timeline_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/cancel_order_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/cancel_order_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/submit_review_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
 
 /// Abstract repository interface for order & payment operations.
 abstract class OrderRepository {
@@ -30,4 +41,34 @@ abstract class OrderRepository {
     String orderId,
     GeneratePaymentLinkDto dto,
   );
+
+  /// Estimate order fees before checkout.
+  Future<EstimateOrderResponse> estimateOrder(EstimateOrderRequest dto);
+
+  /// Fetch live order tracking data.
+  Future<OrderTrackingLiveResponse> trackOrderLive(String orderId);
+
+  /// Fetch order timeline.
+  Future<OrderTimelineResponse> getOrderTimeline(String orderId);
+
+  /// Cancel an order.
+  Future<CancelOrderResponse> cancelOrder(
+    String orderId,
+    CancelOrderRequest request,
+  );
+
+  /// Dispute an order.
+  Future<DisputeOrderResponse> disputeOrder(
+    String orderId,
+    DisputeOrderRequest request,
+  );
+
+  /// Submit a review for an order.
+  Future<SubmitReviewResponse> submitReview(
+    String orderId,
+    SubmitReviewRequest request,
+  );
+
+  /// Get the current user's review for an order (null if none).
+  Future<GetMyReviewData?> getMyReview(String orderId);
 }

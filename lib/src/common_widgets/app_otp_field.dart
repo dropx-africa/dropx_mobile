@@ -43,7 +43,7 @@ class AppOtpField extends StatelessWidget {
     );
 
     return Pinput(
-      length: 4,
+      length: 6,
       controller: controller,
       focusNode: focusNode,
       defaultPinTheme: defaultPinTheme,

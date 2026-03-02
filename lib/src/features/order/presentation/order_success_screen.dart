@@ -128,7 +128,6 @@ class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen>
                 //     ),
                 //   ),
                 // ],
-
                 const Spacer(flex: 2),
 
                 // Track My Order Button
@@ -141,6 +140,7 @@ class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen>
                         context,
                         AppRoute.orderTracking,
                         (route) => false,
+                        arguments: {'orderId': widget.orderId},
                       );
                     },
                     style: ElevatedButton.styleFrom(

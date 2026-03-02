@@ -498,6 +498,7 @@ class _GenericOrderScreenState extends State<GenericOrderScreen> {
                             Navigator.pushNamed(
                               context,
                               AppRoute.orderTracking,
+                              arguments: {'orderId': null},
                             );
                           }
                         },

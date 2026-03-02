@@ -25,6 +25,15 @@ class VendorMenuScreen extends ConsumerStatefulWidget {
 
 class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
   String _selectedCategory = "All";
+  String _searchQuery = "";
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   List<String> _buildCategories(List<MenuItem> items) {
     final categories = items
@@ -35,10 +44,23 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
   }
 
   List<MenuItem> _filterItems(List<MenuItem> items) {
-    if (_selectedCategory == "All") return items;
-    return items
-        .where((item) => (item.category?.name ?? 'Other') == _selectedCategory)
-        .toList();
+    var filtered = items;
+    if (_selectedCategory != "All") {
+      filtered = filtered
+          .where(
+            (item) => (item.category?.name ?? 'Other') == _selectedCategory,
+          )
+          .toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered
+          .where(
+            (item) =>
+                item.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+          )
+          .toList();
+    }
+    return filtered;
   }
 
   @override
@@ -98,8 +120,21 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                         child: CircleAvatar(
                           backgroundColor: Colors.white,
                           child: IconButton(
-                            icon: const Icon(Icons.search, color: Colors.black),
-                            onPressed: () {},
+                            icon: Icon(
+                              _isSearching ? Icons.close : Icons.search,
+                              color: Colors.black,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (_isSearching) {
+                                  _isSearching = false;
+                                  _searchQuery = "";
+                                  _searchController.clear();
+                                } else {
+                                  _isSearching = true;
+                                }
+                              });
+                            },
                           ),
                         ),
                       ),
@@ -283,6 +318,38 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                       ),
                     ),
                   ),
+
+                  // Search Bar if toggled
+                  if (_isSearching)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (val) {
+                            setState(() {
+                              _searchQuery = val;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Search menu...',
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.grey,
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
 
                   // Title for Section
                   SliverToBoxAdapter(

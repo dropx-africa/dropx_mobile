@@ -51,7 +51,7 @@ class OrderStatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: AppText(
-        displayText,
+        displayText.toUpperCase(),
         fontSize: 10,
         fontWeight: FontWeight.bold,
         color: textColor,

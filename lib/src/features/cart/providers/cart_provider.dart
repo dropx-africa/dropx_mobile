@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
+import 'package:dropx_mobile/src/models/order.dart';
 
 /// Result of an [addToCart] call.
 enum AddToCartResult { success, vendorConflict }
@@ -130,6 +131,33 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void clearCart() {
     state = const CartState();
+  }
+
+  /// Replace the current cart with the items from an existing order.
+  void reorder(Order order) {
+    if (order.items == null || order.items!.isEmpty) return;
+
+    final newItems = <String, CartItem>{};
+    for (final orderItem in order.items!) {
+      // Create a transient MenuItem using the name and price.
+      // We use the item's name as the ID, since the original menu item ID isn't returned by order history.
+      final menuItem = MenuItem(
+        id: orderItem.name,
+        vendorId: order.vendorId ?? '',
+        name: orderItem.name,
+        priceKobo: orderItem.unitPriceKobo,
+      );
+      newItems[menuItem.id] = CartItem(
+        menuItem: menuItem,
+        quantity: orderItem.qty,
+      );
+    }
+
+    state = CartState(
+      items: newItems,
+      vendorId: order.vendorId,
+      zoneId: order.zoneId,
+    );
   }
 }
 

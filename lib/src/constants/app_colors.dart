@@ -12,10 +12,12 @@ class AppColors {
   static const Color white = Colors.white;
   static const Color black = Colors.black;
   static const Color slate50 = Color(0xFFF8FAFC);
+  static const Color slate100 = Color(0xFFF1F5F9);
 
   // Status
   static const Color errorRed = Color(0xFFEF4444);
   static const Color warningAmber = Color(0xFFF59E0B);
+  static const Color successGreen = Color(0xFF10B981);
 
   // Grays / Text
   static const Color slate400 = Color(0xFF94A3B8);

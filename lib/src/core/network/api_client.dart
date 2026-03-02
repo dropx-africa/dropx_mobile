@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/core/network/api_response.dart';
+import 'package:flutter/foundation.dart';
 
 /// Centralized HTTP client for all API operations.
 ///
@@ -28,7 +29,12 @@ class ApiClient {
 
   final http.Client _client = http.Client();
   String? _authToken;
+  String? _refreshToken;
   final Duration _timeout = const Duration(seconds: 30);
+
+  bool _isRefreshing = false;
+  Future<void>? _refreshFuture;
+  void Function(String, String)? onTokenRefreshed;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -37,9 +43,6 @@ class ApiClient {
   };
 
   /// Generates idempotency + trace headers required by the API.
-  ///
-  /// Call this and merge into the `headers` parameter for endpoints
-  /// that require `Idempotency-Key` and `x-trace-id`.
   static Map<String, String> traceHeaders() {
     final id = _uuid.v4();
     return {
@@ -49,14 +52,16 @@ class ApiClient {
     };
   }
 
-  /// Update the authorization token (e.g., after login).
-  void setAuthToken(String token) {
+  /// Update the authorization tokens.
+  void setAuthToken(String token, {String? refreshToken}) {
     _authToken = token;
+    if (refreshToken != null) _refreshToken = refreshToken;
   }
 
-  /// Remove the authorization token (e.g., after logout).
+  /// Remove the authorization tokens.
   void clearAuthToken() {
     _authToken = null;
+    _refreshToken = null;
   }
 
   /// GET request with typed response.
@@ -66,16 +71,11 @@ class ApiClient {
     Map<String, String>? headers,
     required T Function(dynamic) fromJson,
   }) async {
-    final uri = _buildUri(path, queryParams);
-    try {
+    return _executeWithRefresh(() async {
+      final uri = _buildUri(path, queryParams);
       final requestHeaders = {..._headers, ...?headers};
-      final response = await _client
-          .get(uri, headers: requestHeaders)
-          .timeout(_timeout);
-      return _processResponse(response, fromJson);
-    } catch (e) {
-      throw _handleError(e);
-    }
+      return await _client.get(uri, headers: requestHeaders).timeout(_timeout);
+    }, fromJson);
   }
 
   /// POST request with typed response.
@@ -85,16 +85,13 @@ class ApiClient {
     Map<String, String>? headers,
     required T Function(dynamic) fromJson,
   }) async {
-    final uri = _buildUri(path);
-    try {
+    return _executeWithRefresh(() async {
+      final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
-      final response = await _client
+      return await _client
           .post(uri, headers: requestHeaders, body: jsonEncode(data))
           .timeout(_timeout);
-      return _processResponse(response, fromJson);
-    } catch (e) {
-      throw _handleError(e);
-    }
+    }, fromJson);
   }
 
   /// PUT request with typed response.
@@ -104,16 +101,13 @@ class ApiClient {
     Map<String, String>? headers,
     required T Function(dynamic) fromJson,
   }) async {
-    final uri = _buildUri(path);
-    try {
+    return _executeWithRefresh(() async {
+      final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
-      final response = await _client
+      return await _client
           .put(uri, headers: requestHeaders, body: jsonEncode(data))
           .timeout(_timeout);
-      return _processResponse(response, fromJson);
-    } catch (e) {
-      throw _handleError(e);
-    }
+    }, fromJson);
   }
 
   /// PATCH request with typed response.
@@ -123,16 +117,13 @@ class ApiClient {
     Map<String, String>? headers,
     required T Function(dynamic) fromJson,
   }) async {
-    final uri = _buildUri(path);
-    try {
+    return _executeWithRefresh(() async {
+      final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
-      final response = await _client
+      return await _client
           .patch(uri, headers: requestHeaders, body: jsonEncode(data))
           .timeout(_timeout);
-      return _processResponse(response, fromJson);
-    } catch (e) {
-      throw _handleError(e);
-    }
+    }, fromJson);
   }
 
   /// DELETE request.
@@ -140,19 +131,77 @@ class ApiClient {
     String path, {
     Map<String, String>? headers,
   }) async {
-    final uri = _buildUri(path);
-    try {
+    return _executeWithRefresh(() async {
+      final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
-      final response = await _client
+      return await _client
           .delete(uri, headers: requestHeaders)
           .timeout(_timeout);
-      return _processResponse(response, (_) => true);
+    }, (_) => true);
+  }
+
+  // --- Internal Helpers ---
+
+  Future<ApiResponse<T>> _executeWithRefresh<T>(
+    Future<http.Response> Function() requestFunc,
+    T Function(dynamic) fromJson,
+  ) async {
+    try {
+      var response = await requestFunc();
+
+      debugPrint('[API] Request to ${response.request?.url}');
+      debugPrint('[API] Response status: ${response.statusCode}');
+      debugPrint('[API] Response body: ${response.body}');
+
+      if (response.statusCode == 401 && _refreshToken != null) {
+        if (!_isRefreshing) {
+          _isRefreshing = true;
+          _refreshFuture = _performRefresh();
+        }
+        try {
+          await _refreshFuture;
+          // Retry the request after refreshing token
+          response = await requestFunc();
+        } catch (e) {
+          // If refresh fails, let the caller handle the 401 error
+        } finally {
+          _isRefreshing = false;
+          _refreshFuture = null;
+        }
+      }
+
+      return _processResponse(response, fromJson);
     } catch (e) {
       throw _handleError(e);
     }
   }
 
-  // --- Internal Helpers ---
+  Future<void> _performRefresh() async {
+    final uri = _buildUri(ApiEndpoints.refreshToken);
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    final body = jsonEncode({'refresh_token': _refreshToken});
+
+    final res = await _client
+        .post(uri, headers: headers, body: body)
+        .timeout(_timeout);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final jsonBody = jsonDecode(res.body);
+      final data = jsonBody['data'];
+      _authToken = data['access_token'];
+      _refreshToken = data['refresh_token'];
+      if (onTokenRefreshed != null &&
+          _authToken != null &&
+          _refreshToken != null) {
+        onTokenRefreshed!(_authToken!, _refreshToken!);
+      }
+    } else {
+      throw _handleHttpError(res);
+    }
+  }
 
   Uri _buildUri(String path, [Map<String, String>? queryParams]) {
     String baseUrl = ApiEndpoints.baseUrl;

@@ -15,6 +15,7 @@ void main() async {
 
   // Restore auth token from saved session so API calls are authenticated.
   final savedToken = sessionService.authToken;
+  final savedRefreshToken = sessionService.refreshToken;
   if (kDebugMode) {
     print(
       '[Main] Restoring session — isLoggedIn: ${sessionService.isLoggedIn}, '
@@ -22,7 +23,16 @@ void main() async {
     );
   }
   if (savedToken != null && savedToken.isNotEmpty) {
-    ApiClient().setAuthToken(savedToken);
+    ApiClient().setAuthToken(savedToken, refreshToken: savedRefreshToken);
+    ApiClient().onTokenRefreshed = (token, refresh) {
+      sessionService.saveAuthSession(
+        accessToken: token,
+        refreshToken: refresh,
+        userId: sessionService.userId ?? '',
+        fullName: sessionService.fullName,
+        phone: sessionService.phone,
+      );
+    };
     if (kDebugMode) print('[Main] ✅ Auth token restored to ApiClient');
   } else {
     if (kDebugMode) print('[Main] ⚠️ No auth token to restore');

@@ -59,7 +59,7 @@ class BottomCartBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 AppText(
-                  "$itemCount items",
+                  itemCount == 1 ? "1 Order item" : "$itemCount Order items",
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,

@@ -4,6 +4,8 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/order.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:dropx_mobile/src/features/order/presentation/order_tracking_screen.dart';
+import 'package:dropx_mobile/src/features/order/presentation/widgets/order_status_badge.dart';
 
 class OrderHistoryItem extends StatelessWidget {
   final Order order;
@@ -74,16 +76,7 @@ class OrderHistoryItem extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                     const SizedBox(height: 4),
-                    AppText(
-                      order.state,
-                      fontSize: 12,
-                      color: order.state == 'DELIVERED'
-                          ? AppColors.secondaryGreen
-                          : order.state == 'CANCELLED'
-                          ? AppColors.errorRed
-                          : AppColors.primaryOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    OrderStatusBadge(status: order.state),
                   ],
                 ),
               ),
@@ -117,25 +110,50 @@ class OrderHistoryItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              SizedBox(
-                height: 36,
-                child: OutlinedButton(
-                  onPressed: onReorder,
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primaryOrange),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+              if (order.state == 'PAID' ||
+                  (order.state != 'PAYMENT_PENDING' &&
+                      order.state != 'PLACED' &&
+                      order.state !=
+                          'PLAED' && // Accommodating the user's typo exception
+                      order.state != 'DELIVERED' &&
+                      order.state != 'CANCELLED' &&
+                      order.state != 'COMPLETED'))
+                Padding(
+                  padding: const EdgeInsets.only(right: 4.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  child: const AppText(
-                    "Reorder",
-                    color: AppColors.primaryOrange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                OrderTrackingScreen(orderId: order.orderId),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.location_on),
+                      color: AppColors.primaryOrange,
+                      tooltip: 'Track Order',
+                    ),
                   ),
                 ),
-              ),
+              if (order.state == 'COMPLETED')
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryOrange.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    onPressed: onReorder,
+                    icon: const Icon(Icons.refresh),
+                    color: AppColors.primaryOrange,
+                    tooltip: 'Reorder',
+                  ),
+                ),
             ],
           ),
         ],

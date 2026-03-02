@@ -44,6 +44,8 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   bool _isSearching = false;
   bool _showDropdown = false;
   String? _selectedAddress;
+  String _resolvedCity = '';
+  String _resolvedState = '';
 
   @override
   void initState() {
@@ -105,6 +107,10 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
       });
       // Reverse-geocode to get a real address
       final address = await ref.read(placesServiceProvider).reverseGeocode(ll);
+      // Also extract city/state components
+      final components = await ref
+          .read(placesServiceProvider)
+          .extractAddressComponents(ll);
       if (!mounted) return;
       setState(() {
         if (address != null && address.isNotEmpty) {
@@ -113,6 +119,8 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         } else {
           _gpsAddress = 'Your current location';
         }
+        _resolvedCity = components.city;
+        _resolvedState = components.state;
       });
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
@@ -128,6 +136,9 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         final address2 = await ref
             .read(placesServiceProvider)
             .reverseGeocode(ll);
+        final components2 = await ref
+            .read(placesServiceProvider)
+            .extractAddressComponents(ll);
         if (!mounted) return;
         setState(() {
           if (address2 != null && address2.isNotEmpty) {
@@ -136,6 +147,8 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
           } else {
             _gpsAddress = 'Your last known location';
           }
+          _resolvedCity = components2.city;
+          _resolvedState = components2.state;
         });
         _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(CameraPosition(target: ll, zoom: 16)),
@@ -164,8 +177,8 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
     _debounce = Timer(const Duration(milliseconds: 400), () async {
       try {
         final results = await ref
-            .read(locationRepositoryProvider)
-            .geocode(query);
+            .read(placesServiceProvider)
+            .autocomplete(query);
         if (mounted) {
           setState(() {
             _geocodeResults = results;
@@ -201,6 +214,17 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
         CameraPosition(target: location, zoom: 16),
       ),
     );
+    // Extract city/state from the selected location
+    ref.read(placesServiceProvider).extractAddressComponents(location).then((
+      comp,
+    ) {
+      if (mounted) {
+        setState(() {
+          _resolvedCity = comp.city;
+          _resolvedState = comp.state;
+        });
+      }
+    });
   }
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
@@ -540,7 +564,16 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
               onPressed: () async {
                 await ref
                     .read(sessionServiceProvider)
-                    .confirmLocation(address: _selectedAddress ?? '');
+                    .confirmLocation(
+                      address: _selectedAddress ?? '',
+                      lat: _pinPosition.latitude,
+                      lng: _pinPosition.longitude,
+                      city: _resolvedCity,
+                      state: _resolvedState,
+                    );
+                debugPrint(
+                  '📍 [LOCATION] Confirmed → city=$_resolvedCity, state=$_resolvedState',
+                );
                 if (!mounted) return;
 
                 AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);

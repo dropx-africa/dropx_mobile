@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/presentation/widgets/order_history_item.dart';
 
@@ -60,11 +63,19 @@ class OrdersScreen extends ConsumerWidget {
               return OrderHistoryItem(
                 order: orders[index],
                 onReorder: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reordering... Added to cart'),
-                    ),
-                  );
+                  final order = orders[index];
+                  if (order.items != null && order.items!.isNotEmpty) {
+                    ref.read(cartProvider.notifier).reorder(order);
+                    AppNavigator.push(context, AppRoute.cart);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Cannot reorder: No items found in this order.',
+                        ),
+                      ),
+                    );
+                  }
                 },
               );
             },

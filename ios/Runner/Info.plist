@@ -49,5 +49,7 @@
 	<string>DropX needs your location to show nearby restaurants.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>DropX needs your location to track orders.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>DropX needs access to your contacts to allow you to invite friends.</string>
 </dict>
 </plist>

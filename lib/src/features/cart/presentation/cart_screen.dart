@@ -13,10 +13,12 @@ import 'package:dropx_mobile/src/features/order/data/dto/create_order_item_dto.d
 import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/place_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_dto.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_request.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
+import 'package:dropx_mobile/src/features/location/data/address_models.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -27,9 +29,126 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isPlacingOrder = false;
+  bool _isLoadingEstimate = false;
   String _selectedPaymentMethod = 'PAYSTACK'; // Default to Paystack
+  double _deliveryFee = 0.0;
+  double _serviceFee = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadEstimate();
+    });
+  }
+
+  Future<void> _loadEstimate() async {
+    debugPrint('🛒 [CART] _loadEstimate() called');
+    final cartState = ref.read(cartProvider);
+
+    debugPrint('   vendorId=${cartState.vendorId}');
+    debugPrint('   zoneId=${cartState.zoneId}');
+    debugPrint('   items.length=${cartState.items.length}');
+
+    if (cartState.vendorId == null ||
+        cartState.zoneId == null ||
+        cartState.items.isEmpty) {
+      debugPrint(
+        '   ⚠️ Skipping estimate: missing vendorId/zoneId or empty cart',
+      );
+      setState(() {
+        _deliveryFee = 0.0;
+        _serviceFee = 0.0;
+      });
+      return;
+    }
+
+    setState(() => _isLoadingEstimate = true);
+
+    try {
+      final session = ref.read(sessionServiceProvider);
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final addressRepo = ref.read(addressRepositoryProvider);
+
+      final deliveryLat = session.savedLat;
+      final deliveryLng = session.savedLng;
+      final savedAddress = session.savedAddress;
+      debugPrint('   📍 deliveryLat=$deliveryLat, deliveryLng=$deliveryLng');
+      debugPrint('   📍 savedAddress=$savedAddress');
+
+      // 1. Save the user's address and get a real address_id.
+      debugPrint('🟡 [CART] Step 1: Saving address via POST /me/addresses');
+      String? deliveryAddressId;
+      try {
+        final createdAddress = await addressRepo.createAddress(
+          CreateAddressRequest(
+            label: 'Delivery',
+            line1: savedAddress.isNotEmpty ? savedAddress : 'My Location',
+            city: session.savedCity.isNotEmpty ? session.savedCity : 'Lagos',
+            state: session.savedState.isNotEmpty ? session.savedState : 'Lagos',
+            lat: deliveryLat,
+            lng: deliveryLng,
+          ),
+        );
+        deliveryAddressId = createdAddress.addressId;
+        debugPrint('✅ [CART] Address saved → addressId=$deliveryAddressId');
+      } catch (e) {
+        debugPrint(
+          '❌ [CART] Address save FAILED (using fallback address-1): $e',
+        );
+      }
+
+      // 2. Build estimate items.
+      final orderItems = cartState.items.values.map((cartItem) {
+        return EstimateOrderItem(
+          itemId: cartItem.menuItem.id,
+          name: cartItem.menuItem.name,
+          qty: cartItem.quantity,
+          unitPriceKobo: CurrencyUtils.nairaToKobo(cartItem.menuItem.price),
+        );
+      }).toList();
+
+      // 3. Call estimate.
+      debugPrint('🟡 [CART] Step 2: Calling POST /orders/estimate');
+      final dto = EstimateOrderRequest(
+        zoneId: cartState.zoneId!,
+        vendorId: cartState.vendorId!,
+        items: orderItems,
+        deliveryAddressId: deliveryAddressId ?? 'address-1',
+        deliveryLat: deliveryLat,
+        deliveryLng: deliveryLng,
+        serviceTier: 'STANDARD',
+      );
+
+      final response = await orderRepo.estimateOrder(dto);
+
+      if (mounted) {
+        final delFee = CurrencyUtils.koboToNaira(
+          int.parse(response.data.deliveryFeeKobo),
+        );
+        final svcFee = CurrencyUtils.koboToNaira(
+          int.parse(response.data.serviceFeeKobo),
+        );
+        debugPrint(
+          '✅ [CART] Estimate received → deliveryFee=₦$delFee, serviceFee=₦$svcFee',
+        );
+        setState(() {
+          _deliveryFee = delFee;
+          _serviceFee = svcFee;
+        });
+      }
+    } catch (e, stack) {
+      if (mounted) {
+        debugPrint('❌ [CART] _loadEstimate FAILED: $e');
+        debugPrint('   Stack: $stack');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingEstimate = false);
+    }
+  }
 
   Future<void> _placeOrder() async {
+    debugPrint('🛒 [CART] _placeOrder() called');
     final cartState = ref.read(cartProvider);
     final session = ref.read(sessionServiceProvider);
     final orderRepo = ref.read(orderRepositoryProvider);
@@ -38,7 +157,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final zoneId = cartState.zoneId;
     final deliveryAddress = session.savedAddress;
 
+    debugPrint('   vendorId=$vendorId, zoneId=$zoneId');
+    debugPrint('   deliveryAddress=$deliveryAddress');
+    debugPrint('   paymentMethod=$_selectedPaymentMethod');
+
     if (vendorId == null || zoneId == null) {
+      debugPrint('   ⚠️ Aborting: missing vendorId or zoneId');
       _showSnackBar('Unable to place order. Please add items from a vendor.');
       return;
     }
@@ -63,13 +187,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
 
       // 2. Create the order.
+      debugPrint('🟡 [CART] Step 1: Creating order via POST /orders');
       final orderResponse = await orderRepo.createOrder(createDto);
       final orderId = orderResponse.order.orderId;
+      debugPrint('✅ [CART] Order created → orderId=$orderId');
 
       // Determine logic based on selected payment method
       if (_selectedPaymentMethod == 'WALLET') {
+        debugPrint(
+          '🟡 [CART] Step 2: Placing order with WALLET via POST /orders/$orderId/place',
+        );
         final walletDto = PlaceOrderDto(paymentMethod: 'WALLET');
         await orderRepo.placeOrder(orderId, walletDto);
+        debugPrint('✅ [CART] Wallet payment successful');
 
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, AppRoute.orderSuccess);
@@ -144,8 +274,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); 
-            
+                  Navigator.pop(context);
                 },
                 child: const AppText(
                   'Close',
@@ -174,7 +303,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           },
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('❌ [CART] _placeOrder FAILED: $e');
+      debugPrint('   Stack: $stack');
       if (mounted) {
         _showSnackBar('Failed to place order: ${e.toString()}');
       }
@@ -191,6 +322,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<CartState>(cartProvider, (previous, next) {
+      if (previous?.totalItemCount != next.totalItemCount) {
+        _loadEstimate();
+      }
+    });
+
     final session = ref.read(sessionServiceProvider);
     final isGuest = session.isGuest;
     final String displayAddress = session.savedAddress;
@@ -198,10 +335,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItemsList = cartState.items.values.toList();
     final totalPrice = cartState.totalPrice;
 
-    // Calculate fees (mock logic for now)
-    final deliveryFee = 400.0;
-    final serviceFee = 150.0;
-    final totalAmount = totalPrice + deliveryFee + serviceFee;
+    // Calculate fees
+    final totalAmount = totalPrice + _deliveryFee + _serviceFee;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -382,12 +517,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       const SizedBox(height: 12),
                       _buildBillRow(
                         "Delivery Fee",
-                        Formatters.formatNaira(deliveryFee),
+                        _isLoadingEstimate
+                            ? '...'
+                            : Formatters.formatNaira(_deliveryFee),
                       ),
                       const SizedBox(height: 12),
                       _buildBillRow(
                         "Service Fee",
-                        Formatters.formatNaira(serviceFee),
+                        _isLoadingEstimate
+                            ? '...'
+                            : Formatters.formatNaira(_serviceFee),
                       ),
                       const SizedBox(height: 24),
                       const Divider(color: Colors.grey, thickness: 0.5),

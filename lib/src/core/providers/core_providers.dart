@@ -5,6 +5,8 @@ import 'package:dropx_mobile/src/core/services/session_service.dart';
 import 'package:dropx_mobile/src/features/location/data/places_service.dart';
 import 'package:dropx_mobile/src/features/location/data/location_repository.dart';
 import 'package:dropx_mobile/src/features/location/data/remote_location_repository.dart';
+import 'package:dropx_mobile/src/features/location/data/address_repository.dart';
+import 'package:dropx_mobile/src/features/location/data/remote_address_repository.dart';
 
 /// Core-level Riverpod providers shared across the entire app.
 ///
@@ -33,4 +35,9 @@ final placesServiceProvider = Provider<PlacesService>((ref) {
 /// Provides the LocationRepository for geocoding (address search).
 final locationRepositoryProvider = Provider<LocationRepository>((ref) {
   return RemoteLocationRepository(ref.watch(apiClientProvider));
+});
+
+/// Provides the AddressRepository for saving / fetching user addresses.
+final addressRepositoryProvider = Provider<AddressRepository>((ref) {
+  return RemoteAddressRepository(ref.watch(apiClientProvider));
 });

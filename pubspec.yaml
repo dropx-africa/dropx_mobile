@@ -46,6 +46,9 @@ dependencies:
   http: ^1.6.0
   geolocator: ^14.0.2
   webview_flutter: ^4.13.1
+  image_picker: ^1.2.1
+  flutter_contacts: ^1.1.9+2
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

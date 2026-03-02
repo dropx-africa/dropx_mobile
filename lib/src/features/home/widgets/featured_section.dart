@@ -1,32 +1,40 @@
 import 'package:dropx_mobile/src/common_widgets/app_loading_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
-import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/features/home/widgets/vendor_card.dart';
+import 'package:dropx_mobile/src/features/home/widgets/feed_vendor_card.dart';
+import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
+import 'package:dropx_mobile/src/models/vendor_category.dart';
 
 class FeaturedSection extends ConsumerWidget {
   final VendorCategory category;
+  final int? maxEtaMinutes;
 
-  const FeaturedSection({super.key, required this.category});
+  const FeaturedSection({
+    super.key,
+    required this.category,
+    this.maxEtaMinutes,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final vendorsAsync = ref.watch(vendorsProvider(category));
     final session = ref.watch(sessionServiceProvider);
-    final bool isGuest = session.isGuest;
+    final feedParams = FeedParams(
+      category: category.name,
+      lat: session.savedLat,
+      lng: session.savedLng,
+      maxEtaMinutes: maxEtaMinutes,
+    );
+    final feedAsync = ref.watch(homeFeedProvider(feedParams));
 
-    return vendorsAsync.when(
+    return feedAsync.when(
       loading: () =>
           const SizedBox(height: 250, child: Center(child: AppLoadingWidget())),
       error: (e, st) => const SizedBox.shrink(),
-      data: (vendors) {
-        final featuredVendors = vendors;
-
-        if (featuredVendors.isEmpty) return const SizedBox.shrink();
+      data: (feedData) {
+        final items = feedData.items;
 
         String title;
         switch (category) {
@@ -44,6 +52,26 @@ class FeaturedSection extends ConsumerWidget {
             break;
           default:
             title = 'Featured Vendors';
+        }
+
+        if (items.isEmpty) {
+          if (category == VendorCategory.food) {
+            return const SizedBox.shrink();
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: AppText(
+                  title,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              _buildEmptyState(category),
+            ],
+          );
         }
 
         return Column(
@@ -67,22 +95,55 @@ class FeaturedSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 250, // Adjusted height for new card
+              height: 250,
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: featuredVendors.length,
+                itemCount: items.length,
                 itemBuilder: (context, index) {
-                  return VendorCard(
-                    vendor: featuredVendors[index],
-                    isGuest: isGuest,
-                  );
+                  return FeedVendorCard(item: items[index]);
                 },
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState(VendorCategory category) {
+    String message = "No vendors available right now.";
+    if (category == VendorCategory.pharmacy) {
+      message = "No pharmacies found near your location.";
+    } else if (category == VendorCategory.parcel) {
+      message = "No logistics partners available right now.";
+    } else if (category == VendorCategory.retail) {
+      message = "No retail stores found near you.";
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.storefront_outlined, size: 60, color: AppColors.slate400),
+          const SizedBox(height: 16),
+          AppText(
+            "Coming Soon",
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.slate500,
+          ),
+          const SizedBox(height: 8),
+          AppText(
+            message,
+            fontSize: 14,
+            color: AppColors.slate400,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

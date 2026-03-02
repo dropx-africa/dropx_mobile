@@ -21,6 +21,10 @@ class SessionService {
   static const _keyUserId = 'user_id';
   static const _keyFullName = 'full_name';
   static const _keyPhone = 'phone';
+  static const _keySavedLat = 'saved_lat';
+  static const _keySavedLng = 'saved_lng';
+  static const _keySavedCity = 'saved_city';
+  static const _keySavedState = 'saved_state';
   // ── Getters ───────────────────────────────────────────────────────────
   bool get hasSeenOnboarding => _prefs.getBool(_keyOnboardingSeen) ?? false;
   bool get isLoggedIn => _prefs.getBool(_keyIsLoggedIn) ?? false;
@@ -28,6 +32,10 @@ class SessionService {
   bool get hasConfirmedLocation =>
       _prefs.getBool(_keyLocationConfirmed) ?? false;
   String get savedAddress => _prefs.getString(_keySavedAddress) ?? '';
+  double get savedLat => _prefs.getDouble(_keySavedLat) ?? 6.5244;
+  double get savedLng => _prefs.getDouble(_keySavedLng) ?? 3.3792;
+  String get savedCity => _prefs.getString(_keySavedCity) ?? '';
+  String get savedState => _prefs.getString(_keySavedState) ?? '';
   String? get authToken => _prefs.getString(_keyAuthToken);
   String? get refreshToken => _prefs.getString(_keyRefreshToken);
   String? get userId => _prefs.getString(_keyUserId);
@@ -82,11 +90,21 @@ class SessionService {
     await _prefs.setBool(_keyOnboardingSeen, true);
   }
 
-  Future<void> confirmLocation({String address = ''}) async {
+  Future<void> confirmLocation({
+    String address = '',
+    double? lat,
+    double? lng,
+    String city = '',
+    String state = '',
+  }) async {
     await _prefs.setBool(_keyLocationConfirmed, true);
     if (address.isNotEmpty) {
       await _prefs.setString(_keySavedAddress, address);
     }
+    if (lat != null) await _prefs.setDouble(_keySavedLat, lat);
+    if (lng != null) await _prefs.setDouble(_keySavedLng, lng);
+    if (city.isNotEmpty) await _prefs.setString(_keySavedCity, city);
+    if (state.isNotEmpty) await _prefs.setString(_keySavedState, state);
   }
 
   Future<void> clearSession() async {
@@ -96,6 +114,8 @@ class SessionService {
     await _prefs.remove(_keyAuthToken);
     await _prefs.remove(_keyRefreshToken);
     await _prefs.remove(_keyUserId);
+    await _prefs.remove(_keySavedCity);
+    await _prefs.remove(_keySavedState);
     // await _prefs.remove(_keyFullName);
     // await _prefs.remove(_keyPhone);
     // Note: we deliberately keep onboarding_seen = true

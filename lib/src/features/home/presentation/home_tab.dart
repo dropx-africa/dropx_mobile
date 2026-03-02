@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -12,6 +13,7 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart'; // session provider
+import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -23,6 +25,7 @@ class HomeTab extends ConsumerStatefulWidget {
 class _HomeTabState extends ConsumerState<HomeTab> {
   // Note: ConsumerState gives access to `ref` through ConsumerStatefulWidget
   VendorCategory _selectedCategory = VendorCategory.food; // Default category
+  int? _selectedEta; // Filter state for ETA
 
   @override
   Widget build(BuildContext context) {
@@ -95,21 +98,25 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                                     ],
                                   ),
                                 ),
-                                // const Icon(
-                                //   Icons.keyboard_arrow_down,
-                                //   color: Colors.white,
-                                //   size: 20,
-                                // ),
                               ],
                             ),
                           ),
                         ),
-                        // IconButton(
-                        //   icon: const Icon(Icons.search, color: Colors.white),
-                        //   onPressed: () {
-                        //     // Navigate to discover/search screen
-                        //   },
-                        // ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                     AppSpaces.v16,
@@ -124,36 +131,41 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             label: 'Food',
                             isSelected:
                                 _selectedCategory == VendorCategory.food,
-                            onTap: () => setState(
-                              () => _selectedCategory = VendorCategory.food,
-                            ),
+                            onTap: () => setState(() {
+                              _selectedCategory = VendorCategory.food;
+                              _selectedEta =
+                                  null; // Reset filter on category change
+                            }),
                           ),
                           CategoryButton(
                             icon: Icons.local_pharmacy,
                             label: 'Pharmacy',
                             isSelected:
                                 _selectedCategory == VendorCategory.pharmacy,
-                            onTap: () => setState(
-                              () => _selectedCategory = VendorCategory.pharmacy,
-                            ),
+                            onTap: () => setState(() {
+                              _selectedCategory = VendorCategory.pharmacy;
+                              _selectedEta = null;
+                            }),
                           ),
                           CategoryButton(
                             icon: Icons.card_giftcard,
                             label: 'Parcel',
                             isSelected:
                                 _selectedCategory == VendorCategory.parcel,
-                            onTap: () => setState(
-                              () => _selectedCategory = VendorCategory.parcel,
-                            ),
+                            onTap: () => setState(() {
+                              _selectedCategory = VendorCategory.parcel;
+                              _selectedEta = null;
+                            }),
                           ),
                           CategoryButton(
                             icon: Icons.shopping_cart,
                             label: 'Retail',
                             isSelected:
                                 _selectedCategory == VendorCategory.retail,
-                            onTap: () => setState(
-                              () => _selectedCategory = VendorCategory.retail,
-                            ),
+                            onTap: () => setState(() {
+                              _selectedCategory = VendorCategory.retail;
+                              _selectedEta = null;
+                            }),
                           ),
                         ],
                       ),
@@ -171,18 +183,54 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppSpaces.v16,
-                  const DeliveryFilter(),
+                  DeliveryFilter(
+                    selectedEta: _selectedEta,
+                    onFilterChanged: (eta) {
+                      setState(() {
+                        _selectedEta = eta;
+                      });
+                    },
+                  ),
                   AppSpaces.v24,
                   if (!isGuest) const RecentOrdersSection(),
-                  FeaturedSection(category: _selectedCategory),
-                  AppSpaces.v24,
-                  FastestSection(category: _selectedCategory),
+                  FeaturedSection(
+                    category: _selectedCategory,
+                    maxEtaMinutes: _selectedEta,
+                  ),
+                  if (_selectedEta == null) ...[
+                    AppSpaces.v24,
+                    FastestSection(category: _selectedCategory),
+                  ],
                   AppSpaces.v24,
                 ],
               ),
             ),
           ),
         ],
+      ),
+      floatingActionButton: Consumer(
+        builder: (context, ref, child) {
+          final cartState = ref.watch(cartProvider);
+          final int itemCount = cartState.totalItemCount;
+
+          return FloatingActionButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
+            backgroundColor: AppColors.primaryOrange,
+            child: Badge(
+              isLabelVisible: itemCount > 0,
+              label: Text(
+                itemCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: AppColors.errorRed,
+              offset: const Offset(8, -8),
+              child: const Icon(Icons.shopping_cart, color: Colors.white),
+            ),
+          );
+        },
       ),
     );
   }

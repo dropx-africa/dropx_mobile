@@ -6,6 +6,8 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
+import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
+import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
@@ -51,9 +53,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Fetch all vendors (no category filter at provider level)
-    final vendorsAsync = ref.watch(vendorsProvider(null));
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -120,80 +119,175 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
           // List results
           Expanded(
-            child: vendorsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: AppColors.slate200,
-                    ),
-                    const SizedBox(height: 12),
-                    AppText(
-                      'Failed to load vendors',
-                      color: AppColors.slate400,
-                    ),
-                  ],
-                ),
-              ),
-              data: (vendors) {
-                // Apply category filter
-                final selectedCat = _categoryFromString(_selectedCategory);
-                var filtered = selectedCat != null
-                    ? vendors.where((v) => v.category == selectedCat).toList()
-                    : vendors;
+            child: _searchQuery.isEmpty
+                ? ref
+                      .watch(vendorsProvider(null))
+                      .when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, _) => Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: AppColors.slate200,
+                              ),
+                              const SizedBox(height: 12),
+                              const AppText(
+                                'Failed to load vendors',
+                                color: AppColors.slate400,
+                              ),
+                            ],
+                          ),
+                        ),
+                        data: (vendors) {
+                          // Note: For empty query, we are relying on vendorsProvider which fetches /vendors.
+                          // It does fetch all vendors. We can still filter them locally by category
+                          // to keep the immediate snappy category change.
+                          final selectedCat = _categoryFromString(
+                            _selectedCategory,
+                          );
+                          final filtered = selectedCat != null
+                              ? vendors
+                                    .where((v) => v.category == selectedCat)
+                                    .toList()
+                              : vendors;
 
-                // Apply search filter
-                if (_searchQuery.isNotEmpty) {
-                  filtered = filtered
-                      .where(
-                        (v) => v.name.toLowerCase().contains(
-                          _searchQuery.toLowerCase(),
+                          if (filtered.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.store_outlined,
+                                    size: 64,
+                                    color: AppColors.slate200,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const AppText(
+                                    'No vendors found',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const AppText(
+                                    'No vendors in this category yet',
+                                    color: AppColors.slate400,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              return _buildVendorCard(filtered[index]);
+                            },
+                          );
+                        },
+                      )
+                : ref
+                      .watch(
+                        searchProvider(
+                          FeedParams(
+                            q: _searchQuery,
+                            category: _categoryFromString(
+                              _selectedCategory,
+                            )?.name,
+                          ),
                         ),
                       )
-                      .toList();
-                }
+                      .when(
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, _) => Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: AppColors.slate200,
+                              ),
+                              const SizedBox(height: 12),
+                              const AppText(
+                                'Failed to load search results',
+                                color: AppColors.slate400,
+                              ),
+                            ],
+                          ),
+                        ),
+                        data: (searchData) {
+                          final vendors = searchData.vendors;
+                          final items = searchData.items;
 
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.store_outlined,
-                          size: 64,
-                          color: AppColors.slate200,
-                        ),
-                        const SizedBox(height: 16),
-                        const AppText(
-                          'No vendors found',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        const SizedBox(height: 8),
-                        AppText(
-                          _searchQuery.isNotEmpty
-                              ? 'Try a different search term'
-                              : 'No vendors in this category yet',
-                          color: AppColors.slate400,
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                          if (vendors.isEmpty && items.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: AppColors.slate200,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const AppText(
+                                    'No results found',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const AppText(
+                                    'Try a different search term',
+                                    color: AppColors.slate400,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    return _buildVendorCard(filtered[index]);
-                  },
-                );
-              },
-            ),
+                          return ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            children: [
+                              if (vendors.isNotEmpty) ...[
+                                const Padding(
+                                  padding: EdgeInsets.only(bottom: 8.0),
+                                  child: AppText(
+                                    'Vendors',
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                ...vendors.map((v) => _buildVendorCard(v)),
+                              ],
+                              if (items.isNotEmpty) ...[
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                                  child: AppText(
+                                    'Items',
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                // We use the MenuItemCard for menu items
+                                ...items.map(
+                                  (item) => Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 16.0,
+                                    ),
+                                    child: MenuItemCard(item: item),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
           ),
         ],
       ),

@@ -30,4 +30,33 @@ class AppTheme {
       // Add more consistent styling as needed
     );
   }
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primaryOrange,
+        brightness: Brightness.dark,
+        primary: AppColors.primaryOrange,
+        secondary: AppColors.secondaryGreen,
+        tertiary: AppColors.accentBlue,
+        error: AppColors.errorRed,
+        surface: const Color(0xFF1E293B), // slate-800
+      ),
+      scaffoldBackgroundColor: const Color(0xFF0F172A), // slate-900
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryOrange,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
 }
