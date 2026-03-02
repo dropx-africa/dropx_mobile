@@ -4,11 +4,15 @@
 /// when the backend changes.
 library;
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiEndpoints {
   ApiEndpoints._();
 
   // Base
-  static const String baseUrl = 'https://api-production-dcbb.up.railway.app';
+  static String get baseUrl =>
+      dotenv.env['BACKEND_BASE_URL'] ??
+      '';
 
   // Auth
   static const String login = '/auth/login';

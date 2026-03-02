@@ -8,8 +8,11 @@ import 'package:dropx_mobile/src/core/services/session_service.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   final prefs = await SharedPreferences.getInstance();
   final sessionService = SessionService(prefs);
 

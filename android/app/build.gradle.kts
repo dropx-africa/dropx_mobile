@@ -1,3 +1,12 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val envFile = rootProject.file("../.env")
+val envConfig = Properties()
+if (envFile.exists()) {
+    envConfig.load(FileInputStream(envFile))
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -28,6 +37,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = envConfig["GOOGLE_MAPS_API_KEY"]?.toString() ?: ""
     }
 
     buildTypes {
