@@ -16,6 +16,7 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
     String? zoneId,
     double? lat,
     double? lng,
+    double? radiusKm,
     int? maxEtaMinutes,
     String? category,
     String? q,
@@ -26,6 +27,7 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
     if (zoneId != null) queryParams['zone_id'] = zoneId;
     if (lat != null) queryParams['lat'] = lat.toString();
     if (lng != null) queryParams['lng'] = lng.toString();
+    if (radiusKm != null) queryParams['radius_km'] = radiusKm.toString();
     if (maxEtaMinutes != null) {
       queryParams['max_eta_minutes'] = maxEtaMinutes.toString();
     }

@@ -8,6 +8,7 @@ abstract class HomeFeedRepository {
     String? zoneId,
     double? lat,
     double? lng,
+    double? radiusKm,
     int? maxEtaMinutes,
     String? category,
     String? q,

@@ -25,6 +25,7 @@ class FeaturedSection extends ConsumerWidget {
       category: category.name,
       lat: session.savedLat,
       lng: session.savedLng,
+      radiusKm: 10,
       maxEtaMinutes: maxEtaMinutes,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));

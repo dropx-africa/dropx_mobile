@@ -20,6 +20,7 @@ class FastestSection extends ConsumerWidget {
       category: category.name,
       lat: session.savedLat,
       lng: session.savedLng,
+      radiusKm: 10,
       maxEtaMinutes: 35,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));

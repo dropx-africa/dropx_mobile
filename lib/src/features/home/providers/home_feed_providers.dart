@@ -17,6 +17,7 @@ class FeedParams {
   final int? maxEtaMinutes;
   final double? lat;
   final double? lng;
+  final double? radiusKm;
 
   const FeedParams({
     this.category,
@@ -24,6 +25,7 @@ class FeedParams {
     this.maxEtaMinutes,
     this.lat,
     this.lng,
+    this.radiusKm,
   });
 
   @override
@@ -35,7 +37,8 @@ class FeedParams {
           q == other.q &&
           maxEtaMinutes == other.maxEtaMinutes &&
           lat == other.lat &&
-          lng == other.lng;
+          lng == other.lng &&
+          radiusKm == other.radiusKm;
 
   @override
   int get hashCode =>
@@ -43,7 +46,8 @@ class FeedParams {
       q.hashCode ^
       maxEtaMinutes.hashCode ^
       lat.hashCode ^
-      lng.hashCode;
+      lng.hashCode ^
+      radiusKm.hashCode;
 }
 
 /// ─── Data Providers ───────────────────────────────────────────
@@ -61,6 +65,7 @@ final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
         maxEtaMinutes: params.maxEtaMinutes,
         lat: params.lat,
         lng: params.lng,
+        radiusKm: params.radiusKm,
       );
 });
 
