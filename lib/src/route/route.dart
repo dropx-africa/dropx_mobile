@@ -65,9 +65,11 @@ abstract class AppRouter {
         );
 
       case AppRoute.dashboard:
+        final args = settings.arguments as Map<String, dynamic>?;
+        final initialTab = args?['initialTab'] as int? ?? 0;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => DashboardScreen(),
+          builder: (context) => DashboardScreen(initialTab: initialTab),
         );
 
       case AppRoute.vendorMenu:

@@ -13,4 +13,4 @@ VendorResponse _$VendorResponseFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$VendorResponseToJson(VendorResponse instance) =>
-    <String, dynamic>{'ok': instance.ok, 'vendor': instance.vendor};
+    <String, dynamic>{'ok': instance.ok, 'vendor': instance.vendor.toJson()};

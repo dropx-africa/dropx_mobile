@@ -5,8 +5,9 @@ import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
-import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
+
 import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
+import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 

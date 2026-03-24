@@ -37,7 +37,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
 
   List<String> _buildCategories(List<MenuItem> items) {
     final categories = items
-        .map((item) => item.category?.name ?? 'Other')
+        .map((item) => item.category ?? 'Other')
         .toSet()
         .toList();
     return ["All", ...categories];
@@ -48,7 +48,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     if (_selectedCategory != "All") {
       filtered = filtered
           .where(
-            (item) => (item.category?.name ?? 'Other') == _selectedCategory,
+            (item) => (item.category ?? 'Other') == _selectedCategory,
           )
           .toList();
     }
@@ -273,6 +273,9 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                             itemBuilder: (context, index) {
                               final category = categories[index];
                               final isSelected = category == _selectedCategory;
+                              final label = category.isEmpty
+                                  ? category
+                                  : '${category[0].toUpperCase()}${category.substring(1)}';
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: GestureDetector(
@@ -299,7 +302,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        category,
+                                        label,
                                         style: TextStyle(
                                           color: isSelected
                                               ? Colors.white

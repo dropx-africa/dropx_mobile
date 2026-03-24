@@ -12,6 +12,5 @@ class VendorResponse {
 
   factory VendorResponse.fromJson(Map<String, dynamic> json) =>
       _$VendorResponseFromJson(json);
-
   Map<String, dynamic> toJson() => _$VendorResponseToJson(this);
 }

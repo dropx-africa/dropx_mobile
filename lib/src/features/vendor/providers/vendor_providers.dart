@@ -12,14 +12,12 @@ final vendorRepositoryProvider = Provider<VendorRepository>((ref) {
   return RemoteVendorRepository(ref.watch(apiClientProvider));
 });
 
-/// ─── Data Providers ───────────────────────────────────────────
-
 /// All vendors, optionally filtered by category.
 final vendorsProvider = FutureProvider.family<List<Vendor>, VendorCategory?>((
   ref,
   category,
 ) {
-  return ref.watch(vendorRepositoryProvider).getVendors();
+  return ref.watch(vendorRepositoryProvider).getVendors(category: category);
 });
 
 /// Vendors filtered by zone ID — used in the cart to fetch vendor info.

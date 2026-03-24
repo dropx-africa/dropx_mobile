@@ -166,7 +166,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       case 'ARRIVED_PICKUP':
         _orderStage = 1;
         _status = 'Rider at Pickup';
-        _statusColor = AppColors.primaryOrange;
+        _statusColor = Colors.blue;
       case 'PICKED_UP':
       case 'IN_TRANSIT':
         _orderStage = 2;
@@ -208,7 +208,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final stages = [
       (0, 'PLACED', 'Order Placed', Colors.grey, 0, 25),
       (1, 'ACCEPTED', 'Order Accepted', AppColors.primaryOrange, 15, 22),
-      (1, 'ARRIVED_PICKUP', 'Rider at Pickup', AppColors.primaryOrange, 20, 18),
+      (1, 'ARRIVED_PICKUP', 'Rider at Pickup', Colors.blue, 20, 18),
       (2, 'PICKED_UP', 'Order Picked Up', AppColors.primaryOrange, 25, 14),
       (2, 'IN_TRANSIT', 'On the Way', AppColors.primaryOrange, 30, 10),
       (2, 'ARRIVED_DROPOFF', 'Rider Arrived', AppColors.primaryOrange, 35, 3),
@@ -355,7 +355,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back),
                     color: Colors.black,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+                      AppRoute.dashboard,
+                      (route) => false,
+                      arguments: {'initialTab': 2},
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -840,8 +844,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         _orderStage = 0;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order cancelled (simulated).')),
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoute.dashboard,
+          (route) => false,
         );
       }
       return;
@@ -856,10 +861,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           note: note.isNotEmpty ? note : reason.displayLabel,
         ),
       );
-      _fetchTrackingData();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order cancelled successfully.')),
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoute.dashboard,
+          (route) => false,
         );
       }
     } catch (e) {
@@ -990,6 +995,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             ? null
                             : () async {
                                 final picker = ImagePicker();
+                                final messenger = ScaffoldMessenger.of(context);
                                 final pickedFile = await picker.pickImage(
                                   source: ImageSource.camera,
                                 );
@@ -1006,16 +1012,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                       capturedEvidenceUrl = url;
                                     }
                                   });
-                                  if (url != null && mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                  if (url != null) {
+                                    messenger.showSnackBar(
                                       const SnackBar(
                                         content: Text(
                                           'Evidence uploaded successfully.',
                                         ),
                                       ),
                                     );
-                                  } else if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                  } else {
+                                    messenger.showSnackBar(
                                       const SnackBar(
                                         content: Text(
                                           'Failed to upload evidence.',
@@ -1165,10 +1171,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Dispute raised. We\'ll review within 24 hrs.'),
-          ),
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoute.dashboard,
+          (route) => false,
         );
       }
     } catch (e) {
@@ -1401,6 +1406,38 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   // ─── Progress bar ─────────────────────────────────────────────────────────
 
   Widget _buildProgressBar(BuildContext context) {
+    // Show a dedicated cancelled/disputed banner instead of the normal steps
+    if (_currentState == 'CANCELLED' || _currentState == 'DISPUTED') {
+      final isCancelled = _currentState == 'CANCELLED';
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isCancelled ? Icons.cancel_outlined : Icons.report_problem_outlined,
+              color: Colors.red,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            AppText(
+              isCancelled
+                  ? 'This order has been cancelled.'
+                  : 'A dispute has been raised for this order.',
+              fontSize: 13,
+              color: Colors.red.shade700,
+              fontWeight: FontWeight.w600,
+            ),
+          ],
+        ),
+      );
+    }
+
     double progress = 0.0;
     if (_orderStage >= 1) progress = 0.33;
     if (_orderStage >= 2) progress = 0.66;

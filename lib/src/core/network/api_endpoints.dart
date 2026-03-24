@@ -10,9 +10,7 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   // Base
-  static String get baseUrl =>
-      dotenv.env['BACKEND_BASE_URL'] ??
-      '';
+  static String get baseUrl => dotenv.env['BACKEND_BASE_URL'] ?? '';
 
   // Auth
   static const String login = '/auth/login';

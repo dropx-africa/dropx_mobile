@@ -200,11 +200,6 @@ class ProfileScreen extends ConsumerWidget {
                   );
                 },
               ),
-              _buildProfileOption(
-                icon: Icons.account_balance_wallet_rounded,
-                title: "Payment Methods",
-                onTap: () {},
-              ),
               const SizedBox(height: 24),
               const AppText(
                 "SUPPORT",

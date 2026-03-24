@@ -9,14 +9,15 @@ import 'package:dropx_mobile/src/features/discover/presentation/discover_screen.
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  const DashboardScreen({super.key});
+  final int initialTab;
+  const DashboardScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex = widget.initialTab;
 
   void _onTabTapped(int index) {
     final session = ref.read(sessionServiceProvider);

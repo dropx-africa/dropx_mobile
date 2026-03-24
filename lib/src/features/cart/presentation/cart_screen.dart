@@ -335,8 +335,26 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItemsList = cartState.items.values.toList();
     final totalPrice = cartState.totalPrice;
 
+    // Fallback: if estimate hasn't loaded a delivery fee yet, use vendor's known fee
+    final double vendorDeliveryFee = cartState.zoneId != null
+        ? ref
+              .watch(vendorsByZoneProvider(cartState.zoneId!))
+              .maybeWhen(
+                data: (vendors) {
+                  final v = vendors.cast<Vendor?>().firstWhere(
+                    (v) => v?.id == cartState.vendorId,
+                    orElse: () => vendors.isNotEmpty ? vendors.first : null,
+                  );
+                  return v?.deliveryFee ?? 0.0;
+                },
+                orElse: () => 0.0,
+              )
+        : 0.0;
+    final double displayDeliveryFee =
+        _deliveryFee > 0 ? _deliveryFee : vendorDeliveryFee;
+
     // Calculate fees
-    final totalAmount = totalPrice + _deliveryFee + _serviceFee;
+    final totalAmount = totalPrice + displayDeliveryFee + _serviceFee;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -519,7 +537,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         "Delivery Fee",
                         _isLoadingEstimate
                             ? '...'
-                            : Formatters.formatNaira(_deliveryFee),
+                            : Formatters.formatNaira(displayDeliveryFee),
                       ),
                       const SizedBox(height: 12),
                       _buildBillRow(

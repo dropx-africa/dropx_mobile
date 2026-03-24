@@ -1,14 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dropx_mobile/src/utils/app_theme.dart';
 import 'package:dropx_mobile/src/route/route.dart';
+import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/services/session_service.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +38,13 @@ void main() async {
         phone: sessionService.phone,
       );
     };
+    ApiClient().onUnauthorized = () async {
+      await sessionService.clearSession();
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        AppRoute.login,
+        (route) => false,
+      );
+    };
     if (kDebugMode) print('[Main] ✅ Auth token restored to ApiClient');
   } else {
     if (kDebugMode) print('[Main] ⚠️ No auth token to restore');
@@ -59,6 +68,7 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       title: 'DropX',
       theme: AppTheme.lightTheme,
+      navigatorKey: navigatorKey,
       initialRoute: initialRoute,
       debugShowCheckedModeBanner: false,
       onGenerateRoute: AppRouter.onGenerateRoute,

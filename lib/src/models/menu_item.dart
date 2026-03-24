@@ -1,5 +1,4 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 
 part 'menu_item.g.dart';
@@ -23,8 +22,7 @@ class MenuItem {
   @JsonKey(name: 'prep_time')
   final String? prepTime;
   final List<String>? badges;
-  @JsonKey(unknownEnumValue: VendorCategory.other)
-  final VendorCategory? category;
+  final String? category;
   @JsonKey(name: 'vendor_id')
   final String? vendorId;
   @JsonKey(name: 'is_available', defaultValue: true)

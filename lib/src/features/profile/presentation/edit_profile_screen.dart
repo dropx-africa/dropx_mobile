@@ -48,7 +48,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _phoneController.text = phone;
     }
     _phoneE164 = phone;
-    _avatarUrl = userProfile?.avatarUrl;
+    setState(() {
+      _avatarUrl = userProfile?.avatarUrl;
+    });
   }
 
   @override

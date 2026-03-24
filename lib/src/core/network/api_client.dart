@@ -35,6 +35,7 @@ class ApiClient {
   bool _isRefreshing = false;
   Future<void>? _refreshFuture;
   void Function(String, String)? onTokenRefreshed;
+  void Function()? onUnauthorized;
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -153,20 +154,28 @@ class ApiClient {
       debugPrint('[API] Response status: ${response.statusCode}');
       debugPrint('[API] Response body: ${response.body}');
 
-      if (response.statusCode == 401 && _refreshToken != null) {
-        if (!_isRefreshing) {
-          _isRefreshing = true;
-          _refreshFuture = _performRefresh();
-        }
-        try {
-          await _refreshFuture;
-          // Retry the request after refreshing token
-          response = await requestFunc();
-        } catch (e) {
-          // If refresh fails, let the caller handle the 401 error
-        } finally {
-          _isRefreshing = false;
-          _refreshFuture = null;
+      if (response.statusCode == 401) {
+        if (_refreshToken != null) {
+          if (!_isRefreshing) {
+            _isRefreshing = true;
+            _refreshFuture = _performRefresh();
+          }
+          try {
+            await _refreshFuture;
+            // Retry the request after refreshing token
+            response = await requestFunc();
+          } catch (e) {
+            // Refresh failed — clear tokens and redirect to login
+            clearAuthToken();
+            onUnauthorized?.call();
+          } finally {
+            _isRefreshing = false;
+            _refreshFuture = null;
+          }
+        } else if (_authToken != null) {
+          // Had a token but it's invalid and no refresh token available
+          clearAuthToken();
+          onUnauthorized?.call();
         }
       }
 
