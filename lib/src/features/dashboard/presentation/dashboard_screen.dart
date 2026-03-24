@@ -6,6 +6,7 @@ import 'package:dropx_mobile/src/features/home/presentation/home_tab.dart';
 import 'package:dropx_mobile/src/features/order/presentation/orders_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/profile_screen.dart';
 import 'package:dropx_mobile/src/features/discover/presentation/discover_screen.dart';
+import 'package:dropx_mobile/src/features/wallet/presentation/wallet_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -23,8 +24,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final session = ref.read(sessionServiceProvider);
     final isGuest = session.isGuest;
 
-    // Restrict certain tabs for guest users
-    if (isGuest && (index == 2 || index == 3)) {
+    // Restrict certain tabs for guest users (Orders, Wallet, Profile)
+    if (isGuest && (index == 2 || index == 3 || index == 4)) {
       _showSignUpSheet();
       return;
     }
@@ -49,6 +50,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       HomeTab(),
       const DiscoverScreen(),
       const OrdersScreen(),
+      const WalletScreen(),
       const ProfileScreen(),
     ];
 
@@ -66,6 +68,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long),
             label: 'Orders',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            label: 'Wallet',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
