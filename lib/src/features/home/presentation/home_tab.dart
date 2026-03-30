@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +6,12 @@ import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 
 import 'package:dropx_mobile/src/features/home/widgets/category_button.dart';
-import 'package:dropx_mobile/src/features/home/widgets/delivery_filter.dart';
 import 'package:dropx_mobile/src/features/home/widgets/recent_orders_section.dart';
 import 'package:dropx_mobile/src/features/home/widgets/featured_section.dart';
 import 'package:dropx_mobile/src/features/home/widgets/fastest_section.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart'; // session provider
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
@@ -22,10 +23,127 @@ class HomeTab extends ConsumerStatefulWidget {
   ConsumerState<HomeTab> createState() => _HomeTabState();
 }
 
+class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double safeAreaTop;
+  final String displayAddress;
+  final bool isGuest;
+  final VoidCallback onLocationTap;
+  final VoidCallback onNotificationTap;
+
+  const _StickyOrangeHeaderDelegate({
+    required this.safeAreaTop,
+    required this.displayAddress,
+    required this.isGuest,
+    required this.onLocationTap,
+    required this.onNotificationTap,
+  });
+
+  // safeAreaTop + 16(top pad) + ~46(row) + 16(spacer) + 16(bottom pad)
+  double get _height => safeAreaTop + 94;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.primaryOrange,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      padding: EdgeInsets.only(
+        top: safeAreaTop + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: onLocationTap,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: AppText(
+                          displayAddress,
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isGuest)
+                IconButton(
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                  ),
+                  onPressed: onNotificationTap,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyOrangeHeaderDelegate oldDelegate) =>
+      oldDelegate.safeAreaTop != safeAreaTop ||
+      oldDelegate.displayAddress != displayAddress ||
+      oldDelegate.isGuest != isGuest;
+}
+
+class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyCategoryDelegate({required this.child});
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return child;
+  }
+
+  @override
+  double get maxExtent => 104;
+
+  @override
+  double get minExtent => 104;
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return true;
+  }
+}
+
 class _HomeTabState extends ConsumerState<HomeTab> {
   // Note: ConsumerState gives access to `ref` through ConsumerStatefulWidget
   VendorCategory _selectedCategory = VendorCategory.food; // Default category
-  int? _selectedEta; // Filter state for ETA
 
   @override
   Widget build(BuildContext context) {
@@ -34,204 +152,127 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final bool isGuest = session.isGuest;
     final String displayAddress = session.savedAddress;
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // Fixed Orange Header
-          Container(
-            decoration: const BoxDecoration(
-              color: AppColors.primaryOrange,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+    final safeAreaTop = MediaQuery.of(context).padding.top;
+
+    return AppScaffold(
+      useSafeArea: false,
+      slivers: [
+        // Fixed Orange Header
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyOrangeHeaderDelegate(
+            safeAreaTop: safeAreaTop,
+            displayAddress: displayAddress,
+            isGuest: isGuest,
+            onLocationTap: () => AppNavigator.push(
+              context,
+              AppRoute.manualLocation,
+            ),
+            onNotificationTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const NotificationsScreen(),
               ),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+          ),
+        ),
+
+        // Sticky Categories
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _StickyCategoryDelegate(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: SizedBox(
+                height: 80,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    // Location and Search Icon Row
-                    Row(
-                      children: [
-                        // Location with category
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              // Navigate to location/manual location screen
-                              Navigator.pushNamed(
-                                context,
-                                AppRoute.manualLocation,
-                              );
-                            },
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      AppText(
-                                        _selectedCategory.name
-                                                .substring(0, 1)
-                                                .toUpperCase() +
-                                            _selectedCategory.name.substring(1),
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      AppText(
-                                        displayAddress,
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications_none_rounded,
-                            color: Colors.white,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+                    CategoryButton(
+                      icon: Icons.restaurant,
+                      label: 'Food',
+                      isSelected: _selectedCategory == VendorCategory.food,
+                      onTap: () => setState(() {
+                        _selectedCategory = VendorCategory.food;
+                      }),
                     ),
-                    AppSpaces.v16,
-                    // Categories
-                    SizedBox(
-                      height: 100,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CategoryButton(
-                            icon: Icons.restaurant,
-                            label: 'Food',
-                            isSelected:
-                                _selectedCategory == VendorCategory.food,
-                            onTap: () => setState(() {
-                              _selectedCategory = VendorCategory.food;
-                              _selectedEta =
-                                  null; // Reset filter on category change
-                            }),
-                          ),
-                          CategoryButton(
-                            icon: Icons.local_pharmacy,
-                            label: 'Pharmacy',
-                            isSelected:
-                                _selectedCategory == VendorCategory.pharmacy,
-                            onTap: () => setState(() {
-                              _selectedCategory = VendorCategory.pharmacy;
-                              _selectedEta = null;
-                            }),
-                          ),
-                          CategoryButton(
-                            icon: Icons.card_giftcard,
-                            label: 'Parcel',
-                            isSelected:
-                                _selectedCategory == VendorCategory.parcel,
-                            onTap: () => setState(() {
-                              _selectedCategory = VendorCategory.parcel;
-                              _selectedEta = null;
-                            }),
-                          ),
-                          CategoryButton(
-                            icon: Icons.shopping_cart,
-                            label: 'Retail',
-                            isSelected:
-                                _selectedCategory == VendorCategory.retail,
-                            onTap: () => setState(() {
-                              _selectedCategory = VendorCategory.retail;
-                              _selectedEta = null;
-                            }),
-                          ),
-                        ],
+                    const SizedBox(width: 12),
+                    CategoryButton(
+                      icon: Icons.local_pharmacy,
+                      label: 'Pharmacy',
+                      isSelected: _selectedCategory == VendorCategory.pharmacy,
+                      onTap: () => setState(() {
+                        _selectedCategory = VendorCategory.pharmacy;
+                      }),
+                    ),
+                    const SizedBox(width: 12),
+                    CategoryButton(
+                      icon: Icons.card_giftcard,
+                      label: 'Parcel',
+                      isSelected: _selectedCategory == VendorCategory.parcel,
+                      onTap: () => setState(() {
+                        _selectedCategory = VendorCategory.parcel;
+                      }),
+                    ),
+                    const SizedBox(width: 12),
+                    CategoryButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Retail',
+                      isSelected: _selectedCategory == VendorCategory.retail,
+                      onTap: () => setState(() {
+                        _selectedCategory = VendorCategory.retail;
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Scrollable Content
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppSpaces.v16,
+              if (!isGuest) const RecentOrdersSection(),
+              FeaturedSection(category: _selectedCategory),
+              AppSpaces.v24,
+              FastestSection(category: _selectedCategory),
+              AppSpaces.v24,
+            ],
+          ),
+        ),
+      ],
+      floatingActionButton: isGuest
+          ? null
+          : Consumer(
+              builder: (context, ref, child) {
+                final cartState = ref.watch(cartProvider);
+                final int itemCount = cartState.totalItemCount;
+
+                return FloatingActionButton(
+                  onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
+                  backgroundColor: AppColors.primaryOrange,
+                  child: Badge(
+                    isLabelVisible: itemCount > 0,
+                    label: Text(
+                      itemCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    AppSpaces.v8,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppSpaces.v16,
-                  DeliveryFilter(
-                    selectedEta: _selectedEta,
-                    onFilterChanged: (eta) {
-                      setState(() {
-                        _selectedEta = eta;
-                      });
-                    },
+                    backgroundColor: AppColors.errorRed,
+                    offset: const Offset(8, -8),
+                    child: const Icon(Icons.shopping_cart, color: Colors.white),
                   ),
-                  AppSpaces.v24,
-                  if (!isGuest) const RecentOrdersSection(),
-                  FeaturedSection(
-                    category: _selectedCategory,
-                    maxEtaMinutes: _selectedEta,
-                  ),
-                  if (_selectedEta == null) ...[
-                    AppSpaces.v24,
-                    FastestSection(category: _selectedCategory),
-                  ],
-                  AppSpaces.v24,
-                ],
-              ),
+                );
+              },
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: Consumer(
-        builder: (context, ref, child) {
-          final cartState = ref.watch(cartProvider);
-          final int itemCount = cartState.totalItemCount;
-
-          return FloatingActionButton(
-            onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
-            backgroundColor: AppColors.primaryOrange,
-            child: Badge(
-              isLabelVisible: itemCount > 0,
-              label: Text(
-                itemCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              backgroundColor: AppColors.errorRed,
-              offset: const Offset(8, -8),
-              child: const Icon(Icons.shopping_cart, color: Colors.white),
-            ),
-          );
-        },
-      ),
     );
   }
 }

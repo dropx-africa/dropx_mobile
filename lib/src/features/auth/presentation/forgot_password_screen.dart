@@ -8,6 +8,8 @@ import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
@@ -109,141 +111,132 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: BackButton(color: AppColors.black),
+    return AppScaffold(
+      appBar: const AppAppBar(
+        title: 'Forgot Password',
+        style: AppAppBarStyle.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  const AppImage(AppIcon.logo2, height: 60),
-                  AppSpaces.v8,
-                  const AppSubText(
-                    "No Stories. Just Delivery.",
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+      children: [
+        Center(
+          child: Column(
+            children: [
+              const AppImage(AppIcon.logo2, height: 60),
+              AppSpaces.v8,
+              const AppSubText(
+                "No Stories. Just Delivery.",
+                textAlign: TextAlign.center,
               ),
-            ),
-            AppSpaces.v48,
-            const AppHeader('Forgot Password'),
-            AppSpaces.v8,
-            const AppSubText(
-              'Enter your email or phone number to receive a verification code.',
-              fontSize: 16,
-            ),
-            AppSpaces.v24,
+            ],
+          ),
+        ),
+        AppSpaces.v48,
+        const AppHeader('Forgot Password'),
+        AppSpaces.v8,
+        const AppSubText(
+          'Enter your email or phone number to receive a verification code.',
+          fontSize: 16,
+        ),
+        AppSpaces.v24,
 
-            // Tab bar
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6F8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              padding: const EdgeInsets.all(6),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppColors.primaryOrange,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
+        // Tab bar
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F6F8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.all(6),
+          child: TabBar(
+            controller: _tabController,
+            indicator: BoxDecoration(
+              color: AppColors.primaryOrange,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            labelColor: Colors.white,
+            unselectedLabelColor: AppColors.slate500,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 15,
+            ),
+            tabs: const [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.email_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Email'),
                   ],
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelColor: Colors.white,
-                unselectedLabelColor: AppColors.slate500,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
-                tabs: const [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.email_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Email'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.phone_android_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Phone'),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-            AppSpaces.v24,
-
-            // Contact field (changes based on tab)
-            _tabController.index == 0
-                ? AppTextField(
-                    label: 'Email',
-                    hintText: 'Enter your email',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                  )
-                : AppTextField(
-                    isPhone: true,
-                    label: 'Phone Number',
-                    hintText: 'Enter your phone number',
-                    onPhoneChanged: (phone) {
-                      _phoneNumber = phone.completeNumber;
-                    },
-                  ),
-            AppSpaces.v32,
-
-            // Send OTP button
-            CustomButton(
-              text: 'Send OTP',
-              isLoading: _isLoading,
-              onPressed: _isLoading ? () {} : _handleSubmit,
-              backgroundColor: AppColors.darkBackground,
-              textColor: AppColors.white,
-            ),
-            AppSpaces.v24,
-            Center(
-              child: GestureDetector(
-                onTap: () =>
-                    AppNavigator.pushReplacement(context, AppRoute.login),
-                child: const AppText(
-                  'Back to Login',
-                  color: AppColors.primaryOrange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.phone_android_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Phone'),
+                  ],
                 ),
               ),
-            ),
-            AppSpaces.v24,
-          ],
+            ],
+          ),
         ),
-      ),
+        AppSpaces.v24,
+
+        // Contact field (changes based on tab)
+        _tabController.index == 0
+            ? AppTextField(
+                label: 'Email',
+                hintText: 'Enter your email',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+              )
+            : AppTextField(
+                isPhone: true,
+                label: 'Phone Number',
+                hintText: 'Enter your phone number',
+                onPhoneChanged: (phone) {
+                  _phoneNumber = phone.completeNumber;
+                },
+              ),
+        AppSpaces.v32,
+
+        // Send OTP button
+        CustomButton(
+          text: 'Send OTP',
+          isLoading: _isLoading,
+          onPressed: _isLoading ? () {} : _handleSubmit,
+          backgroundColor: AppColors.darkBackground,
+          textColor: AppColors.white,
+        ),
+        AppSpaces.v24,
+        Center(
+          child: GestureDetector(
+            onTap: () => AppNavigator.pushReplacement(context, AppRoute.login),
+            child: const AppText(
+              'Back to Login',
+              color: AppColors.primaryOrange,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        AppSpaces.v24,
+      ],
     );
   }
 }

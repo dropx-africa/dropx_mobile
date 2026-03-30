@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 
@@ -86,10 +87,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     final isLast = _currentPage == _pages.length - 1;
 
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
+      useSafeArea: false,
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: SafeArea(
+            child: Column(
           children: [
             // Skip button
             Align(
@@ -200,6 +205,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ],
         ),
       ),
+        ),
+      ],
     );
   }
 }

@@ -16,6 +16,7 @@ Vendor _$VendorFromJson(Map<String, dynamic> json) => Vendor(
   deliveryFee: (json['delivery_fee'] as num?)?.toDouble(),
   imageUrl: json['image_url'] as String?,
   logoUrl: json['logo_url'] as String?,
+  coverImageUrl: json['cover_image_url'] as String?,
   tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList(),
   category: $enumDecodeNullable(
     _$VendorCategoryEnumMap,
@@ -29,6 +30,10 @@ Vendor _$VendorFromJson(Map<String, dynamic> json) => Vendor(
   accuracyBadge: json['accuracy_badge'] as String?,
   ownerUserId: json['owner_user_id'] as String?,
   createdAt: json['created_at'] as String?,
+  etaMinutes: (json['eta_minutes'] as num?)?.toInt(),
+  deliveryFeeKobo: json['delivery_fee_kobo'] as String?,
+  distanceKm: (json['distance_km'] as num?)?.toDouble(),
+  isOpen: json['is_open'] as bool?,
 );
 
 Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
@@ -41,6 +46,7 @@ Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
   'delivery_fee': instance.deliveryFee,
   'image_url': instance.imageUrl,
   'logo_url': instance.logoUrl,
+  'cover_image_url': instance.coverImageUrl,
   'tags': instance.tags,
   'is_featured': instance.isFeatured,
   'is_fastest': instance.isFastest,
@@ -50,6 +56,10 @@ Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
   'category': _$VendorCategoryEnumMap[instance.category],
   'owner_user_id': instance.ownerUserId,
   'created_at': instance.createdAt,
+  'eta_minutes': instance.etaMinutes,
+  'delivery_fee_kobo': instance.deliveryFeeKobo,
+  'distance_km': instance.distanceKm,
+  'is_open': instance.isOpen,
 };
 
 const _$VendorCategoryEnumMap = {

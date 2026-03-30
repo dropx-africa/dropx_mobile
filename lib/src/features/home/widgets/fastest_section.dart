@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/home/widgets/feed_vendor_card.dart';
 import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
+import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 
 class FastestSection extends ConsumerWidget {
   final VendorCategory category;
@@ -21,13 +24,12 @@ class FastestSection extends ConsumerWidget {
       lat: session.savedLat,
       lng: session.savedLng,
       radiusKm: 10,
-      maxEtaMinutes: 35,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));
 
     return feedAsync.when(
       loading: () =>
-          const SizedBox(height: 250, child: Center(child: AppLoadingWidget())),
+          const SizedBox(height: 250, child: Center(child: AppLoading())),
       error: (e, st) => const SizedBox.shrink(),
       data: (feedData) {
         final items = feedData.items;
@@ -80,7 +82,11 @@ class FastestSection extends ConsumerWidget {
                 children: [
                   AppText(title, fontSize: 18, fontWeight: FontWeight.bold),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      if (category == VendorCategory.food) {
+                        AppNavigator.push(context, AppRoute.fastestFood);
+                      }
+                    },
                     child: const Text(
                       'See all',
                       style: TextStyle(color: AppColors.primaryOrange),
@@ -117,33 +123,10 @@ class FastestSection extends ConsumerWidget {
       message = "No retail stores found near you.";
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.storefront_outlined,
-            size: 60,
-            color: AppColors.slate400,
-          ),
-          const SizedBox(height: 16),
-          const AppText(
-            "Coming Soon",
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.slate500,
-          ),
-          const SizedBox(height: 8),
-          AppText(
-            message,
-            fontSize: 14,
-            color: AppColors.slate400,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.storefront_outlined,
+      title: "Coming Soon",
+      message: message,
     );
   }
 }

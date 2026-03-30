@@ -75,11 +75,6 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   }
 
   Future<bool> _requestLocationPermission() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) _showLocationServiceDialog();
-      return false;
-    }
     LocationPermission perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
@@ -228,39 +223,6 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   }
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
-
-  void _showLocationServiceDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Location Services Off'),
-        content: const Text(
-          'Your device location is turned off. Enable it for better accuracy, '
-          'or search your delivery address manually.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => AppNavigator.pop(ctx),
-            child: const Text(
-              'Search Manually',
-              style: TextStyle(color: AppColors.slate500),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              AppNavigator.pop(ctx);
-              await Geolocator.openLocationSettings();
-            },
-            child: const Text(
-              'Enable Location',
-              style: TextStyle(color: AppColors.primaryOrange),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showSettingsDialog() {
     showDialog(
@@ -540,7 +502,7 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
                     // ── Tappable subtitle ──────────────────────────────────
                     // When GPS-only: tapping opens the location service dialog
                     GestureDetector(
-                      onTap: isGpsOnly ? _showLocationServiceDialog : null,
+                      onTap: isGpsOnly ? _requestLocationPermission : null,
                       child: AppSubText(
                         isGpsOnly
                             ? 'Or search for a specific address above'
@@ -586,10 +548,10 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   }
 
   /// Shown when no location or search selection exists.
-  /// Tapping this card opens the location service dialog.
+  /// Tapping this card requests location permission.
   Widget _buildHintCard() => GestureDetector(
     key: const ValueKey('hint'),
-    onTap: _showLocationServiceDialog,
+    onTap: _requestLocationPermission,
     child: Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),

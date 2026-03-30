@@ -43,6 +43,22 @@ class Vendor {
   final String? ownerUserId;
   @JsonKey(name: 'created_at')
   final String? createdAt;
+  @JsonKey(name: 'eta_minutes')
+  final int? etaMinutes;
+  @JsonKey(name: 'delivery_fee_kobo')
+  final String? deliveryFeeKobo;
+  @JsonKey(name: 'distance_km')
+  final double? distanceKm;
+  @JsonKey(name: 'is_open')
+  final bool? isOpen;
+  @JsonKey(name: 'cover_image_url')
+  final String? coverImageUrl;
+
+  /// Delivery fee in Naira (kobo → naira).
+  double get deliveryFeeNaira {
+    if (deliveryFeeKobo == null) return 0;
+    return (double.tryParse(deliveryFeeKobo!) ?? 0) / 100;
+  }
 
   const Vendor({
     required this.id,
@@ -54,6 +70,7 @@ class Vendor {
     this.deliveryFee,
     this.imageUrl,
     this.logoUrl,
+    this.coverImageUrl,
     this.tags,
     this.category,
     this.isFeatured = false,
@@ -63,6 +80,10 @@ class Vendor {
     this.accuracyBadge,
     this.ownerUserId,
     this.createdAt,
+    this.etaMinutes,
+    this.deliveryFeeKobo,
+    this.distanceKm,
+    this.isOpen,
   });
 
   factory Vendor.fromJson(Map<String, dynamic> json) => _$VendorFromJson(json);

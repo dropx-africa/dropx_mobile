@@ -19,6 +19,7 @@ import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/features/location/data/address_models.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -212,8 +213,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
         if (!mounted) return;
 
-        if (!mounted) return;
-
         final shareableLink =
             'https://dropxwebapp.vercel.app/pay-link/${linkResponse.token}';
 
@@ -329,7 +328,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     });
 
     final session = ref.read(sessionServiceProvider);
-    final isGuest = session.isGuest;
     final String displayAddress = session.savedAddress;
     final cartState = ref.watch(cartProvider);
     final cartItemsList = cartState.items.values.toList();
@@ -350,15 +348,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 orElse: () => 0.0,
               )
         : 0.0;
-    final double displayDeliveryFee =
-        _deliveryFee > 0 ? _deliveryFee : vendorDeliveryFee;
+    final double displayDeliveryFee = _deliveryFee > 0
+        ? _deliveryFee
+        : vendorDeliveryFee;
 
     // Calculate fees
     final totalAmount = totalPrice + displayDeliveryFee + _serviceFee;
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
+    return AppScaffold(
+      appBar: SliverAppBar(
         title: const AppText(
           "My Cart",
           fontWeight: FontWeight.bold,
@@ -370,9 +368,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => AppNavigator.pop(context),
         ),
+        floating: true,
+        snap: true,
       ),
-      body: cartItemsList.isEmpty
-          ? Center(
+      slivers: [
+        if (cartItemsList.isEmpty)
+          SliverFillRemaining(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -389,225 +391,219 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        // Vendor Info (fetched via getVendors with zoneId)
-                        if (cartState.zoneId != null)
-                          _buildVendorSection(cartState),
+            ),
+          )
+        else ...[
+          // Vendor Info (fetched via getVendors with zoneId)
+          if (cartState.zoneId != null)
+            SliverToBoxAdapter(child: _buildVendorSection(cartState)),
 
-                        // Address Section
-                        Container(
-                          margin: const EdgeInsets.all(16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  AppText(
-                                    "DELIVER TO",
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        AppRoute.manualLocation,
-                                      );
-                                    },
-                                    child: const AppText(
-                                      "Change",
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primaryOrange,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.location_on_outlined,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: AppText(
-                                      displayAddress,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Cart Items
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: cartItemsList
-                                .map((item) => _buildCartItem(ref, item))
-                                .toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Payment Method Selection
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppText(
-                                "PAYMENT METHOD",
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildPaymentMethodOption(
-                                'PAYSTACK',
-                                'Paystack',
-                                Icons.credit_card,
-                              ),
-                              _buildPaymentMethodOption(
-                                'WALLET',
-                                'Wallet',
-                                Icons.account_balance_wallet,
-                              ),
-                              _buildPaymentMethodOption(
-                                'GENERATE_LINK',
-                                'Generate Link',
-                                Icons.link,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Bill Details (Sticky Footer)
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: const BoxDecoration(
-                    color: AppColors.darkBackground,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
+          // Address Section
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildBillRow(
-                        "Subtotal",
-                        Formatters.formatNaira(totalPrice),
+                      AppText(
+                        "DELIVER TO",
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
                       ),
-                      const SizedBox(height: 12),
-                      _buildBillRow(
-                        "Delivery Fee",
-                        _isLoadingEstimate
-                            ? '...'
-                            : Formatters.formatNaira(displayDeliveryFee),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBillRow(
-                        "Service Fee",
-                        _isLoadingEstimate
-                            ? '...'
-                            : Formatters.formatNaira(_serviceFee),
-                      ),
-                      const SizedBox(height: 24),
-                      const Divider(color: Colors.grey, thickness: 0.5),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const AppText(
-                            "Total",
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          AppText(
-                            Formatters.formatNaira(totalAmount),
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                      // Place Order Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isPlacingOrder
-                              ? null
-                              : () {
-                                  _placeOrder();
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryOrange,
-                            disabledBackgroundColor: AppColors.primaryOrange
-                                .withValues(alpha: 0.6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _isPlacingOrder
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const AppText(
-                                  "Place Order",
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoute.manualLocation);
+                        },
+                        child: const AppText(
+                          "Change",
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryOrange,
                         ),
                       ),
-                      const SizedBox(height: 24),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: AppText(
+                          displayAddress,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
+          ),
+
+          // Cart Items
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: cartItemsList
+                    .map((item) => _buildCartItem(ref, item))
+                    .toList(),
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // Payment Method Selection
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(
+                    "PAYMENT METHOD",
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentMethodOption(
+                    'PAYSTACK',
+                    'Paystack',
+                    Icons.credit_card,
+                  ),
+                  _buildPaymentMethodOption(
+                    'WALLET',
+                    'Wallet',
+                    Icons.account_balance_wallet,
+                  ),
+                  _buildPaymentMethodOption(
+                    'GENERATE_LINK',
+                    'Generate Link',
+                    Icons.link,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // Bill Details (Sticky Footer)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: AppColors.darkBackground,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _buildBillRow("Subtotal", Formatters.formatNaira(totalPrice)),
+                  const SizedBox(height: 12),
+                  _buildBillRow(
+                    "Delivery Fee",
+                    _isLoadingEstimate
+                        ? '...'
+                        : Formatters.formatNaira(displayDeliveryFee),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildBillRow(
+                    "Service Fee",
+                    _isLoadingEstimate
+                        ? '...'
+                        : Formatters.formatNaira(_serviceFee),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(color: Colors.grey, thickness: 0.5),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const AppText(
+                        "Total",
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      AppText(
+                        Formatters.formatNaira(totalAmount),
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  // Place Order Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _isPlacingOrder
+                          ? null
+                          : () {
+                              _placeOrder();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryOrange,
+                        disabledBackgroundColor: AppColors.primaryOrange
+                            .withValues(alpha: 0.6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isPlacingOrder
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const AppText(
+                              "Place Order",
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

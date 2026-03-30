@@ -5,11 +5,11 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 ///
 /// Shows a centered spinner with an optional message. Use this across all
 /// screens that fetch data from the backend.
-class AppLoadingWidget extends StatelessWidget {
+class AppLoading extends StatelessWidget {
   final String? message;
   final Color? color;
 
-  const AppLoadingWidget({super.key, this.message, this.color});
+  const AppLoading({super.key, this.message, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ class AppLoadingWidget extends StatelessWidget {
         children: [
           CircularProgressIndicator(
             color: color ?? AppColors.primaryOrange,
-            strokeWidth: 3,
+            strokeWidth: 2,
           ),
           if (message != null) ...[
             const SizedBox(height: 16),

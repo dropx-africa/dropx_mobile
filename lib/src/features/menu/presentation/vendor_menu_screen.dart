@@ -1,11 +1,14 @@
-import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/constants/app_icons.dart';
+import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_loading_widget.dart';
 import 'package:dropx_mobile/src/common_widgets/app_error_widget.dart';
+import 'package:dropx_mobile/src/common_widgets/app_search_bar.dart';
+import 'package:dropx_mobile/src/common_widgets/app_back_button.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/bottom_cart_bar.dart';
@@ -24,32 +27,20 @@ class VendorMenuScreen extends ConsumerStatefulWidget {
 }
 
 class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
-  String _selectedCategory = "All";
-  String _searchQuery = "";
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
   bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   List<String> _buildCategories(List<MenuItem> items) {
-    final categories = items
-        .map((item) => item.category ?? 'Other')
-        .toSet()
-        .toList();
-    return ["All", ...categories];
+    final cats = items.map((item) => item.category ?? 'Other').toSet().toList();
+    return ['All', ...cats];
   }
 
   List<MenuItem> _filterItems(List<MenuItem> items) {
     var filtered = items;
-    if (_selectedCategory != "All") {
+    if (_selectedCategory != 'All') {
       filtered = filtered
-          .where(
-            (item) => (item.category ?? 'Other') == _selectedCategory,
-          )
+          .where((item) => (item.category ?? 'Other') == _selectedCategory)
           .toList();
     }
     if (_searchQuery.isNotEmpty) {
@@ -69,392 +60,434 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     final isGuest = session.isGuest;
     final catalogAsync = ref.watch(storeCatalogProvider(widget.vendorId));
     final cartState = ref.watch(cartProvider);
-    final cartItems = cartState.items;
-    final totalItemCount = cartState.totalItemCount;
-    final totalPrice = cartState.totalPrice;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: catalogAsync.when(
-        loading: () => const AppLoadingWidget(),
-        error: (error, _) => AppErrorWidget(
-          message: error.toString(),
-          onRetry: () => ref.invalidate(storeCatalogProvider(widget.vendorId)),
-        ),
-        data: (catalog) {
-          final store = catalog.store ?? {};
-          final allItems = catalog.items;
-          final categories = _buildCategories(allItems);
-          final filteredItems = _filterItems(allItems);
+    return AppScaffold(
+      useSafeArea: false,
+      slivers: [
+        catalogAsync.when(
+          loading: () => const SliverFillRemaining(
+            child: AppLoading(),
+          ),
+          error: (error, _) => SliverFillRemaining(
+            child: AppErrorWidget(
+              message: error.toString(),
+              onRetry: () => ref.invalidate(storeCatalogProvider(widget.vendorId)),
+            ),
+          ),
+          data: (catalog) {
+            final store = catalog.store;
+            final allItems = catalog.items;
+            final categories = _buildCategories(allItems);
+            final filteredItems = _filterItems(allItems);
 
-          // Extract store info with fallbacks
-          final storeName = store['display_name'] as String? ?? 'Store';
-          final storeImage = store['image_url'] as String?;
-          // final storeLogo = store['logo_url'] as String?;
-          final storeTags =
-              (store['tags'] as List?)?.cast<String>() ?? ["accuracy"];
-          final storeRating = store['rating'] ?? 0;
-          final storeRatingCount = store['rating_count'] ?? 0;
-          final storeDeliveryTime =
-              store['delivery_time'] as String? ?? '9:00AM';
-          final storeDeliveryFee = store['delivery_fee'] ?? 0;
+            final storeName = store['display_name'] as String? ?? 'Store';
+            final storeImage = store['image_url'] as String?;
+            final storeTags = (store['tags'] as List?)?.cast<String>() ?? [];
+            final storeRating = store['rating'];
+            final deliveryFeeKobo = store['delivery_fee_kobo'];
+            final distanceKm = (store['distance_km'] as num?)?.toDouble();
+            final etaMinutes = store['eta_minutes'] as int?;
+            final isOpen = store['is_open'] as bool? ?? true;
+            final isAcceptingOrders =
+                store['is_accepting_orders'] as bool? ?? true;
+            final closedReason = store['closed_reason'] as String?;
+            final canOrder = isOpen && isAcceptingOrders;
 
-          return Stack(
-            children: [
-              CustomScrollView(
-                slivers: [
-                  // Sticky App Bar with Image
-                  SliverAppBar(
-                    pinned: true,
-                    expandedHeight: 180,
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.black),
-                        onPressed: () => AppNavigator.pop(context),
-                      ),
-                    ),
-                    actions: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 16.0),
-                        child: CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: IconButton(
-                            icon: Icon(
-                              _isSearching ? Icons.close : Icons.search,
-                              color: Colors.black,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                if (_isSearching) {
-                                  _isSearching = false;
-                                  _searchQuery = "";
-                                  _searchController.clear();
-                                } else {
-                                  _isSearching = true;
-                                }
-                              });
-                            },
+            return SliverMainAxisGroup(
+              slivers: [
+                // Hero app bar
+                SliverAppBar(
+                  pinned: true,
+                  expandedHeight: 200,
+                  leading: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: AppBackButton(),
+                  ),
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: IconButton(
+                          icon: Icon(
+                            _isSearching ? Icons.close : Icons.search,
+                            color: Colors.black,
                           ),
+                          onPressed: () => setState(() {
+                            _isSearching = !_isSearching;
+                            if (!_isSearching) _searchQuery = '';
+                          }),
                         ),
                       ),
-                    ],
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          storeImage != null
-                              ? Image.network(
-                                  storeImage,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Image.asset(
-                                    AppIcon.vendorBanner,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Image.asset(
+                    ),
+                  ],
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        storeImage != null
+                            ? Image.network(
+                                storeImage,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Image.asset(
                                   AppIcon.vendorBanner,
                                   fit: BoxFit.cover,
                                 ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.4),
-                                  Colors.transparent,
-                                ],
+                              )
+                            : Image.asset(
+                                AppIcon.vendorBanner,
+                                fit: BoxFit.cover,
                               ),
+                        // Gradient overlay
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.4),
+                                Colors.transparent,
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
+                ),
 
-                  // Vendor Info (Scrolls away)
-                  SliverToBoxAdapter(
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AppText(
-                                      storeName,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                // Store info
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  AppText(
+                                    storeName,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  if (storeTags.isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     AppSubText(
-                                      storeTags.join(" • "),
+                                      storeTags.join(' • '),
                                       fontSize: 14,
                                       color: Colors.grey,
                                     ),
                                   ],
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              const Icon(
+                            ),
+                            // Open / Closed badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isOpen
+                                    ? Colors.green.shade50
+                                    : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: isOpen
+                                          ? Colors.green
+                                          : Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  AppText(
+                                    isOpen ? 'Open' : 'Closed',
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOpen ? Colors.green : Colors.red,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Meta row: rating · distance · eta · delivery fee
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: [
+                            if (storeRating != null)
+                              _metaItem(
                                 Icons.star,
+                                '${storeRating is double ? storeRating.toStringAsFixed(1) : storeRating}',
                                 color: AppColors.primaryOrange,
-                                size: 16,
                               ),
-                              const SizedBox(width: 4),
-                              AppText(
-                                '$storeRating ($storeRatingCount+)',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                            if (distanceKm != null)
+                              _metaItem(
+                                Icons.place_outlined,
+                                '${distanceKm.toStringAsFixed(1)} km',
                               ),
-                              Container(
-                                height: 12,
-                                width: 1,
-                                color: Colors.grey.shade300,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
+                            if (etaMinutes != null)
+                              _metaItem(Icons.access_time, '$etaMinutes min'),
+                            _metaItem(
+                              Icons.delivery_dining,
+                              CurrencyUtils.formatKoboAsNaira(
+                                deliveryFeeKobo,
                               ),
-                              const Icon(
-                                Icons.access_time,
-                                color: Colors.grey,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              AppText(
-                                storeDeliveryTime,
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                              Container(
-                                height: 12,
-                                width: 1,
-                                color: Colors.grey.shade300,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
-                              AppText(
-                                "₦${(storeDeliveryFee?.toInt())}",
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Closed / not-accepting banner
+                if (!canOrder)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.red.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: AppText(
+                              closedReason?.isNotEmpty == true
+                                  ? closedReason!
+                                  : !isOpen
+                                  ? 'This store is currently closed.'
+                                  : 'This store is not accepting orders right now.',
+                              fontSize: 13,
+                              color: Colors.red.shade700,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Sticky Tab Bar
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _StickyTabBarDelegate(
-                      child: Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: SizedBox(
-                          height: 36,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: categories.length,
-                            itemBuilder: (context, index) {
-                              final category = categories[index];
-                              final isSelected = category == _selectedCategory;
-                              final label = category.isEmpty
-                                  ? category
-                                  : '${category[0].toUpperCase()}${category.substring(1)}';
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedCategory = category;
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
+                // Sticky category tab bar
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyTabBarDelegate(
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: SizedBox(
+                        height: 36,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            final category = categories[index];
+                            final isSelected = category == _selectedCategory;
+                            final label = category.isEmpty
+                                ? category
+                                : '${category[0].toUpperCase()}${category.substring(1)}';
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                  () => _selectedCategory = category,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.primaryOrange
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
                                       color: isSelected
                                           ? AppColors.primaryOrange
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? AppColors.primaryOrange
-                                            : Colors.grey.shade300,
-                                      ),
+                                          : Colors.grey.shade300,
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        label,
-                                        style: TextStyle(
-                                          color: isSelected
-                                              ? Colors.white
-                                              : Colors.black,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      label,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
                   ),
+                ),
 
-                  // Search Bar if toggled
-                  if (_isSearching)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (val) {
-                            setState(() {
-                              _searchQuery = val;
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Search menu...',
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.grey,
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey.shade100,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Title for Section
+                // Inline search bar (toggled)
+                if (_isSearching)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        _selectedCategory == "All"
-                            ? "All Items"
-                            : _selectedCategory,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: AppSearchBar(
+                        hintText: 'Search menu...',
+                        onChanged: (val) =>
+                            setState(() => _searchQuery = val),
                       ),
                     ),
                   ),
 
-                  // Menu Items List
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        if (filteredItems.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(32.0),
-                            child: Center(
-                              child: Text("No items in this category"),
-                            ),
-                          );
-                        }
-                        final item = filteredItems[index];
-                        final cartItem = cartItems[item.id];
-                        final quantity = cartItem?.quantity ?? 0;
-
-                        return MenuItemCard(
-                          item: item,
-                          quantity: quantity,
-                          onAdd: () {
-                            if (isGuest) {
-                              showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (context) =>
-                                    const SignUpToOrderSheet(),
-                              );
-                            } else {
-                              final storeZoneId =
-                                  store['zone_id'] as String? ?? '';
-                              final result = ref
-                                  .read(cartProvider.notifier)
-                                  .addToCart(
-                                    item,
-                                    vendorId: widget.vendorId,
-                                    zoneId: storeZoneId,
-                                  );
-
-                              if (result == AddToCartResult.vendorConflict) {
-                                _showVendorConflictDialog(
-                                  context,
-                                  ref,
-                                  item,
-                                  storeZoneId,
-                                );
-                              }
-                            }
-                          },
-                          onIncrement: () => ref
-                              .read(cartProvider.notifier)
-                              .increment(item.id),
-                          onDecrement: () => ref
-                              .read(cartProvider.notifier)
-                              .decrement(item.id),
-                        );
-                      },
-                      childCount: filteredItems.isEmpty
-                          ? 1
-                          : filteredItems.length,
+                // Section title
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: AppText(
+                      _selectedCategory == 'All'
+                          ? 'All Menu Items'
+                          : _selectedCategory,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  // Bottom padding for FAB or scrolling
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
-              ),
-
-              // Floating Cart Bar (Animated)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                bottom: totalItemCount > 0 ? 24 : -100,
-                left: 16,
-                right: 16,
-                child: BottomCartBar(
-                  itemCount: totalItemCount,
-                  totalPrice: totalPrice,
-                  isGuest: isGuest,
                 ),
+
+                // Menu items
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      if (filteredItems.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: AppText('No items in this category'),
+                          ),
+                        );
+                      }
+                      final item = filteredItems[index];
+                      final quantity =
+                          cartState.items[item.id]?.quantity ?? 0;
+
+                      return MenuItemCard(
+                        item: item,
+                        quantity: quantity,
+                        onAdd: canOrder
+                            ? () {
+                                if (isGuest) {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) =>
+                                        const SignUpToOrderSheet(),
+                                  );
+                                } else {
+                                  final zoneId =
+                                      store['zone_id'] as String? ?? '';
+                                  final result = ref
+                                      .read(cartProvider.notifier)
+                                      .addToCart(
+                                        item,
+                                        vendorId: widget.vendorId,
+                                        zoneId: zoneId,
+                                      );
+                                  if (result ==
+                                      AddToCartResult.vendorConflict) {
+                                    _showVendorConflictDialog(
+                                      context,
+                                      ref,
+                                      item,
+                                      zoneId,
+                                    );
+                                  }
+                                }
+                              }
+                            : null,
+                        onIncrement: canOrder
+                            ? () => ref
+                                  .read(cartProvider.notifier)
+                                  .increment(item.id)
+                            : null,
+                        onDecrement: canOrder
+                            ? () => ref
+                                  .read(cartProvider.notifier)
+                                  .decrement(item.id)
+                            : null,
+                      );
+                    },
+                    childCount: filteredItems.isEmpty
+                        ? 1
+                        : filteredItems.length,
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              ],
+            );
+          },
+        ),
+
+        // Floating cart bar
+        if (cartState.totalItemCount > 0)
+          SliverToBoxAdapter(
+            child: AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              bottom: 24,
+              left: 16,
+              right: 16,
+              child: BottomCartBar(
+                itemCount: cartState.totalItemCount,
+                totalPrice: cartState.totalPrice,
+                isGuest: isGuest,
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _metaItem(IconData icon, String label, {Color? color}) {
+    final c = color ?? Colors.grey.shade700;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: c),
+        const SizedBox(width: 4),
+        AppText(label, fontSize: 13, color: c),
+      ],
     );
   }
 
@@ -467,28 +500,30 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const AppText(
-          'Replace cart items?',
+          'Different Vendor',
           fontWeight: FontWeight.bold,
-          fontSize: 16,
         ),
         content: const AppText(
-          'Your cart contains items from another vendor. '
-          'Would you like to clear the cart and add this item instead?',
-          fontSize: 14,
+          'You already have items from another vendor in your cart. Would you like to clear your cart and add this item?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const AppText('Cancel', color: AppColors.slate400),
+            child: const AppText(
+              'Cancel',
+              color: AppColors.grayText,
+            ),
           ),
           TextButton(
             onPressed: () {
+              ref.read(cartProvider.notifier).clearCart();
+              ref.read(cartProvider.notifier).addToCart(
+                    item,
+                    vendorId: widget.vendorId,
+                    zoneId: zoneId,
+                  );
               Navigator.pop(ctx);
-              ref
-                  .read(cartProvider.notifier)
-                  .clearAndAdd(item, vendorId: widget.vendorId, zoneId: zoneId);
             },
             child: const AppText(
               'Clear & Add',
@@ -502,16 +537,16 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
   }
 }
 
-// Delegate for Sticky Header
 class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
 
-  _StickyTabBarDelegate({required this.child});
+  const _StickyTabBarDelegate({required this.child});
 
   @override
-  double get minExtent => 60.0;
+  double get minExtent => 60;
+
   @override
-  double get maxExtent => 60.0;
+  double get maxExtent => 60;
 
   @override
   Widget build(
@@ -524,6 +559,6 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
-    return true;
+    return oldDelegate.child != child;
   }
 }

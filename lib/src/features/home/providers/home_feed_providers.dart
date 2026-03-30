@@ -14,18 +14,18 @@ final homeFeedRepositoryProvider = Provider<HomeFeedRepository>((ref) {
 class FeedParams {
   final String? category;
   final String? q;
-  final int? maxEtaMinutes;
   final double? lat;
   final double? lng;
   final double? radiusKm;
+  final String? cursor;
 
   const FeedParams({
     this.category,
     this.q,
-    this.maxEtaMinutes,
     this.lat,
     this.lng,
     this.radiusKm,
+    this.cursor,
   });
 
   @override
@@ -35,19 +35,19 @@ class FeedParams {
           runtimeType == other.runtimeType &&
           category == other.category &&
           q == other.q &&
-          maxEtaMinutes == other.maxEtaMinutes &&
           lat == other.lat &&
           lng == other.lng &&
-          radiusKm == other.radiusKm;
+          radiusKm == other.radiusKm &&
+          cursor == other.cursor;
 
   @override
   int get hashCode =>
       category.hashCode ^
       q.hashCode ^
-      maxEtaMinutes.hashCode ^
       lat.hashCode ^
       lng.hashCode ^
-      radiusKm.hashCode;
+      radiusKm.hashCode ^
+      cursor.hashCode;
 }
 
 /// ─── Data Providers ───────────────────────────────────────────
@@ -62,10 +62,10 @@ final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
       .getFeed(
         category: params.category,
         q: params.q,
-        maxEtaMinutes: params.maxEtaMinutes,
         lat: params.lat,
         lng: params.lng,
         radiusKm: params.radiusKm,
+        cursor: params.cursor,
       );
 });
 

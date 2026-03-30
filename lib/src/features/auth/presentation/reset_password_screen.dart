@@ -8,6 +8,8 @@ import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
@@ -91,120 +93,109 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: BackButton(color: AppColors.black),
+    return AppScaffold(
+      appBar: const AppAppBar(
+        title: 'Reset Password',
+        style: AppAppBarStyle.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  const AppImage(AppIcon.logo2, height: 60),
-                  AppSpaces.v8,
-                  const AppSubText(
-                    "No Stories. Just Delivery.",
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+      children: [
+        Center(
+          child: Column(
+            children: [
+              const AppImage(AppIcon.logo2, height: 60),
+              AppSpaces.v8,
+              const AppSubText(
+                "No Stories. Just Delivery.",
+                textAlign: TextAlign.center,
               ),
-            ),
-            AppSpaces.v48,
-            const AppHeader('Reset Password'),
-            AppSpaces.v8,
-            const AppSubText('Enter your new password below.', fontSize: 16),
-            AppSpaces.v32,
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppTextField(
-                    label: 'New Password',
-                    hintText: 'Enter your new password',
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: AppColors.slate500,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Password is required';
-                      }
-                      if (v.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
-                  ),
-                  AppSpaces.v16,
-                  AppTextField(
-                    label: 'Confirm Password',
-                    hintText: 'Confirm your new password',
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: AppColors.slate500,
-                      ),
-                      onPressed: () => setState(
-                        () =>
-                            _obscureConfirmPassword = !_obscureConfirmPassword,
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Please confirm your password';
-                      }
-                      if (v != _passwordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
-                  ),
-                  AppSpaces.v32,
-                  CustomButton(
-                    text: 'Reset Password',
-                    isLoading: _isLoading,
-                    onPressed: _isLoading ? () {} : _handleResetPassword,
-                    backgroundColor: AppColors.darkBackground,
-                    textColor: AppColors.white,
-                  ),
-                  AppSpaces.v24,
-                  Center(
-                    child: GestureDetector(
-                      onTap: () =>
-                          AppNavigator.pushReplacement(context, AppRoute.login),
-                      child: const AppText(
-                        'Back to Login',
-                        color: AppColors.primaryOrange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        AppSpaces.v48,
+        const AppHeader('Reset Password'),
+        AppSpaces.v8,
+        const AppSubText('Enter your new password below.', fontSize: 16),
+        AppSpaces.v32,
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppTextField(
+                label: 'New Password',
+                hintText: 'Enter your new password',
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: AppColors.slate500,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) {
+                    return 'Password is required';
+                  }
+                  if (v.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
+              ),
+              AppSpaces.v16,
+              AppTextField(
+                label: 'Confirm Password',
+                hintText: 'Confirm your new password',
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                    color: AppColors.slate500,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                  ),
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) {
+                    return 'Please confirm your password';
+                  }
+                  if (v != _passwordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+              AppSpaces.v32,
+              CustomButton(
+                text: 'Reset Password',
+                isLoading: _isLoading,
+                onPressed: _isLoading ? () {} : _handleResetPassword,
+                backgroundColor: AppColors.darkBackground,
+                textColor: AppColors.white,
+              ),
+              AppSpaces.v24,
+              Center(
+                child: GestureDetector(
+                  onTap: () =>
+                      AppNavigator.pushReplacement(context, AppRoute.login),
+                  child: const AppText(
+                    'Back to Login',
+                    color: AppColors.primaryOrange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

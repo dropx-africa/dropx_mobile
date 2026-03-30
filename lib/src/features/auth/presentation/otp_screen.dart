@@ -10,6 +10,8 @@ import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/common_widgets/app_otp_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
@@ -206,18 +208,12 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: BackButton(color: AppColors.black),
+    return AppScaffold(
+      appBar: const AppAppBar(
+        title: 'Verify Phone',
+        style: AppAppBarStyle.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      children: [
             Center(
               child: Column(
                 children: [
@@ -314,9 +310,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }

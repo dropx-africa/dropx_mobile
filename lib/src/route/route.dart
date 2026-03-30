@@ -20,6 +20,8 @@ import 'package:dropx_mobile/src/features/order/presentation/paystack_checkout_s
 import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
 import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
 import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
+import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
+import 'package:dropx_mobile/src/features/home/presentation/fastest_food_screen.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -184,6 +186,18 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => PayLinkScreen(token: token),
+        );
+
+      case AppRoute.featuredFood:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const FeaturedFoodScreen(),
+        );
+
+      case AppRoute.fastestFood:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const FastestFoodScreen(),
         );
 
       // Default Route (e.g., Onboarding)

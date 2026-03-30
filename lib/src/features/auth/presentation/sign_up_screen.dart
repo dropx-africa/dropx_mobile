@@ -7,6 +7,8 @@ import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/register_dto.dart';
@@ -152,20 +154,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: BackButton(color: AppColors.black),
-        title: const AppHeader('Create Account'),
-        centerTitle: true,
+      appBar: const AppAppBar(
+        title: 'Create Account',
+        style: AppAppBarStyle.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      children: [
             const AppSubText(
               'Sign up to get started with DropX.',
               textAlign: TextAlign.center,
@@ -300,9 +295,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
 
             AppSpaces.v24,
             _buildLoginLink(),
-          ],
-        ),
-      ),
+      ],
     );
   }
 

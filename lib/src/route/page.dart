@@ -19,4 +19,6 @@ class AppRoute {
   static const paystackCheckout = "/paystack-checkout";
   static const orderSuccess = "/order-success";
   static const payLink = "/pay-link";
+  static const featuredFood = "/featured-food";
+  static const fastestFood = "/fastest-food";
 }

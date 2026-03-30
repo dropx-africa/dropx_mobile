@@ -52,7 +52,7 @@ class CategoryButton extends StatelessWidget {
             const SizedBox(height: 8),
             AppText(
               label,
-              color: Colors.white,
+              color: isSelected ? Colors.white : AppColors.slate500,
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
             ),

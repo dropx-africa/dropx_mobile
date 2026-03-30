@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
-
-const _fallbackImagePath = 'assets/images/food_jollof.png';
 
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
@@ -261,38 +260,24 @@ class MenuItemCard extends StatelessWidget {
     final url = item.imageUrl;
 
     if (url != null && url.isNotEmpty) {
-      // Network image
-      if (url.startsWith('http')) {
-        return Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
-          ),
-        );
-      }
-      // Asset image
-      return Container(
+      return AppImage(
+        url,
         width: 80,
         height: 80,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          image: DecorationImage(image: AssetImage(url), fit: BoxFit.cover),
-        ),
+        borderRadius: BorderRadius.circular(8),
       );
     }
 
-    // Fallback to static image
+    // Fallback placeholder - same as feed vendor card
     return Container(
       width: 80,
       height: 80,
       decoration: BoxDecoration(
+        color: AppColors.slate200,
         borderRadius: BorderRadius.circular(8),
-        image: const DecorationImage(
-          image: AssetImage(_fallbackImagePath),
-          fit: BoxFit.cover,
-        ),
+      ),
+      child: Center(
+        child: Icon(Icons.store, size: 32, color: Colors.grey.shade400),
       ),
     );
   }
