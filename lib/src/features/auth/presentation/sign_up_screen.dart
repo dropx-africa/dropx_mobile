@@ -1,7 +1,7 @@
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dropx_mobile/src/utils/app_log.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -27,24 +27,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Email tab fields
-  final _emailFormKey = GlobalKey<FormState>();
+  // Shared fields
   final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _emailPhoneNumber = '';
-  bool _isEmailLoading = false;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
-  // Phone tab fields
-  final _phoneFormKey = GlobalKey<FormState>();
-  String _phoneNumber = '';
-  bool _isPhoneLoading = false;
+  // Email tab fields
+  final _emailController = TextEditingController();
+
+  // Single phone number for both tabs
+  final _phoneController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -53,113 +54,99 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  // ── Email Sign Up ─────────────────────────────────────────────
-  Future<void> _signUpWithEmail() async {
-    if (!_emailFormKey.currentState!.validate()) return;
-    if (_emailPhoneNumber.length < 10) {
-      AppToast.showError(context, 'Please enter a valid phone number');
+  Future<void> _handleSignUp() async {
+    // Validate full name
+    if (_fullNameController.text.trim().isEmpty) {
+      AppToast.showError(context, 'Full Name is Required');
       return;
     }
 
-    setState(() => _isEmailLoading = true);
+    // Validate password
+    if (_passwordController.text.isEmpty) {
+      AppToast.showError(context, 'Password is Required');
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      AppToast.showError(context, 'Min 6 characters');
+      return;
+    }
+
+    // Validate contact info based on tab
+    final email = _emailController.text.trim();
+    final hasEmail = email.isNotEmpty;
+    final hasPhone = _phoneController.text.length >= 10;
+
+    if (!hasEmail && !hasPhone) {
+      AppToast.showError(context, 'Please provide an email or phone number');
+      return;
+    }
+
+    if (hasEmail && !email.contains('@')) {
+      AppToast.showError(context, 'Invalid email address');
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
       final dto = RegisterDto(
         fullName: _fullNameController.text.trim(),
-        email: _emailController.text.trim(),
-        phoneE164: _emailPhoneNumber,
+        email: hasEmail ? email : null,
+        phoneE164: hasPhone ? _phoneController.text : null,
         password: _passwordController.text,
         role: 'customer',
       );
 
-      if (kDebugMode) {
-        print('[SignUp] DTO payload: ${dto.toJson()}');
-      }
+      AppLog.d('[SignUp] DTO payload: ${dto.toJson()}');
 
       final authResponse = await ref.read(authRepositoryProvider).register(dto);
-      if (kDebugMode) {
-        print('[SignUp] Success — userId: ${authResponse.userId}');
-      }
+      AppLog.d('[SignUp] Success — userId: ${authResponse.userId}');
 
-      final session = ref.read(sessionServiceProvider);
-      await session.saveAuthSession(
-        accessToken: authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-        userId: authResponse.userId,
-        fullName: _fullNameController.text.trim(),
-        phone: _emailPhoneNumber,
+      // Request OTP — prefer phone (SMS) when provided, fall back to email.
+      final otpDto = OtpRequestDto(
+        email: hasEmail ? email : null,
+        phoneE164: hasPhone ? _phoneController.text : null,
+        purpose: 'REGISTER',
+        channel: hasPhone ? 'sms' : 'email',
       );
+      final challenge = await ref
+          .read(authRepositoryProvider)
+          .requestOtp(otpDto);
 
-      ApiClient().setAuthToken(
-        authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-      );
+      AppLog.d('[SignUp] OTP sent — challengeId: ${challenge.otpChallengeId}');
 
-      if (mounted) {
-        AppToast.showSuccess(context, 'Account created successfully!');
-        AppNavigator.pushReplacement(context, AppRoute.manualLocation);
-      }
-    } on ApiException catch (e) {
-      if (kDebugMode) print('[SignUp] ApiException: ${e.message}');
-      if (mounted) AppToast.showError(context, e.message);
-    } catch (e) {
-      if (kDebugMode) print('[SignUp] Unexpected error: $e');
-      if (mounted) {
-        AppToast.showError(context, 'Something went wrong. Please try again.');
-      }
-    } finally {
-      if (mounted) setState(() => _isEmailLoading = false);
-    }
-  }
-
-  // ── Phone Sign Up (OTP) ───────────────────────────────────────
-  Future<void> _signUpWithPhone() async {
-    if (_phoneNumber.length < 10) {
-      AppToast.showError(context, 'Please enter a valid phone number');
-      return;
-    }
-
-    setState(() => _isPhoneLoading = true);
-
-    try {
-      final dto = OtpRequestDto(phoneE164: _phoneNumber);
-
-      if (kDebugMode) {
-        print('[SignUp] OTP request payload: ${dto.toJson()}');
-      }
-
-      final challenge = await ref.read(authRepositoryProvider).requestOtp(dto);
-
-      if (kDebugMode) {
-        print('[SignUp] OTP sent — challengeId: ${challenge.otpChallengeId}');
-      }
+      final sentTo = hasPhone ? _phoneController.text : email;
 
       if (mounted) {
-        AppToast.showSuccess(context, 'OTP sent to $_phoneNumber');
-        AppNavigator.push(
+        AppToast.showSuccess(
+          context,
+          'Verify your ${hasPhone ? 'phone' : 'email'} to continue',
+        );
+        AppNavigator.pushReplacement(
           context,
           AppRoute.otp,
           arguments: {
-            'phoneNumber': _phoneNumber,
+            'sentTo': sentTo,
+            'channel': challenge.channel,
             'otpChallengeId': challenge.otpChallengeId,
-            'nextResendAt': challenge.nextResendAt,
-            'attemptsRemaining': challenge.attemptsRemaining,
+            'resendAvailableAt': challenge.resendAvailableAt,
           },
         );
       }
     } on ApiException catch (e) {
-      if (kDebugMode) print('[SignUp] OTP ApiException: ${e.message}');
+      AppLog.e('[SignUp] ApiException', e.message);
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
-      if (kDebugMode) print('[SignUp] OTP Unexpected error: $e');
+      AppLog.e('[SignUp] Unexpected error', e.toString());
       if (mounted) {
         AppToast.showError(context, 'Something went wrong. Please try again.');
       }
     } finally {
-      if (mounted) setState(() => _isPhoneLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -174,139 +161,118 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
         title: const AppHeader('Create Account'),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              children: [
-                const AppSubText(
-                  'Sign up to get started with DropX.',
-                  textAlign: TextAlign.center,
-                ),
-                AppSpaces.v24,
-
-                // Tab Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF4F6F8),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  padding: const EdgeInsets.all(6),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicator: BoxDecoration(
-                      color: AppColors.primaryOrange,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: AppColors.slate500,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 15,
-                    ),
-                    tabs: const [
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.email_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Email'),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.phone_android_outlined, size: 18),
-                            SizedBox(width: 8),
-                            Text('Phone'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppSpaces.v24,
-
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildEmailTab(), _buildPhoneTab()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Email Tab ─────────────────────────────────────────────────
-  Widget _buildEmailTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Form(
-        key: _emailFormKey,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Full Name
+            const AppSubText(
+              'Sign up to get started with DropX.',
+              textAlign: TextAlign.center,
+            ),
+            AppSpaces.v24,
+
+            // Tab Bar
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6F8),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  color: AppColors.primaryOrange,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelColor: Colors.white,
+                unselectedLabelColor: AppColors.slate500,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                ),
+                tabs: const [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.email_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Email'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.phone_android_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('Phone'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AppSpaces.v24,
+
+            // Full Name (shared)
             AppTextField(
               label: 'Full Name',
               hintText: 'Enter your full name',
               controller: _fullNameController,
-              validator: (val) =>
-                  val == null || val.isEmpty ? 'Full Name is Required' : null,
             ),
             AppSpaces.v16,
 
-            // Email
-            AppTextField(
-              label: 'Email Address',
-              hintText: 'eg example@gmail.com',
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              validator: (val) {
-                if (val == null || val.isEmpty) {
-                  return 'Email Address is Required';
-                }
-                if (!val.contains('@')) return 'Invalid email';
-                return null;
-              },
-            ),
+            // Contact field (changes based on tab)
+            _tabController.index == 0
+                ? AppTextField(
+                    label: 'Email Address',
+                    hintText: 'eg example@gmail.com',
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                  )
+                : AppTextField(
+                    isPhone: true,
+                    label: 'Phone Number',
+                    hintText: 'Enter your phone number',
+                    controller: _phoneController,
+                    onPhoneChanged: (phone) {
+                      setState(() {});
+                    },
+                  ),
             AppSpaces.v16,
 
-            // Phone
-            AppTextField(
-              isPhone: true,
-              hintText: 'Enter your phone number',
-              label: 'Phone Number',
-              onPhoneChanged: (phone) {
-                _emailPhoneNumber = phone.completeNumber;
-              },
-            ),
-            AppSpaces.v16,
+            // Phone field (optional in email tab)
+            if (_tabController.index == 0) ...[
+              AppTextField(
+                isPhone: true,
+                label: 'Phone Number (Optional)',
+                hintText: 'Enter your phone number',
+                controller: _phoneController,
+                onPhoneChanged: (phone) {
+                  setState(() {});
+                },
+              ),
+              AppSpaces.v16,
+            ],
 
-            // Password
+            // Password field (shared)
             AppTextField(
               label: 'Password',
               hintText: 'Enter your password',
@@ -320,60 +286,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
-              validator: (val) {
-                if (val == null || val.isEmpty) return 'Password is Required';
-                if (val.length < 6) return 'Min 6 characters';
-                return null;
-              },
             ),
             AppSpaces.v32,
 
+            // Sign Up button
             CustomButton(
               text: 'Sign Up',
-              isLoading: _isEmailLoading,
-              onPressed: _isEmailLoading ? () {} : _signUpWithEmail,
-              backgroundColor: AppColors.primaryOrange,
-              textColor: AppColors.white,
-            ),
-
-            AppSpaces.v24,
-            _buildLoginLink(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Phone Tab ─────────────────────────────────────────────────
-  Widget _buildPhoneTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      child: Form(
-        key: _phoneFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppSubText(
-              'We\'ll send you a verification code via SMS to create your account.',
-              fontSize: 14,
-            ),
-            AppSpaces.v24,
-
-            // Phone
-            AppTextField(
-              isPhone: true,
-              hintText: 'Enter your phone number',
-              label: 'Phone Number',
-              onPhoneChanged: (phone) {
-                _phoneNumber = phone.completeNumber;
-              },
-            ),
-            AppSpaces.v32,
-
-            CustomButton(
-              text: 'Continue',
-              isLoading: _isPhoneLoading,
-              onPressed: _isPhoneLoading ? () {} : _signUpWithPhone,
+              isLoading: _isLoading,
+              onPressed: _isLoading ? () {} : _handleSignUp,
               backgroundColor: AppColors.primaryOrange,
               textColor: AppColors.white,
             ),

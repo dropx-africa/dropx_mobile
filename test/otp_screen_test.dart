@@ -9,7 +9,8 @@ void main() {
       const ProviderScope(
         child: MaterialApp(
           home: OtpScreen(
-            phoneNumber: '+2348012345678',
+            sentTo: '+2348012345678',
+            channel: 'sms',
             otpChallengeId: 'test-challenge-id',
           ),
         ),
@@ -19,7 +20,9 @@ void main() {
     // Verify Title
     expect(find.text('Verify Phone'), findsOneWidget);
     expect(
-      find.text('Enter the 6-digit code we sent to +2348012345678'),
+      find.text(
+        'Enter the 6-digit code we sent to your phone (+2348012345678)',
+      ),
       findsOneWidget,
     );
 

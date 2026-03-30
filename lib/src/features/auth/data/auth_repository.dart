@@ -53,4 +53,11 @@ abstract class AuthRepository {
 
   /// Update the current user's preferences.
   Future<UserPreferencesResponse> updatePreferences(UpdatePreferencesDto dto);
+
+  /// Reset password after OTP verification.
+  Future<AuthResponse> resetPassword({
+    required String otpChallengeId,
+    required String otp,
+    required String newPassword,
+  });
 }

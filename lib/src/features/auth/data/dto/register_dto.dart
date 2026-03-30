@@ -8,7 +8,7 @@ part 'register_dto.g.dart';
 /// (sent to the API), never deserialized from a response.
 @JsonSerializable(createFactory: false)
 class RegisterDto {
-  final String email;
+  final String? email;
 
   @JsonKey(name: 'phone_e164')
   final String? phoneE164;
@@ -20,7 +20,7 @@ class RegisterDto {
   final String role;
 
   const RegisterDto({
-    required this.email,
+    this.email,
     this.phoneE164,
     this.fullName,
     required this.password,

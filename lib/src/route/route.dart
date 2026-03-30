@@ -5,6 +5,8 @@ import 'package:dropx_mobile/src/features/onboarding/presentation/onboarding_scr
 import 'package:dropx_mobile/src/features/auth/presentation/login_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_screen.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/otp_screen.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/forgot_password_screen.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/reset_password_screen.dart';
 import 'package:dropx_mobile/src/features/location/presentation/manual_location_screen.dart';
 import 'package:dropx_mobile/src/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/vendor_menu_screen.dart';
@@ -44,18 +46,36 @@ abstract class AppRouter {
 
       case AppRoute.otp:
         final args = settings.arguments as Map<String, dynamic>?;
-        final phoneNumber = args?['phoneNumber'] as String? ?? '';
+        final sentTo = args?['sentTo'] as String? ?? '';
+        final channel = args?['channel'] as String? ?? 'sms';
         final otpChallengeId = args?['otpChallengeId'] as String? ?? '';
-        final nextResendAt = args?['nextResendAt'] as String?;
-        final attemptsRemaining = args?['attemptsRemaining'] as int?;
+        final resendAvailableAt = args?['resendAvailableAt'] as String?;
+        final isForgotPassword = args?['isForgotPassword'] as bool? ?? false;
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => OtpScreen(
-            phoneNumber: phoneNumber,
+            sentTo: sentTo,
+            channel: channel,
             otpChallengeId: otpChallengeId,
-            nextResendAt: nextResendAt,
-            attemptsRemaining: attemptsRemaining,
+            resendAvailableAt: resendAvailableAt,
+            isForgotPassword: isForgotPassword,
           ),
+        );
+
+      case AppRoute.forgotPassword:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const ForgotPasswordScreen(),
+        );
+
+      case AppRoute.resetPassword:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final otpChallengeId = args['otpChallengeId'] as String? ?? '';
+        final otp = args['otp'] as String? ?? '';
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) =>
+              ResetPasswordScreen(otpChallengeId: otpChallengeId, otp: otp),
         );
 
       case AppRoute.manualLocation:

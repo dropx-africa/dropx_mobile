@@ -1,5 +1,3 @@
-import 'package:dropx_mobile/src/core/network/api_client.dart';
-import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -9,28 +7,27 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
-import 'package:dropx_mobile/src/route/page.dart';
-import 'package:dropx_mobile/src/core/providers/core_providers.dart';
-import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
-import 'package:dropx_mobile/src/features/auth/data/dto/login_dto.dart';
-import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
+import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Email tab
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
   String _phoneNumber = '';
 
   bool _isLoading = false;
@@ -48,13 +45,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void dispose() {
     _tabController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleSubmit() async {
+    // Validate contact info based on tab
     if (_tabController.index == 0) {
-      // Email login
+      // Email
       if (_emailController.text.trim().isEmpty) {
         AppToast.showError(context, 'Email is required');
         return;
@@ -66,62 +63,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         return;
       }
     } else {
-      // Phone login
+      // Phone
       if (_phoneNumber.length < 10) {
         AppToast.showError(context, 'Please enter a valid phone number');
         return;
       }
     }
 
-    if (_passwordController.text.isEmpty) {
-      AppToast.showError(context, 'Password is required');
-      return;
-    }
-    if (_passwordController.text.length < 6) {
-      AppToast.showError(context, 'Password must be at least 6 characters');
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
       final dto = _tabController.index == 0
-          ? LoginDto(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
-            )
-          : LoginDto(
-              phoneE164: _phoneNumber,
-              password: _passwordController.text,
-            );
-      await _doLogin(dto);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _doLogin(LoginDto dto) async {
-    try {
-      final authResponse = await ref.read(authRepositoryProvider).login(dto);
-
-      ApiClient().setAuthToken(
-        authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-      );
-
-      final session = ref.read(sessionServiceProvider);
-      await session.saveAuthSession(
-        accessToken: authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-        userId: authResponse.userId,
-      );
+          ? OtpRequestDto(email: _emailController.text.trim())
+          : OtpRequestDto(phoneE164: _phoneNumber);
+      final challenge = await ref.read(authRepositoryProvider).requestOtp(dto);
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Welcome back!');
-        if (!session.hasConfirmedLocation) {
-          AppNavigator.pushReplacement(context, AppRoute.manualLocation);
-        } else {
-          AppNavigator.pushReplacement(context, AppRoute.dashboard);
-        }
+        AppToast.showSuccess(
+          context,
+          'OTP sent to your ${_tabController.index == 0 ? 'email' : 'phone'}',
+        );
+        AppNavigator.pushReplacement(
+          context,
+          AppRoute.otp,
+          arguments: {
+            'sentTo': _tabController.index == 0
+                ? _emailController.text.trim()
+                : _phoneNumber,
+            'channel': _tabController.index == 0 ? 'email' : 'sms',
+            'otpChallengeId': challenge.otpChallengeId,
+            'resendAvailableAt': challenge.resendAvailableAt,
+            'isForgotPassword': true,
+          },
+        );
       }
     } on ApiException catch (e) {
       if (mounted) AppToast.showError(context, e.message);
@@ -129,6 +102,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (mounted) {
         AppToast.showError(context, 'Something went wrong. Please try again.');
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -139,7 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const SizedBox.shrink(),
+        leading: BackButton(color: AppColors.black),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -159,21 +134,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
             AppSpaces.v48,
-            const AppHeader('Welcome Back'),
+            const AppHeader('Forgot Password'),
             AppSpaces.v8,
             const AppSubText(
-              'Login to your account to continue.',
+              'Enter your email or phone number to receive a verification code.',
               fontSize: 16,
-            ),
-            AppSpaces.v8,
-            GestureDetector(
-              onTap: () => AppNavigator.push(context, AppRoute.signUp),
-              child: const AppText(
-                "Don't have an account? Sign Up",
-                color: AppColors.primaryOrange,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
             ),
             AppSpaces.v24,
 
@@ -252,64 +217,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       _phoneNumber = phone.completeNumber;
                     },
                   ),
-            AppSpaces.v16,
+            AppSpaces.v32,
 
-            // Password field (shared)
-            AppTextField(
-              label: 'Password',
-              hintText: 'Enter your password',
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.slate500,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            AppSpaces.v8,
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: () =>
-                    AppNavigator.push(context, AppRoute.forgotPassword),
-                child: const AppText(
-                  'Forgot Password?',
-                  color: AppColors.primaryOrange,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            AppSpaces.v24,
-
-            // Login button
+            // Send OTP button
             CustomButton(
-              text: 'Login',
+              text: 'Send OTP',
               isLoading: _isLoading,
-              onPressed: _isLoading ? () {} : _handleLogin,
+              onPressed: _isLoading ? () {} : _handleSubmit,
               backgroundColor: AppColors.darkBackground,
               textColor: AppColors.white,
             ),
-            AppSpaces.v16,
-
-            // Continue as Guest
+            AppSpaces.v24,
             Center(
               child: GestureDetector(
-                onTap: () async {
-                  final session = ref.read(sessionServiceProvider);
-                  await session.saveGuestMode();
-                  if (mounted) {
-                    AppNavigator.pushReplacement(
-                      context,
-                      AppRoute.manualLocation,
-                    );
-                  }
-                },
+                onTap: () =>
+                    AppNavigator.pushReplacement(context, AppRoute.login),
                 child: const AppText(
-                  'Continue as Guest',
+                  'Back to Login',
                   color: AppColors.primaryOrange,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -317,15 +241,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
             AppSpaces.v24,
-
-            // Policy text
-            const Center(
-              child: AppSubText(
-                "By continuing, you agree to our Terms & Privacy Policy.",
-                textAlign: TextAlign.center,
-                fontSize: 12,
-              ),
-            ),
           ],
         ),
       ),

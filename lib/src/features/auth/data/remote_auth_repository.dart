@@ -224,4 +224,25 @@ class RemoteAuthRepository implements AuthRepository {
     );
     return response.data;
   }
+
+  @override
+  Future<AuthResponse> resetPassword({
+    required String otpChallengeId,
+    required String otp,
+    required String newPassword,
+  }) async {
+    debugPrint('➡ [AUTH-API] POST /auth/reset-password');
+    final response = await _apiClient.post<AuthResponse>(
+      ApiEndpoints.resetPassword,
+      data: {
+        'otpChallengeId': otpChallengeId,
+        'otp': otp,
+        'newPassword': newPassword,
+      },
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
+    );
+    debugPrint('✅ [AUTH-API] POST /auth/reset-password → success');
+    return response.data;
+  }
 }

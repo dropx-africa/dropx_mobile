@@ -5,6 +5,8 @@ class AppRoute {
   static const login = "/login";
   static const signUp = "/sign-up";
   static const otp = "/otp";
+  static const forgotPassword = "/forgot-password";
+  static const resetPassword = "/reset-password";
   static const manualLocation = "/manual-location";
   static const dashboard = "/dashboard";
   static const vendorMenu = "/vendor-menu";

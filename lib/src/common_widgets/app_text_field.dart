@@ -45,36 +45,52 @@ class AppTextField extends StatelessWidget {
     );
 
     if (isPhone) {
-      return IntlPhoneField(
-        controller:
-            controller, // Note: IntlPhoneField usually manages its own text, but controller can be used for initial value sometimes or reading text.
-        // However, usually onChanged returns full object.
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: border,
-          enabledBorder: border,
-          focusedBorder: focusedBorder,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (label != null) ...[
+            Text(
+              label!,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.slate500,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          IntlPhoneField(
+            controller:
+                controller, // Note: IntlPhoneField usually manages its own text, but controller can be used for initial value sometimes or reading text.
+            // However, usually onChanged returns full object.
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              border: border,
+              enabledBorder: border,
+              focusedBorder: focusedBorder,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              prefixIcon: const Icon(
+                Icons.phone_android,
+                color: AppColors.slate400,
+              ),
+              hintText: hintText,
+            ),
+            initialCountryCode: 'NG',
+            disableLengthCheck: true,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
+            dropdownIconPosition: IconPosition.trailing,
+            flagsButtonPadding: const EdgeInsets.only(left: 10),
+            showCountryFlag: true,
+            onChanged: onPhoneChanged,
           ),
-          prefixIcon: const Icon(
-            Icons.phone_android,
-            color: AppColors.slate400,
-          ),
-          hintText: hintText,
-        ),
-        initialCountryCode: 'NG',
-        disableLengthCheck: true,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(11),
         ],
-        dropdownIconPosition: IconPosition.trailing,
-        flagsButtonPadding: const EdgeInsets.only(left: 10),
-        showCountryFlag: true,
-        onChanged: onPhoneChanged,
       );
     }
 

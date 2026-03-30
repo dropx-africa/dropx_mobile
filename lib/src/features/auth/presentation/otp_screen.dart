@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dropx_mobile/src/utils/app_log.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
@@ -12,23 +12,35 @@ import 'package:dropx_mobile/src/common_widgets/app_otp_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_verify_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_resend_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
-  final String phoneNumber;
+  /// The phone number or email address the code was sent to.
+  final String sentTo;
+
+  /// Channel returned by the API: "sms" | "email" — determines the UI label.
+  final String channel;
+
   final String otpChallengeId;
-  final String? nextResendAt;
-  final int? attemptsRemaining;
+
+  /// ISO-8601 timestamp from `resend_available_at` — drives the resend timer.
+  final String? resendAvailableAt;
+
+  /// Whether this OTP is for forgot password flow.
+  final bool isForgotPassword;
 
   const OtpScreen({
     super.key,
-    required this.phoneNumber,
+    required this.sentTo,
+    required this.channel,
     required this.otpChallengeId,
-    this.nextResendAt,
-    this.attemptsRemaining,
+    this.resendAvailableAt,
+    this.isForgotPassword = false,
   });
 
   @override
@@ -43,9 +55,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   bool _isResending = false;
 
   late String _otpChallengeId;
-  late int _attemptsRemaining;
 
-  // Resend countdown
   Timer? _resendTimer;
   int _resendCountdown = 0;
 
@@ -53,8 +63,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   void initState() {
     super.initState();
     _otpChallengeId = widget.otpChallengeId;
-    _attemptsRemaining = widget.attemptsRemaining ?? 5;
-    _startResendCountdown(widget.nextResendAt);
+    _startResendCountdown(widget.resendAvailableAt);
   }
 
   @override
@@ -65,15 +74,15 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     super.dispose();
   }
 
-  void _startResendCountdown(String? nextResendAt) {
+  void _startResendCountdown(String? resendAvailableAt) {
     _resendTimer?.cancel();
 
-    if (nextResendAt == null) {
-      setState(() => _resendCountdown = 60); // fallback 60s
+    if (resendAvailableAt == null) {
+      setState(() => _resendCountdown = 60);
     } else {
       try {
-        final nextResend = DateTime.parse(nextResendAt);
-        final diff = nextResend.difference(DateTime.now().toUtc()).inSeconds;
+        final resendAt = DateTime.parse(resendAvailableAt);
+        final diff = resendAt.difference(DateTime.now().toUtc()).inSeconds;
         setState(() => _resendCountdown = diff > 0 ? diff : 0);
       } catch (_) {
         setState(() => _resendCountdown = 60);
@@ -109,34 +118,45 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     try {
       final dto = OtpVerifyDto(otpChallengeId: _otpChallengeId, otp: pin);
 
-      if (kDebugMode) {
-        print('[OTP] Verifying: ${dto.toJson()}');
-      }
+      AppLog.d('[OTP] Verifying: ${dto.toJson()}');
 
       final response = await ref.read(authRepositoryProvider).verifyOtp(dto);
 
-      if (kDebugMode) {
-        print('[OTP] Verified — userId: ${response.userId}');
-      }
+      AppLog.d('[OTP] Verified — userId: ${response.userId}');
 
-      final profileResponse = await ref
-          .read(authRepositoryProvider)
-          .getProfile();
-
-    
-   
+      ApiClient().setAuthToken(
+        response.accessToken,
+        refreshToken: response.refreshToken,
+      );
+      final session = ref.read(sessionServiceProvider);
+      await session.saveAuthSession(
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        userId: response.userId,
+      );
 
       if (mounted) {
-        AppToast.showSuccess(context, 'Phone verified successfully!');
-        AppNavigator.pushReplacement(context, AppRoute.manualLocation);
+        AppToast.showSuccess(context, 'OTP verified successfully!');
+        if (widget.isForgotPassword) {
+          // Navigate to reset password screen
+          AppNavigator.pushReplacement(
+            context,
+            AppRoute.resetPassword,
+            arguments: {'otpChallengeId': _otpChallengeId, 'otp': pin},
+          );
+        } else {
+          if (session.hasConfirmedLocation) {
+            AppNavigator.pushReplacement(context, AppRoute.dashboard);
+          } else {
+            AppNavigator.pushReplacement(context, AppRoute.manualLocation);
+          }
+        }
       }
     } on ApiException catch (e) {
-      if (kDebugMode) print('[OTP] ApiException: ${e.message}');
-      if (mounted) {
-        setState(() => _otpError = e.message);
-      }
+      AppLog.d('[OTP] ApiException: ${e.message}');
+      if (mounted) setState(() => _otpError = e.message);
     } catch (e) {
-      if (kDebugMode) print('[OTP] Unexpected error: $e');
+      AppLog.d('[OTP] Unexpected error: $e');
       if (mounted) {
         setState(() => _otpError = 'Verification failed. Please try again.');
       }
@@ -154,30 +174,25 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     try {
       final dto = OtpResendDto(otpChallengeId: _otpChallengeId);
 
-      if (kDebugMode) {
-        print('[OTP] Resending: ${dto.toJson()}');
-      }
+      AppLog.d('[OTP] Resending: ${dto.toJson()}');
 
       final challenge = await ref.read(authRepositoryProvider).resendOtp(dto);
 
       _otpChallengeId = challenge.otpChallengeId;
-      _attemptsRemaining = challenge.attemptsRemaining;
-
       _pinController.clear();
-      _startResendCountdown(challenge.nextResendAt);
+      _startResendCountdown(challenge.resendAvailableAt);
 
       if (mounted) {
         AppToast.showSuccess(context, 'OTP resent successfully!');
         setState(() => _otpError = null);
       }
     } on ApiException catch (e) {
-      if (kDebugMode) print('[OTP] Resend ApiException: ${e.message}');
+      AppLog.d('[OTP] Resend ApiException: ${e.message}');
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
-      if (kDebugMode) print('[OTP] Resend error: $e');
-      if (mounted) {
+      AppLog.d('[OTP] Resend error: $e');
+      if (mounted)
         AppToast.showError(context, 'Could not resend OTP. Try again.');
-      }
     } finally {
       if (mounted) setState(() => _isResending = false);
     }
@@ -203,7 +218,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Logo
             Center(
               child: Column(
                 children: [
@@ -222,12 +236,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             const AppHeader('Verify Phone'),
             AppSpaces.v8,
             AppSubText(
-              'Enter the 6-digit code we sent to ${widget.phoneNumber}',
+              'Enter the 6-digit code we sent to your '
+              '${widget.channel == 'email' ? 'email' : 'phone'} '
+              '(${widget.sentTo})',
               fontSize: 16,
             ),
             AppSpaces.v32,
 
-            // OTP Input
             Center(
               child: AppOtpField(
                 controller: _pinController,
@@ -236,7 +251,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               ),
             ),
 
-            // Validation error
             if (_otpError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -249,21 +263,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 ),
               ),
 
-            // Attempts remaining
-            if (_attemptsRemaining < 5)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Center(
-                  child: AppSubText(
-                    '$_attemptsRemaining attempts remaining',
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-
             AppSpaces.v32,
 
-            // Verify Button
             CustomButton(
               text: 'Verify & Continue',
               backgroundColor: AppColors.primaryOrange,
@@ -274,7 +275,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
             AppSpaces.v24,
 
-            // Resend OTP
             Center(
               child: _resendCountdown > 0
                   ? AppSubText(
@@ -303,7 +303,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
             AppSpaces.v16,
 
-            // Change Phone Number
             Center(
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),

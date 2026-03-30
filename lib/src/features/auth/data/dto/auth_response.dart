@@ -9,20 +9,21 @@
 class AuthResponse {
   final bool ok;
   final String userId;
-
   final String accessToken;
   final String refreshToken;
+  final bool mustChangePassword;
 
   const AuthResponse({
     required this.ok,
     required this.userId,
     required this.accessToken,
     required this.refreshToken,
+    this.mustChangePassword = false,
   });
 
   /// Custom fromJson that extracts user_id from either top-level or nested user object.
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    // Extract user_id: try top-level first, then nested user object
+    // Login returns user_id at top level; register returns it inside user{}.
     String userId = json['user_id'] as String? ?? '';
     if (userId.isEmpty && json['user'] is Map<String, dynamic>) {
       final user = json['user'] as Map<String, dynamic>;
@@ -34,6 +35,7 @@ class AuthResponse {
       userId: userId,
       accessToken: json['access_token'] as String,
       refreshToken: json['refresh_token'] as String,
+      mustChangePassword: json['must_change_password'] as bool? ?? false,
     );
   }
 
@@ -42,5 +44,6 @@ class AuthResponse {
     'user_id': userId,
     'access_token': accessToken,
     'refresh_token': refreshToken,
+    'must_change_password': mustChangePassword,
   };
 }

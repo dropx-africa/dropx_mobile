@@ -1,43 +1,43 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'otp_verify_response.g.dart';
-
 /// Response model for the OTP verify endpoint.
-@JsonSerializable()
+///
+/// Matches the actual API shape:
+/// {
+///   "ok": true,
+///   "user_id": "usr_customer_123",
+///   "access_token": "eyJhbGciOi...",
+///   "refresh_token": "eyJhbGciOi...",
+///   "must_change_password": false
+/// }
 class OtpVerifyResponse {
-  @JsonKey(name: 'user_id')
+  final bool ok;
   final String userId;
-
-  @JsonKey(name: 'access_token')
   final String accessToken;
-
-  @JsonKey(name: 'refresh_token')
   final String refreshToken;
-
-  @JsonKey(name: 'token_type')
-  final String tokenType;
-
-  @JsonKey(name: 'expires_in')
-  final int expiresIn;
-
-  @JsonKey(name: 'otp_challenge_id')
-  final String otpChallengeId;
-
-  @JsonKey(name: 'attempts_remaining')
-  final int attemptsRemaining;
+  final bool mustChangePassword;
 
   const OtpVerifyResponse({
+    required this.ok,
     required this.userId,
     required this.accessToken,
     required this.refreshToken,
-    required this.tokenType,
-    required this.expiresIn,
-    required this.otpChallengeId,
-    required this.attemptsRemaining,
+    this.mustChangePassword = false,
   });
 
-  factory OtpVerifyResponse.fromJson(Map<String, dynamic> json) =>
-      _$OtpVerifyResponseFromJson(json);
+  factory OtpVerifyResponse.fromJson(Map<String, dynamic> json) {
+    return OtpVerifyResponse(
+      ok: json['ok'] as bool? ?? true,
+      userId: json['user_id'] as String,
+      accessToken: json['access_token'] as String,
+      refreshToken: json['refresh_token'] as String,
+      mustChangePassword: json['must_change_password'] as bool? ?? false,
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$OtpVerifyResponseToJson(this);
+  Map<String, dynamic> toJson() => {
+    'ok': ok,
+    'user_id': userId,
+    'access_token': accessToken,
+    'refresh_token': refreshToken,
+    'must_change_password': mustChangePassword,
+  };
 }
