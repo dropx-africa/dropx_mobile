@@ -21,6 +21,7 @@ class RemoteVendorRepository implements VendorRepository {
   }) async {
     final queryParams = <String, String>{};
     if (zoneId != null) queryParams['zone_id'] = zoneId;
+    if (category != null) queryParams['category'] = category.name;
 
     final response = await _apiClient.get<VendorsResponse>(
       ApiEndpoints.vendors,
@@ -31,10 +32,7 @@ class RemoteVendorRepository implements VendorRepository {
 
     final vendors = response.data.vendors;
     if (kDebugMode) {
-      print('[VENDOR] Fetched ${vendors.length} vendors');
-    }
-    if (category != null) {
-      return vendors.where((v) => v.category == category).toList();
+      print('[VENDOR] Fetched ${vendors.length} vendors (category: ${category?.name ?? 'all'})');
     }
     return vendors;
   }

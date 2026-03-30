@@ -96,13 +96,16 @@ class FeaturedSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 250,
+              height: 220,
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,
                 itemBuilder: (context, index) {
-                  return FeedVendorCard(item: items[index]);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: FeedVendorCard(item: items[index], width: 180),
+                  );
                 },
               ),
             ),

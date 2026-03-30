@@ -25,6 +25,8 @@ class MenuItem {
   final String? category;
   @JsonKey(name: 'vendor_id')
   final String? vendorId;
+  @JsonKey(name: 'vendor_display_name')
+  final String? vendorDisplayName;
   @JsonKey(name: 'is_available', defaultValue: true)
   final bool isAvailable;
 
@@ -38,6 +40,7 @@ class MenuItem {
     this.badges,
     this.category,
     this.vendorId,
+    this.vendorDisplayName,
     this.isAvailable = true,
   });
 

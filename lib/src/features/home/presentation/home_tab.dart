@@ -129,10 +129,10 @@ class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 104;
+  double get maxExtent => 116;
 
   @override
-  double get minExtent => 104;
+  double get minExtent => 116;
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
@@ -182,7 +182,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               color: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: SizedBox(
-                height: 80,
+                height: 92,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),

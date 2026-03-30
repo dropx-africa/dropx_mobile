@@ -16,6 +16,7 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
   badges: (json['badges'] as List<dynamic>?)?.map((e) => e as String).toList(),
   category: json['category'] as String?,
   vendorId: json['vendor_id'] as String?,
+  vendorDisplayName: json['vendor_display_name'] as String?,
   isAvailable: json['is_available'] as bool? ?? true,
 );
 
@@ -29,5 +30,6 @@ Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
   'badges': instance.badges,
   'category': instance.category,
   'vendor_id': instance.vendorId,
+  'vendor_display_name': instance.vendorDisplayName,
   'is_available': instance.isAvailable,
 };
