@@ -21,4 +21,5 @@ class AppRoute {
   static const payLink = "/pay-link";
   static const featuredFood = "/featured-food";
   static const fastestFood = "/fastest-food";
+  static const notifications = "/notifications";
 }

@@ -1,6 +1,5 @@
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:flutter/material.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -168,11 +167,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               context,
               AppRoute.manualLocation,
             ),
-            onNotificationTap: () => Navigator.push(
+            onNotificationTap: () => AppNavigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationsScreen(),
-              ),
+              AppRoute.notifications,
             ),
           ),
         ),

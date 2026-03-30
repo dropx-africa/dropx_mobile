@@ -22,6 +22,7 @@ import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.
 import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/fastest_food_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -198,6 +199,12 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const FastestFoodScreen(),
+        );
+
+      case AppRoute.notifications:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const NotificationsScreen(),
         );
 
       // Default Route (e.g., Onboarding)
