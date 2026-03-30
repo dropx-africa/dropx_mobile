@@ -113,7 +113,7 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
             ),
             if (_isLoading)
               const SliverFillRemaining(
-                child: Center(child: AppLoadingWidget()),
+                child: Center(child: AppLoading()),
               )
             else if (_items.isEmpty)
               SliverFillRemaining(
@@ -154,7 +154,6 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => FeedVendorCard(
                       item: _items[index],
-                      width: double.infinity,
                     ),
                     childCount: _items.length,
                   ),
@@ -164,7 +163,7 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(16),
-                    child: Center(child: AppLoadingWidget()),
+                    child: Center(child: AppLoading()),
                   ),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
