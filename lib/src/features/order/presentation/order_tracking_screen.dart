@@ -8,7 +8,6 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/order_tracking_live_response.dart';
-import 'package:dropx_mobile/src/features/order/data/dto/order_timeline_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/cancel_order_request.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/cancel_reason_code.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.dart';
@@ -52,21 +51,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   // Whether we are still waiting for the very first data fetch
   bool _isLoading = false;
-  bool _isSimulating = false;
 
   // Live data
   OrderTrackingLiveData? _liveData;
-  OrderTimelineResponse? _timelineData;
 
-  // Simulated state string used when orderId==null
-  String _simulatedState = 'PLACED';
-
-  // Polling timer (20 min per spec)
-  Timer? _trackingTimer;
   GoogleMapController? _mapController;
-
-  // Simulated ETA for testing
-  int? _simulatedEtaMinutes;
 
   @override
   void initState() {
@@ -77,53 +66,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     debugPrint(
       '📍 [TRACKING] initState orderId=${widget.orderId ?? "null (simulation)"}',
     );
-    _startLiveTracking();
-  }
-
-  // ─── Tracking orchestration ──────────────────────────────────────────────
-
-  void _startLiveTracking() {
-    if (widget.orderId == null) {
-      debugPrint('🔄 [TRACKING] No orderId — starting simulation mode');
-      _simulateOrderStages();
-      return;
-    }
-
-    // Show a spinner while the very first fetch completes
-    setState(() => _isLoading = true);
-    debugPrint(
-      '🔄 [TRACKING] Fetching initial tracking data for orderId=${widget.orderId}',
-    );
-    _fetchTrackingData().whenComplete(() {
-      if (mounted) setState(() => _isLoading = false);
-    });
-
-    // Poll every 20 minutes per the spec
-    _trackingTimer = Timer.periodic(const Duration(minutes: 20), (_) {
-      debugPrint('🔄 [TRACKING] Polling tracking data (20 min interval)');
-      _fetchTrackingData();
-    });
-  }
-
-  Future<void> _fetchTrackingData() async {
-    await Future.wait([_fetchLiveTracking(), _fetchTimeline()]);
-  }
-
-  Future<void> _fetchTimeline() async {
-    try {
-      final repo = ref.read(orderRepositoryProvider);
-      final response = await repo.getOrderTimeline(widget.orderId!);
-      if (mounted) {
-        setState(() {
-          _timelineData = response;
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ [TRACKING] Timeline fetch failed: $e');
-    }
+    _fetchLiveTracking();
   }
 
   Future<void> _fetchLiveTracking() async {
+    if (widget.orderId == null) return;
+    setState(() => _isLoading = true);
     try {
       final repo = ref.read(orderRepositoryProvider);
       final response = await repo.trackOrderLive(widget.orderId!);
@@ -131,20 +79,19 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         setState(() {
           _liveData = response.data;
           _applyState(_liveData?.state ?? 'PLACED');
-
-          // Animate map to rider location if available
           if (_liveData?.location != null && _mapController != null) {
-            final latLng = LatLng(
-              _liveData!.location!.lat,
-              _liveData!.location!.lng,
+            _mapController!.animateCamera(
+              CameraUpdate.newLatLng(
+                LatLng(_liveData!.location!.lat, _liveData!.location!.lng),
+              ),
             );
-            _mapController!.animateCamera(CameraUpdate.newLatLng(latLng));
           }
         });
       }
     } catch (e) {
       debugPrint('❌ [TRACKING] Live tracking fetch failed: $e');
-      debugPrint('   ℹ️ 409 means order is not yet in a trackable state');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -199,71 +146,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
-  // ─── Timeline simulation (for testing, no orderId) ──────────────────────
-
-  void _simulateOrderStages() {
-    _isSimulating = true;
-    // Format: (stageIndex, state, label, color, delayFromStartSec, eta)
-    // Pauses longer at PLACED (cancel-testable) and DELIVERED (dispute-testable).
-    final stages = [
-      (0, 'PLACED', 'Order Placed', Colors.grey, 0, 25),
-      (1, 'ACCEPTED', 'Order Accepted', AppColors.primaryOrange, 15, 22),
-      (1, 'ARRIVED_PICKUP', 'Rider at Pickup', Colors.blue, 20, 18),
-      (2, 'PICKED_UP', 'Order Picked Up', AppColors.primaryOrange, 25, 14),
-      (2, 'IN_TRANSIT', 'On the Way', AppColors.primaryOrange, 30, 10),
-      (2, 'ARRIVED_DROPOFF', 'Rider Arrived', AppColors.primaryOrange, 35, 3),
-      (3, 'DELIVERED', 'Delivered', Colors.green, 40, 0),
-    ];
-
-    // Apply first stage synchronously
-    final first = stages.first;
-    setState(() {
-      _orderStage = first.$1;
-      _simulatedState = first.$2;
-      _status = first.$3;
-      _statusColor = first.$4;
-      _simulatedEtaMinutes = first.$6;
-    });
-    debugPrint(
-      '🟢 [SIM] Stage: ${first.$2} → ${first.$3} (ETA: ${first.$6} min)',
-    );
-    debugPrint(
-      '🟢 [SIM] ℹ️ Cancel available for 15s at PLACED. Dispute available at DELIVERED (~40s).',
-    );
-
-    for (final s in stages.skip(1)) {
-      Future.delayed(Duration(seconds: s.$5), () {
-        if (!mounted) return;
-        // Don't override if user already cancelled/disputed
-        if (_simulatedState == 'CANCELLED' || _simulatedState == 'DISPUTED') {
-          return;
-        }
-        setState(() {
-          _orderStage = s.$1;
-          _simulatedState = s.$2;
-          _status = s.$3;
-          _statusColor = s.$4;
-          _simulatedEtaMinutes = s.$6;
-        });
-        debugPrint('🟢 [SIM] Stage: ${s.$2} → ${s.$3} (ETA: ${s.$6} min)');
-      });
-    }
-  }
-
   @override
   void dispose() {
-    _trackingTimer?.cancel();
-    _mapController?.dispose();
+_mapController?.dispose();
     super.dispose();
   }
 
   // ─── Cancel / Dispute state helpers ─────────────────────────────────────
 
   /// The current authoritative state string.
-  String get _currentState {
-    if (_isSimulating || widget.orderId == null) return _simulatedState;
-    return _liveData?.state ?? _timelineData?.state ?? 'PLACED';
-  }
+  String get _currentState => _liveData?.state ?? 'PLACED';
 
   bool get _canCancel => _cancelAllowedStates.contains(_currentState);
 
@@ -362,21 +254,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (widget.orderId != null) ...[
-                  ElevatedButton(
-                    onPressed: _simulateOrderStages,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    child: const AppText(
-                      'Simulate',
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -446,8 +323,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           AppText(
                             _liveData?.etaMinutes != null
                                 ? '${_liveData!.etaMinutes} mins'
-                                : _simulatedEtaMinutes != null
-                                ? '$_simulatedEtaMinutes mins'
                                 : '—',
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -835,22 +710,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
   Future<void> _submitCancel(CancelReasonCode reason, String note) async {
-    if (widget.orderId == null) {
-      // Simulate cancel in test mode
-      setState(() {
-        _simulatedState = 'CANCELLED';
-        _status = 'Cancelled';
-        _statusColor = Colors.red;
-        _orderStage = 0;
-      });
-      if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRoute.dashboard,
-          (route) => false,
-        );
-      }
-      return;
-    }
+    if (widget.orderId == null) return;
 
     try {
       final repo = ref.read(orderRepositoryProvider);

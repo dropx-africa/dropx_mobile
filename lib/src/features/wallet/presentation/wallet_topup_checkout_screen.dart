@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/features/wallet/data/dto/wallet_topup_verify_request.dart';
 import 'package:dropx_mobile/src/features/wallet/providers/wallet_providers.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
@@ -87,54 +90,55 @@ class _WalletTopupCheckoutScreenState
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: AppColors.errorRed),
-    );
+    AppToast.showError(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const AppText(
-          'Top Up Wallet',
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: _showCancelDialog,
-        ),
-      ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading || _isVerifying)
-            Container(
-              color: Colors.white.withValues(alpha: 0.7),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(
-                      color: AppColors.primaryOrange,
-                    ),
-                    if (_isVerifying) ...[
-                      const SizedBox(height: 16),
-                      const AppText(
-                        'Verifying payment…',
-                        fontSize: 14,
-                        color: AppColors.slate500,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+    return AppScaffold(
+      appBar: AppAppBar(
+        title: 'Top Up Wallet',
+        style: AppAppBarStyle.white,
+        showBack: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.black),
+            onPressed: _showCancelDialog,
+          ),
         ],
       ),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: true,
+          child: Stack(
+            children: [
+              WebViewWidget(controller: _controller),
+              if (_isLoading || _isVerifying)
+                Container(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: AppColors.primaryOrange,
+                        ),
+                        if (_isVerifying) ...[
+                          const SizedBox(height: 16),
+                          const AppText(
+                            'Verifying payment…',
+                            fontSize: 14,
+                            color: AppColors.slate500,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

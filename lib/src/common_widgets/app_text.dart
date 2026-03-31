@@ -41,6 +41,7 @@ class AppText extends StatelessWidget {
         decoration: decoration,
         letterSpacing: letterSpacing,
         height: height,
+        fontFamilyFallback: const ['Roboto', 'NotoSans', 'sans-serif'],
       ),
     );
   }

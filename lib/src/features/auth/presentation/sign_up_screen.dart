@@ -11,6 +11,7 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/core/utils/validators.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/register_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
@@ -68,12 +69,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
     }
 
     // Validate password
-    if (_passwordController.text.isEmpty) {
-      AppToast.showError(context, 'Password is Required');
-      return;
-    }
-    if (_passwordController.text.length < 6) {
-      AppToast.showError(context, 'Min 6 characters');
+    final passwordError = Validators.password(_passwordController.text);
+    if (passwordError != null) {
+      AppToast.showError(context, passwordError);
       return;
     }
 
@@ -161,140 +159,140 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
         style: AppAppBarStyle.white,
       ),
       children: [
-            const AppSubText(
-              'Sign up to get started with DropX.',
-              textAlign: TextAlign.center,
-            ),
-            AppSpaces.v24,
+        const AppSubText(
+          'Sign up to get started with DropX.',
+          textAlign: TextAlign.center,
+        ),
+        AppSpaces.v24,
 
-            // Tab Bar
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF4F6F8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              padding: const EdgeInsets.all(6),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppColors.primaryOrange,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
+        // Tab Bar
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F6F8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          padding: const EdgeInsets.all(6),
+          child: TabBar(
+            controller: _tabController,
+            indicator: BoxDecoration(
+              color: AppColors.primaryOrange,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            labelColor: Colors.white,
+            unselectedLabelColor: AppColors.slate500,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 15,
+            ),
+            tabs: const [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.email_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Email'),
                   ],
                 ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelColor: Colors.white,
-                unselectedLabelColor: AppColors.slate500,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
-                tabs: const [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.email_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Email'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.phone_android_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Phone'),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-            AppSpaces.v24,
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.phone_android_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Phone'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        AppSpaces.v24,
 
-            // Full Name (shared)
-            AppTextField(
-              label: 'Full Name',
-              hintText: 'Enter your full name',
-              controller: _fullNameController,
-            ),
-            AppSpaces.v16,
+        // Full Name (shared)
+        AppTextField(
+          label: 'Full Name',
+          hintText: 'Enter your full name',
+          controller: _fullNameController,
+        ),
+        AppSpaces.v16,
 
-            // Contact field (changes based on tab)
-            _tabController.index == 0
-                ? AppTextField(
-                    label: 'Email Address',
-                    hintText: 'eg example@gmail.com',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                  )
-                : AppTextField(
-                    isPhone: true,
-                    label: 'Phone Number',
-                    hintText: 'Enter your phone number',
-                    controller: _phoneController,
-                    onPhoneChanged: (phone) {
-                      setState(() {});
-                    },
-                  ),
-            AppSpaces.v16,
-
-            // Phone field (optional in email tab)
-            if (_tabController.index == 0) ...[
-              AppTextField(
+        // Contact field (changes based on tab)
+        _tabController.index == 0
+            ? AppTextField(
+                label: 'Email Address',
+                hintText: 'eg example@gmail.com',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+              )
+            : AppTextField(
                 isPhone: true,
-                label: 'Phone Number (Optional)',
+                label: 'Phone Number',
                 hintText: 'Enter your phone number',
                 controller: _phoneController,
                 onPhoneChanged: (phone) {
                   setState(() {});
                 },
               ),
-              AppSpaces.v16,
-            ],
+        AppSpaces.v16,
 
-            // Password field (shared)
-            AppTextField(
-              label: 'Password',
-              hintText: 'Enter your password',
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.slate500,
-                ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
+        // Phone field (optional in email tab)
+        if (_tabController.index == 0) ...[
+          AppTextField(
+            isPhone: true,
+            label: 'Phone Number (Optional)',
+            hintText: 'Enter your phone number',
+            controller: _phoneController,
+            onPhoneChanged: (phone) {
+              setState(() {});
+            },
+          ),
+          AppSpaces.v16,
+        ],
+
+        // Password field (shared)
+        AppTextField(
+          label: 'Password',
+          hintText: 'Enter your password',
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+              color: AppColors.slate500,
             ),
-            AppSpaces.v32,
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+          ),
+        ),
+        AppSpaces.v32,
 
-            // Sign Up button
-            CustomButton(
-              text: 'Sign Up',
-              isLoading: _isLoading,
-              onPressed: _isLoading ? () {} : _handleSignUp,
-              backgroundColor: AppColors.primaryOrange,
-              textColor: AppColors.white,
-            ),
+        // Sign Up button
+        CustomButton(
+          text: 'Sign Up',
+          isLoading: _isLoading,
+          onPressed: _isLoading ? () {} : _handleSignUp,
+          backgroundColor: AppColors.primaryOrange,
+          textColor: AppColors.white,
+        ),
 
-            AppSpaces.v24,
-            _buildLoginLink(),
+        AppSpaces.v24,
+        _buildLoginLink(),
       ],
     );
   }

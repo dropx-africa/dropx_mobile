@@ -114,7 +114,7 @@ class OrderHistoryItem extends StatelessWidget {
                   (order.state != 'PAYMENT_PENDING' &&
                       order.state != 'PLACED' &&
                       order.state !=
-                          'PLAED' && // Accommodating the user's typo exception
+                          'DRAFT' && // Accommodating the user's typo exception
                       order.state != 'DELIVERED' &&
                       order.state != 'CANCELLED' &&
                       order.state != 'COMPLETED'))

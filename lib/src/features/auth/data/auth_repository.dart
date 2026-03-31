@@ -12,6 +12,8 @@ import 'package:dropx_mobile/src/features/auth/data/dto/user_profile_response.da
 import 'package:dropx_mobile/src/features/auth/data/dto/update_profile_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/user_preferences_response.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/update_preferences_dto.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/password_reset_request_dto.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/password_reset_challenge_response.dart';
 
 /// Abstract repository interface for auth operations.
 abstract class AuthRepository {
@@ -54,10 +56,22 @@ abstract class AuthRepository {
   /// Update the current user's preferences.
   Future<UserPreferencesResponse> updatePreferences(UpdatePreferencesDto dto);
 
-  /// Reset password after OTP verification.
-  Future<AuthResponse> resetPassword({
-    required String otpChallengeId,
-    required String otp,
+  /// Complete password reset via /auth/password/reset/complete.
+  Future<void> resetPassword({
+    required String resetToken,
     required String newPassword,
   });
+
+  /// Verify a password-reset OTP via /auth/password/reset/verify.
+  /// Returns the reset_token needed to complete the password reset.
+  Future<String> verifyPasswordResetOtp({
+    required String otpChallengeId,
+    required String otp,
+    String audience = 'customer',
+  });
+
+  /// Request a password reset OTP via /auth/password/reset/request.
+  Future<PasswordResetChallengeResponse> requestPasswordReset(
+    PasswordResetRequestDto dto,
+  );
 }

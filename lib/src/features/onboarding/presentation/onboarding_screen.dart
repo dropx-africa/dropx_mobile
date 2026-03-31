@@ -92,119 +92,124 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       useSafeArea: false,
       slivers: [
         SliverFillRemaining(
-          hasScrollBody: false,
-          child: SafeArea(
-            child: Column(
-          children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8, right: 16),
-                child: TextButton(
-                  onPressed: _finish,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      color: AppColors.slate500,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Page content
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (i) => setState(() => _currentPage = i),
-                itemCount: _pages.length,
-                itemBuilder: (_, i) => _PageContent(page: _pages[i]),
-              ),
-            ),
-
-            // Dot indicators
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pages.length,
-                (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.only(right: 6),
-                  height: 6,
-                  width: _currentPage == i ? 24 : 6,
-                  decoration: BoxDecoration(
-                    color: _currentPage == i
-                        ? AppColors.primaryOrange
-                        : AppColors.slate200,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Primary CTA
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _next,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryOrange,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    isLast ? 'Get Started' : 'Next',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // "Already have an account" link — only on first page
-            AnimatedOpacity(
-              opacity: _currentPage == 0 ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 200),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: TextButton(
-                  onPressed: _currentPage == 0 ? _finish : null,
-                  child: RichText(
-                    text: const TextSpan(
-                      text: 'Already have an account? ',
-                      style: TextStyle(color: AppColors.slate500, fontSize: 14),
-                      children: [
-                        TextSpan(
-                          text: 'Log in',
+          hasScrollBody: true,
+          child: SizedBox.expand(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Skip button
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8, right: 16),
+                      child: TextButton(
+                        onPressed: _finish,
+                        child: const Text(
+                          'Skip',
                           style: TextStyle(
-                            color: AppColors.primaryOrange,
+                            color: AppColors.slate500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Page content
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (i) => setState(() => _currentPage = i),
+                      itemCount: _pages.length,
+                      itemBuilder: (_, i) => _PageContent(page: _pages[i]),
+                    ),
+                  ),
+
+                  // Dot indicators
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _pages.length,
+                      (i) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.only(right: 6),
+                        height: 6,
+                        width: _currentPage == i ? 24 : 6,
+                        decoration: BoxDecoration(
+                          color: _currentPage == i
+                              ? AppColors.primaryOrange
+                              : AppColors.slate200,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Primary CTA
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _next,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryOrange,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          isLast ? 'Get Started' : 'Next',
+                          style: const TextStyle(
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+
+                  // "Already have an account" link — only on first page
+                  AnimatedOpacity(
+                    opacity: _currentPage == 0 ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: TextButton(
+                        onPressed: _currentPage == 0 ? _finish : null,
+                        child: RichText(
+                          text: const TextSpan(
+                            text: 'Already have an account? ',
+                            style: TextStyle(
+                              color: AppColors.slate500,
+                              fontSize: 14,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'Log in',
+                                style: TextStyle(
+                                  color: AppColors.primaryOrange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+          ),
         ),
       ],
     );

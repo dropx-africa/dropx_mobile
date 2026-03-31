@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 
 class BottomCartBar extends StatelessWidget {
@@ -63,14 +64,16 @@ class BottomCartBar extends StatelessWidget {
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
+                  decoration: TextDecoration.none,
                 ),
               ],
             ),
             AppText(
-              "₦${totalPrice.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}",
+              Formatters.formatNaira(totalPrice),
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 16,
+              decoration: TextDecoration.none,
             ),
           ],
         ),

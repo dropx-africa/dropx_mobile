@@ -98,4 +98,10 @@ class ApiEndpoints {
 
   // Auth — Logout
   static const String logout = '/auth/logout';
+
+  // Auth — Password Reset
+  static const String passwordResetRequest = '/auth/password/reset/request';
+  static const String passwordResetVerify = '/auth/password/reset/verify';
+  static const String passwordResetComplete = '/auth/password/reset/complete';
+  static const String passwordResetResend = '/auth/password/reset/resend';
 }

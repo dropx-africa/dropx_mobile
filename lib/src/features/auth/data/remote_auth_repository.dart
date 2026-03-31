@@ -18,6 +18,8 @@ import 'package:dropx_mobile/src/features/auth/data/dto/user_profile_response.da
 import 'package:dropx_mobile/src/features/auth/data/dto/update_profile_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/user_preferences_response.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/update_preferences_dto.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/password_reset_request_dto.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/password_reset_challenge_response.dart';
 
 class RemoteAuthRepository implements AuthRepository {
   final ApiClient _apiClient;
@@ -108,6 +110,21 @@ class RemoteAuthRepository implements AuthRepository {
           OtpVerifyResponse.fromJson(json as Map<String, dynamic>),
     );
     return response.data;
+  }
+
+  @override
+  Future<String> verifyPasswordResetOtp({
+    required String otpChallengeId,
+    required String otp,
+    String audience = 'customer',
+  }) async {
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.passwordResetVerify,
+      data: {'otp_challenge_id': otpChallengeId, 'otp': otp, 'audience': audience},
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+    return response.data['reset_token'] as String;
   }
 
   @override
@@ -226,23 +243,38 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<AuthResponse> resetPassword({
-    required String otpChallengeId,
-    required String otp,
+  Future<void> resetPassword({
+    required String resetToken,
     required String newPassword,
   }) async {
-    debugPrint('➡ [AUTH-API] POST /auth/reset-password');
-    final response = await _apiClient.post<AuthResponse>(
-      ApiEndpoints.resetPassword,
-      data: {
-        'otpChallengeId': otpChallengeId,
-        'otp': otp,
-        'newPassword': newPassword,
-      },
+    await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.passwordResetComplete,
+      data: {'reset_token': resetToken, 'new_password': newPassword},
       headers: ApiClient.traceHeaders(),
-      fromJson: (json) => AuthResponse.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) => json as Map<String, dynamic>,
     );
-    debugPrint('✅ [AUTH-API] POST /auth/reset-password → success');
+  }
+
+  @override
+  Future<PasswordResetChallengeResponse> requestPasswordReset(
+    PasswordResetRequestDto dto,
+  ) async {
+    debugPrint(
+      '➡ [AUTH-API] POST ${ApiEndpoints.passwordResetRequest} payload=${dto.toJson()}',
+    );
+    final response = await _apiClient.post<PasswordResetChallengeResponse>(
+      ApiEndpoints.passwordResetRequest,
+      data: dto.toJson(),
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) {
+        final map = json as Map<String, dynamic>;
+        debugPrint('[AUTH-API] 📦 /auth/password/reset/request raw: $map');
+        return PasswordResetChallengeResponse.fromJson(map);
+      },
+    );
+    debugPrint(
+      '✅ [AUTH-API] /auth/password/reset/request → challengeId=${response.data.otpChallengeId}',
+    );
     return response.data;
   }
 }

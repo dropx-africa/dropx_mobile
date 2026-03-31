@@ -35,6 +35,7 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         // User Header
         Container(
+          margin: const EdgeInsets.only(top: 16),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(

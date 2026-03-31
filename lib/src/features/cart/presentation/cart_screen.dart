@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:dropx_mobile/src/features/wallet/providers/wallet_providers.dart';
+import 'package:dropx_mobile/src/features/wallet/data/dto/wallet_topup_initialize_request.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
@@ -31,7 +33,6 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  bool _isPlacingOrder = false;
   bool _isLoadingEstimate = false;
   String _selectedPaymentMethod = 'PAYSTACK';
   double _deliveryFee = 0.0;
@@ -141,8 +142,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       return;
     }
 
-    setState(() => _isPlacingOrder = true);
-
     try {
       final orderItems = cartState.items.values.map((cartItem) {
         return CreateOrderItemDto(
@@ -168,7 +167,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           PlaceOrderDto(paymentMethod: 'WALLET'),
         );
         if (!mounted) return;
-        AppNavigator.pushReplacement(context, AppRoute.orderSuccess);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoute.orderSuccess,
+          (route) => false,
+        );
       } else if (_selectedPaymentMethod == 'GENERATE_LINK') {
         final linkResponse = await orderRepo.generatePaymentLink(
           orderId,
@@ -179,7 +182,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         final shareableLink =
             'https://dropxwebapp.vercel.app/pay-link/${linkResponse.token}';
 
-        showDialog(
+        await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
@@ -236,13 +239,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               TextButton(
                 onPressed: () => AppNavigator.pop(context),
                 child: const AppText(
-                  'Close',
-                  color: AppColors.grayText,
+                  'View Order',
+                  color: AppColors.primaryOrange,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
+        );
+        if (!mounted) return;
+        ref.read(cartProvider.notifier).clearCart();
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoute.dashboard,
+          (route) => false,
+          arguments: {'initialTab': 2},
         );
       } else {
         final paymentResponse = await orderRepo.initializePayment(
@@ -262,8 +273,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     } catch (e) {
       if (mounted)
         AppToast.showError(context, 'Failed to place order: ${e.toString()}');
-    } finally {
-      if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
@@ -275,10 +284,41 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       builder: (_) => _PaymentBottomSheet(
         selectedPaymentMethod: _selectedPaymentMethod,
         totalAmount: totalAmount,
-        isPlacingOrder: _isPlacingOrder,
         onMethodChanged: (method) =>
             setState(() => _selectedPaymentMethod = method),
-        onConfirm: () {
+        onConfirm: () async {
+          if (_selectedPaymentMethod == 'WALLET') {
+            await _checkWalletBalanceAndProceed(totalAmount);
+          } else {
+            await _placeOrder();
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _checkWalletBalanceAndProceed(double totalAmount) async {
+    final balanceKobo = ref.read(walletBalanceKoboProvider);
+    final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
+
+    if (balanceNaira < 1000) {
+      // Pop the payment sheet before showing the topup sheet
+      if (mounted) Navigator.of(context).pop();
+      _showTopupBottomSheet(totalAmount, balanceNaira);
+    } else {
+      await _placeOrder();
+    }
+  }
+
+  void _showTopupBottomSheet(double totalAmount, double currentBalance) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TopupBottomSheet(
+        totalAmount: totalAmount,
+        currentBalance: currentBalance,
+        onTopupComplete: () {
           AppNavigator.pop(context);
           _placeOrder();
         },
@@ -502,12 +542,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.lock_outline,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
+                                // Icon(
+                                //   Icons.lock_outline,
+                                //   color: Colors.white,
+                                //   size: 18,
+                                // ),
+                                // SizedBox(width: 8),
                                 AppText(
                                   "Place Order",
                                   color: Colors.white,
@@ -756,14 +796,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 class _PaymentBottomSheet extends StatefulWidget {
   final String selectedPaymentMethod;
   final double totalAmount;
-  final bool isPlacingOrder;
   final ValueChanged<String> onMethodChanged;
-  final VoidCallback onConfirm;
+  final Future<void> Function() onConfirm;
 
   const _PaymentBottomSheet({
     required this.selectedPaymentMethod,
     required this.totalAmount,
-    required this.isPlacingOrder,
     required this.onMethodChanged,
     required this.onConfirm,
   });
@@ -774,6 +812,7 @@ class _PaymentBottomSheet extends StatefulWidget {
 
 class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
   late String _selected;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -832,33 +871,6 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
             subtitle: 'Use your DropX wallet balance',
             icon: Icons.account_balance_wallet_rounded,
           ),
-          if (_selected == 'WALLET')
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
-              child: GestureDetector(
-                onTap: () async {
-                  AppNavigator.pop(context);
-                  await AppNavigator.push(context, AppRoute.walletTopup);
-                },
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 14,
-                      color: AppColors.primaryOrange,
-                    ),
-                    SizedBox(width: 4),
-                    AppText(
-                      'Top up wallet',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryOrange,
-                    ),
-                  ],
-                ),
-              ),
-            ),
           const SizedBox(height: 10),
           _buildOption(
             value: 'GENERATE_LINK',
@@ -871,7 +883,16 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: widget.isPlacingOrder ? null : widget.onConfirm,
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      setState(() => _isLoading = true);
+                      try {
+                        await widget.onConfirm();
+                      } finally {
+                        if (mounted) setState(() => _isLoading = false);
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryOrange,
                 disabledBackgroundColor: AppColors.primaryOrange.withValues(
@@ -882,7 +903,7 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                 ),
                 elevation: 0,
               ),
-              child: widget.isPlacingOrder
+              child: _isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
@@ -974,6 +995,272 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Top-up bottom sheet ────────────────────────────────────────────────────
+
+class _TopupBottomSheet extends ConsumerStatefulWidget {
+  final double totalAmount;
+  final double currentBalance;
+  final VoidCallback onTopupComplete;
+
+  const _TopupBottomSheet({
+    required this.totalAmount,
+    required this.currentBalance,
+    required this.onTopupComplete,
+  });
+
+  @override
+  ConsumerState<_TopupBottomSheet> createState() => _TopupBottomSheetState();
+}
+
+class _TopupBottomSheetState extends ConsumerState<_TopupBottomSheet> {
+  final _amountController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startTopup() async {
+    final amountText = _amountController.text.trim();
+    final amountNaira = double.tryParse(amountText);
+
+    if (amountNaira == null || amountNaira < 1000) {
+      AppToast.showError(context, 'Minimum top-up amount is ₦1000');
+      return;
+    }
+
+    final session = ref.read(sessionServiceProvider);
+    final email = session.email;
+
+    if (email.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const AppText('Email Required', fontWeight: FontWeight.bold),
+          content: const AppText(
+            'Paystack requires an email to process payments. Please update your profile with your email address and try again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => AppNavigator.pop(ctx),
+              child: const AppText(
+                'OK',
+                color: AppColors.primaryOrange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final walletRepo = ref.read(walletRepositoryProvider);
+      final amountKobo = (amountNaira * 100).round();
+
+      final result = await walletRepo.initializeTopup(
+        WalletTopupInitializeRequest(amountKobo: amountKobo, payerEmail: email),
+      );
+
+      if (!mounted) return;
+
+      final success = await AppNavigator.push<bool>(
+        context,
+        AppRoute.walletTopupCheckout,
+        arguments: {
+          'authorizationUrl': result.authorizationUrl,
+          'reference': result.reference,
+          'paymentAttemptId': result.paymentAttemptId,
+        },
+      );
+
+      if (!mounted) return;
+
+      if (success == true) {
+        final balanceKobo = ref.read(walletBalanceKoboProvider);
+        final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
+        AppToast.showSuccess(
+          context,
+          'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
+        );
+        widget.onTopupComplete();
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Top-up failed: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, bottomPad + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const AppText(
+            'Top Up Wallet',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 4),
+          AppText(
+            'Your wallet balance is low. Top up to continue with payment.',
+            fontSize: 13,
+            color: Colors.grey.shade500,
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const AppText(
+                  'Current Balance',
+                  fontSize: 14,
+                  color: AppColors.slate500,
+                ),
+                AppText(
+                  Formatters.formatNaira(widget.currentBalance),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const AppText(
+            'Enter Amount',
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.slate500,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+            ],
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              prefixText: '₦ ',
+              prefixStyle: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              hintText: '0',
+              hintStyle: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade300,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          const Divider(),
+          const SizedBox(height: 8),
+          const AppText(
+            'Minimum ₦1000',
+            fontSize: 12,
+            color: AppColors.slate400,
+          ),
+          const SizedBox(height: 16),
+          // Quick amount chips
+          Wrap(
+            spacing: 8,
+            children: [1000, 2000, 5000].map((amount) {
+              return ActionChip(
+                label: AppText(
+                  '₦$amount',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryOrange,
+                ),
+                backgroundColor: AppColors.primaryOrange.withValues(
+                  alpha: 0.08,
+                ),
+                side: BorderSide(
+                  color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                ),
+                onPressed: () {
+                  _amountController.text = amount.toString();
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _startTopup,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryOrange,
+                disabledBackgroundColor: AppColors.primaryOrange.withValues(
+                  alpha: 0.5,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const AppText(
+                      'Top Up & Continue',
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

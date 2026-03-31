@@ -50,4 +50,15 @@ class Validators {
     }
     return null;
   }
+
+  /// Validate a password (minimum 10 characters).
+  static String? password(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 10) {
+      return 'Password must be at least 10 characters';
+    }
+    return null;
+  }
 }

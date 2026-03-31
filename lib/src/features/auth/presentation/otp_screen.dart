@@ -33,8 +33,8 @@ class OtpScreen extends ConsumerStatefulWidget {
   /// ISO-8601 timestamp from `resend_available_at` — drives the resend timer.
   final String? resendAvailableAt;
 
-  /// Whether this OTP is for forgot password flow.
-  final bool isForgotPassword;
+  /// OTP purpose sent to the verify endpoint. Defaults to 'LOGIN'.
+  final String purpose;
 
   const OtpScreen({
     super.key,
@@ -42,7 +42,7 @@ class OtpScreen extends ConsumerStatefulWidget {
     required this.channel,
     required this.otpChallengeId,
     this.resendAvailableAt,
-    this.isForgotPassword = false,
+    this.purpose = 'LOGIN',
   });
 
   @override
@@ -118,36 +118,44 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     });
 
     try {
-      final dto = OtpVerifyDto(otpChallengeId: _otpChallengeId, otp: pin);
+      final repo = ref.read(authRepositoryProvider);
 
-      AppLog.d('[OTP] Verifying: ${dto.toJson()}');
-
-      final response = await ref.read(authRepositoryProvider).verifyOtp(dto);
-
-      AppLog.d('[OTP] Verified — userId: ${response.userId}');
-
-      ApiClient().setAuthToken(
-        response.accessToken,
-        refreshToken: response.refreshToken,
-      );
-      final session = ref.read(sessionServiceProvider);
-      await session.saveAuthSession(
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-        userId: response.userId,
-        email: widget.channel == 'email' ? widget.sentTo : null,
-      );
-
-      if (mounted) {
-        AppToast.showSuccess(context, 'OTP verified successfully!');
-        if (widget.isForgotPassword) {
-          // Navigate to reset password screen
+      if (widget.purpose == 'PASSWORD_RESET') {
+        final resetToken = await repo.verifyPasswordResetOtp(
+          otpChallengeId: _otpChallengeId,
+          otp: pin,
+          audience: 'customer',
+        );
+        if (mounted) {
           AppNavigator.pushReplacement(
             context,
             AppRoute.resetPassword,
-            arguments: {'otpChallengeId': _otpChallengeId, 'otp': pin},
+            arguments: {'resetToken': resetToken},
           );
-        } else {
+        }
+      } else {
+        final dto = OtpVerifyDto(otpChallengeId: _otpChallengeId, otp: pin, purpose: widget.purpose);
+
+        AppLog.d('[OTP] Verifying: ${dto.toJson()}');
+
+        final response = await repo.verifyOtp(dto);
+
+        AppLog.d('[OTP] Verified — userId: ${response.userId}');
+
+        ApiClient().setAuthToken(
+          response.accessToken,
+          refreshToken: response.refreshToken,
+        );
+        final session = ref.read(sessionServiceProvider);
+        await session.saveAuthSession(
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          userId: response.userId,
+          email: widget.channel == 'email' ? widget.sentTo : null,
+        );
+
+        if (mounted) {
+          AppToast.showSuccess(context, 'OTP verified successfully!');
           if (session.hasConfirmedLocation) {
             AppNavigator.pushReplacement(context, AppRoute.dashboard);
           } else {
@@ -215,102 +223,102 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         style: AppAppBarStyle.white,
       ),
       children: [
-            Center(
-              child: Column(
-                children: [
-                  const AppImage(AppIcon.logo2, height: 60),
-                  AppSpaces.v8,
-                  const AppSubText(
-                    "No Stories. Just Delivery.",
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+        Center(
+          child: Column(
+            children: [
+              const AppImage(AppIcon.logo2, height: 60),
+              AppSpaces.v8,
+              const AppSubText(
+                "No Stories. Just Delivery.",
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+
+        AppSpaces.v48,
+
+        const AppHeader('Verify Phone'),
+        AppSpaces.v8,
+        AppSubText(
+          'Enter the 6-digit code we sent to your '
+          '${widget.channel == 'email' ? 'email' : 'phone'} '
+          '(${widget.sentTo})',
+          fontSize: 16,
+        ),
+        AppSpaces.v32,
+
+        Center(
+          child: AppOtpField(
+            controller: _pinController,
+            focusNode: _focusNode,
+            onCompleted: (pin) => _verifyOtp(),
+          ),
+        ),
+
+        if (_otpError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Center(
+              child: AppText(
+                _otpError!,
+                color: AppColors.errorRed,
+                fontSize: 13,
               ),
             ),
+          ),
 
-            AppSpaces.v48,
+        AppSpaces.v32,
 
-            const AppHeader('Verify Phone'),
-            AppSpaces.v8,
-            AppSubText(
-              'Enter the 6-digit code we sent to your '
-              '${widget.channel == 'email' ? 'email' : 'phone'} '
-              '(${widget.sentTo})',
-              fontSize: 16,
-            ),
-            AppSpaces.v32,
+        CustomButton(
+          text: 'Verify & Continue',
+          backgroundColor: AppColors.primaryOrange,
+          textColor: AppColors.white,
+          isLoading: _isLoading,
+          onPressed: _isLoading ? () {} : _verifyOtp,
+        ),
 
-            Center(
-              child: AppOtpField(
-                controller: _pinController,
-                focusNode: _focusNode,
-                onCompleted: (pin) => _verifyOtp(),
-              ),
-            ),
+        AppSpaces.v24,
 
-            if (_otpError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Center(
-                  child: AppText(
-                    _otpError!,
-                    color: AppColors.errorRed,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-
-            AppSpaces.v32,
-
-            CustomButton(
-              text: 'Verify & Continue',
-              backgroundColor: AppColors.primaryOrange,
-              textColor: AppColors.white,
-              isLoading: _isLoading,
-              onPressed: _isLoading ? () {} : _verifyOtp,
-            ),
-
-            AppSpaces.v24,
-
-            Center(
-              child: _resendCountdown > 0
-                  ? AppSubText(
-                      'Resend code in ${_formatCountdown(_resendCountdown)}',
-                      fontSize: 14,
-                    )
-                  : GestureDetector(
-                      onTap: _isResending ? null : _resendOtp,
-                      child: _isResending
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primaryOrange,
-                              ),
-                            )
-                          : const AppText(
-                              "Resend Code",
-                              color: AppColors.primaryOrange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                    ),
-            ),
-
-            AppSpaces.v16,
-
-            Center(
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: const AppText(
-                  "Change Phone Number",
-                  color: AppColors.slate500,
-                  fontWeight: FontWeight.bold,
+        Center(
+          child: _resendCountdown > 0
+              ? AppSubText(
+                  'Resend code in ${_formatCountdown(_resendCountdown)}',
                   fontSize: 14,
+                )
+              : GestureDetector(
+                  onTap: _isResending ? null : _resendOtp,
+                  child: _isResending
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primaryOrange,
+                          ),
+                        )
+                      : const AppText(
+                          "Resend Code",
+                          color: AppColors.primaryOrange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                 ),
-              ),
+        ),
+
+        AppSpaces.v16,
+
+        Center(
+          child: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const AppText(
+              "Change Phone Number",
+              color: AppColors.slate500,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
+          ),
+        ),
       ],
     );
   }

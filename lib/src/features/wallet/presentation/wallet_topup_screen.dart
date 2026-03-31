@@ -8,8 +8,8 @@ import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/features/wallet/data/dto/wallet_topup_initialize_request.dart';
 import 'package:dropx_mobile/src/features/wallet/providers/wallet_providers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
-import 'package:dropx_mobile/src/features/wallet/presentation/wallet_topup_checkout_screen.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
@@ -112,148 +112,138 @@ class _WalletTopupScreenState extends ConsumerState<WalletTopupScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       backgroundColor: AppColors.slate50,
-      appBar: AppBar(
-        backgroundColor: AppColors.slate50,
-        elevation: 0,
-        title: const AppText(
-          'Add Money',
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => AppNavigator.pop(context),
-        ),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const AppText(
-                      'Enter Amount',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.slate500,
-                    ),
-                    AppSpaces.v12,
-                    TextField(
-                      controller: _amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+      appBar: const AppAppBar(title: 'Add Money', style: AppAppBarStyle.white),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'^\d+\.?\d{0,2}'),
-                        ),
-                      ],
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      decoration: InputDecoration(
-                        prefixText: '₦ ',
-                        prefixStyle: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade300,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    const Divider(),
-                    AppSpaces.v8,
-                    const AppText(
-                      'Minimum ₦100 · Powered by Paystack',
-                      fontSize: 12,
-                      color: AppColors.slate400,
-                    ),
-                  ],
-                ),
-              ),
-              AppSpaces.v16,
-              // Quick amount chips
-              Wrap(
-                spacing: 8,
-                children: [500, 1000, 2000, 5000].map((amount) {
-                  return ActionChip(
-                    label: AppText(
-                      '₦$amount',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryOrange,
-                    ),
-                    backgroundColor: AppColors.primaryOrange.withValues(
-                      alpha: 0.08,
-                    ),
-                    side: BorderSide(
-                      color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                    ),
-                    onPressed: () {
-                      _amountController.text = amount.toString();
-                    },
-                  );
-                }).toList(),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _startTopup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryOrange,
-                    disabledBackgroundColor: AppColors.primaryOrange.withValues(
-                      alpha: 0.5,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
+                    ],
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                      : const AppText(
-                          'Proceed to Payment',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const AppText(
+                        'Enter Amount',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.slate500,
+                      ),
+                      AppSpaces.v12,
+                      TextField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
                         ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
+                        ],
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration: InputDecoration(
+                          prefixText: '₦ ',
+                          prefixStyle: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          hintText: '0',
+                          hintStyle: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade300,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const Divider(),
+                      AppSpaces.v8,
+                      const AppText(
+                        'Minimum ₦1000',
+                        fontSize: 12,
+                        color: AppColors.slate400,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                AppSpaces.v16,
+                // Quick amount chips
+                Wrap(
+                  spacing: 8,
+                  children: [500, 1000, 2000, 5000].map((amount) {
+                    return ActionChip(
+                      label: AppText(
+                        '₦$amount',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primaryOrange,
+                      ),
+                      backgroundColor: AppColors.primaryOrange.withValues(
+                        alpha: 0.08,
+                      ),
+                      side: BorderSide(
+                        color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                      ),
+                      onPressed: () {
+                        _amountController.text = amount.toString();
+                      },
+                    );
+                  }).toList(),
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _startTopup,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryOrange,
+                      disabledBackgroundColor: AppColors.primaryOrange
+                          .withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const AppText(
+                            'Proceed to Payment',
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ],

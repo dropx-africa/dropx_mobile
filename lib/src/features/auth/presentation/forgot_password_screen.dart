@@ -13,7 +13,7 @@ import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
-import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
+import 'package:dropx_mobile/src/features/auth/data/dto/password_reset_request_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -28,7 +28,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Email tab
   final _emailController = TextEditingController();
   String _phoneNumber = '';
 
@@ -51,21 +50,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
   }
 
   Future<void> _handleSubmit() async {
-    // Validate contact info based on tab
-    if (_tabController.index == 0) {
-      // Email
+    final isEmail = _tabController.index == 0;
+
+    if (isEmail) {
       if (_emailController.text.trim().isEmpty) {
         AppToast.showError(context, 'Email is required');
         return;
       }
-      if (!RegExp(
-        r'^[^@]+@[^@]+\.[^@]+',
-      ).hasMatch(_emailController.text.trim())) {
+      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(_emailController.text.trim())) {
         AppToast.showError(context, 'Enter a valid email');
         return;
       }
     } else {
-      // Phone
       if (_phoneNumber.length < 10) {
         AppToast.showError(context, 'Please enter a valid phone number');
         return;
@@ -74,27 +70,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
     setState(() => _isLoading = true);
     try {
-      final dto = _tabController.index == 0
-          ? OtpRequestDto(email: _emailController.text.trim())
-          : OtpRequestDto(phoneE164: _phoneNumber);
-      final challenge = await ref.read(authRepositoryProvider).requestOtp(dto);
+      final dto = isEmail
+          ? PasswordResetRequestDto(email: _emailController.text.trim())
+          : PasswordResetRequestDto(phone: _phoneNumber);
+
+      final challenge = await ref
+          .read(authRepositoryProvider)
+          .requestPasswordReset(dto);
 
       if (mounted) {
         AppToast.showSuccess(
           context,
-          'OTP sent to your ${_tabController.index == 0 ? 'email' : 'phone'}',
+          'OTP sent to your ${isEmail ? 'email' : 'phone'}',
         );
         AppNavigator.pushReplacement(
           context,
           AppRoute.otp,
           arguments: {
-            'sentTo': _tabController.index == 0
-                ? _emailController.text.trim()
-                : _phoneNumber,
-            'channel': _tabController.index == 0 ? 'email' : 'sms',
+            'sentTo': isEmail ? _emailController.text.trim() : _phoneNumber,
+            'channel': isEmail ? 'email' : 'sms',
             'otpChallengeId': challenge.otpChallengeId,
             'resendAvailableAt': challenge.resendAvailableAt,
-            'isForgotPassword': true,
+            'purpose': 'PASSWORD_RESET',
           },
         );
       }
@@ -111,6 +108,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isPhoneTab = _tabController.index == 1;
+
     return AppScaffold(
       appBar: const AppAppBar(
         title: 'Forgot Password',
@@ -197,25 +196,52 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
         ),
         AppSpaces.v24,
 
-        // Contact field (changes based on tab)
-        _tabController.index == 0
-            ? AppTextField(
-                label: 'Email',
-                hintText: 'Enter your email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-              )
-            : AppTextField(
-                isPhone: true,
-                label: 'Phone Number',
-                hintText: 'Enter your phone number',
-                onPhoneChanged: (phone) {
-                  _phoneNumber = phone.completeNumber;
-                },
+        // Contact field
+        if (!isPhoneTab)
+          AppTextField(
+            label: 'Email',
+            hintText: 'Enter your email',
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+          )
+        else ...[
+          AppTextField(
+            isPhone: true,
+            label: 'Phone Number',
+            hintText: 'Enter your phone number',
+            onPhoneChanged: (phone) {
+              _phoneNumber = phone.completeNumber;
+            },
+          ),
+          AppSpaces.v8,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryOrange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.primaryOrange.withValues(alpha: 0.25),
               ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    size: 16, color: AppColors.primaryOrange),
+                SizedBox(width: 8),
+                Expanded(
+                  child: AppText(
+                    'Phone reset is coming soon. Please use email for now.',
+                    fontSize: 12,
+                    color: AppColors.primaryOrange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         AppSpaces.v32,
 
-        // Send OTP button
         CustomButton(
           text: 'Send OTP',
           isLoading: _isLoading,

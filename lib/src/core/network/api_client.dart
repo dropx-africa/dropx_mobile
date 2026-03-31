@@ -253,10 +253,24 @@ class ApiClient {
     final String? message = body is Map ? body['message'] as String? : null;
     final dynamic data = body is Map ? body : null;
 
+    // Extract error details from API response structure
+    String? errorCode;
+    String? errorMessage;
+    if (body is Map<String, dynamic>) {
+      final error = body['error'];
+      if (error is Map<String, dynamic>) {
+        errorCode = error['code'] as String?;
+        errorMessage = error['message'] as String?;
+      }
+    }
+
+    // Use the actual error message from the API if available
+    final String displayMessage = errorMessage ?? message ?? 'Unknown Error';
+
     switch (response.statusCode) {
       case 400:
         return ValidationException(
-          message: message ?? 'Bad Request',
+          message: displayMessage,
           errors: data is Map<String, dynamic> && data['errors'] != null
               ? (data['errors'] as Map<String, dynamic>).map(
                   (k, v) => MapEntry(k, List<String>.from(v as List)),
@@ -264,21 +278,25 @@ class ApiClient {
               : null,
         );
       case 401:
-        return UnauthorizedException(message: message ?? 'Unauthorized');
+        // Check if this is an OTP error vs authentication error
+        if (errorCode == 'INVALID_OTP' || errorCode == 'OTP_EXPIRED') {
+          return ValidationException(message: displayMessage);
+        }
+        return UnauthorizedException(message: displayMessage);
       case 403:
         return ApiException(
-          message: message ?? 'Forbidden',
+          message: displayMessage,
           statusCode: 403,
           data: data,
         );
       case 404:
-        return NotFoundException(message: message ?? 'Not Found');
+        return NotFoundException(message: displayMessage);
       case 500:
       case 502:
-        return ServerException(message: message ?? 'Server Error');
+        return ServerException(message: displayMessage);
       default:
         return ApiException(
-          message: message ?? 'Unknown Error',
+          message: displayMessage,
           statusCode: response.statusCode,
           data: data,
         );

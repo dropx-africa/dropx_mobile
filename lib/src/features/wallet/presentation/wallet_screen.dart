@@ -279,6 +279,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         // Balance Card
         Container(
           width: double.infinity,
+          margin: const EdgeInsets.only(top: 16),
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(

@@ -12,20 +12,14 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
-import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/core/utils/validators.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
-import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
-  final String otpChallengeId;
-  final String otp;
+  final String resetToken;
 
-  const ResetPasswordScreen({
-    super.key,
-    required this.otpChallengeId,
-    required this.otp,
-  });
+  const ResetPasswordScreen({super.key, required this.resetToken});
 
   @override
   ConsumerState<ResetPasswordScreen> createState() =>
@@ -54,27 +48,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
     try {
       // Call reset password API
-      final response = await ref
+      await ref
           .read(authRepositoryProvider)
           .resetPassword(
-            otpChallengeId: widget.otpChallengeId,
-            otp: widget.otp,
+            resetToken: widget.resetToken,
             newPassword: _passwordController.text,
           );
-
-      // Set auth tokens
-      ApiClient().setAuthToken(
-        response.accessToken,
-        refreshToken: response.refreshToken,
-      );
-
-      // Save session
-      final session = ref.read(sessionServiceProvider);
-      await session.saveAuthSession(
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-        userId: response.userId,
-      );
 
       if (mounted) {
         AppToast.showSuccess(context, 'Password reset successfully!');
@@ -134,15 +113,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   onPressed: () =>
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) {
-                    return 'Password is required';
-                  }
-                  if (v.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
+                validator: Validators.password,
               ),
               AppSpaces.v16,
               AppTextField(

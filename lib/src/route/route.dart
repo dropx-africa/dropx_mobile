@@ -61,7 +61,7 @@ abstract class AppRouter {
         final channel = args?['channel'] as String? ?? 'sms';
         final otpChallengeId = args?['otpChallengeId'] as String? ?? '';
         final resendAvailableAt = args?['resendAvailableAt'] as String?;
-        final isForgotPassword = args?['isForgotPassword'] as bool? ?? false;
+        final purpose = args?['purpose'] as String? ?? 'LOGIN';
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => OtpScreen(
@@ -69,7 +69,7 @@ abstract class AppRouter {
             channel: channel,
             otpChallengeId: otpChallengeId,
             resendAvailableAt: resendAvailableAt,
-            isForgotPassword: isForgotPassword,
+            purpose: purpose,
           ),
         );
 
@@ -81,12 +81,10 @@ abstract class AppRouter {
 
       case AppRoute.resetPassword:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
-        final otpChallengeId = args['otpChallengeId'] as String? ?? '';
-        final otp = args['otp'] as String? ?? '';
+        final resetToken = args['resetToken'] as String? ?? '';
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) =>
-              ResetPasswordScreen(otpChallengeId: otpChallengeId, otp: otp),
+          builder: (context) => ResetPasswordScreen(resetToken: resetToken),
         );
 
       case AppRoute.manualLocation:
