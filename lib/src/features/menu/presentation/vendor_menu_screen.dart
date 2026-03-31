@@ -61,10 +61,12 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     final catalogAsync = ref.watch(storeCatalogProvider(widget.vendorId));
     final cartState = ref.watch(cartProvider);
 
-    return AppScaffold(
-      useSafeArea: false,
-      slivers: [
-        catalogAsync.when(
+    return Stack(
+      children: [
+        AppScaffold(
+          useSafeArea: false,
+          slivers: [
+            catalogAsync.when(
           loading: () => const SliverFillRemaining(
             child: AppLoading(),
           ),
@@ -459,20 +461,19 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
           },
         ),
 
-        // Floating cart bar
+      ],
+        ),
+
+        // Floating cart bar — fixed at the bottom, overlays the scroll content
         if (cartState.totalItemCount > 0)
-          SliverToBoxAdapter(
-            child: AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              bottom: 24,
-              left: 16,
-              right: 16,
-              child: BottomCartBar(
-                itemCount: cartState.totalItemCount,
-                totalPrice: cartState.totalPrice,
-                isGuest: isGuest,
-              ),
+          Positioned(
+            bottom: 24,
+            left: 16,
+            right: 16,
+            child: BottomCartBar(
+              itemCount: cartState.totalItemCount,
+              totalPrice: cartState.totalPrice,
+              isGuest: isGuest,
             ),
           ),
       ],

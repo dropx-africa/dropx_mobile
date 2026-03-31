@@ -23,6 +23,14 @@ import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.d
 import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/fastest_food_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
+import 'package:dropx_mobile/src/features/wallet/presentation/wallet_topup_screen.dart';
+import 'package:dropx_mobile/src/features/wallet/presentation/wallet_topup_checkout_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/edit_profile_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/contact_sync_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/social_feed_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/preferences_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -205,6 +213,62 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const NotificationsScreen(),
+        );
+
+      case AppRoute.walletTopup:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const WalletTopupScreen(),
+        );
+
+      case AppRoute.walletTopupCheckout:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final authorizationUrl = args['authorizationUrl'] as String;
+        final reference = args['reference'] as String;
+        final paymentAttemptId = args['paymentAttemptId'] as String;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => WalletTopupCheckoutScreen(
+            authorizationUrl: authorizationUrl,
+            reference: reference,
+            paymentAttemptId: paymentAttemptId,
+          ),
+        );
+
+      case AppRoute.editProfile:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const EditProfileScreen(),
+        );
+
+      case AppRoute.contactSync:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const ContactSyncScreen(),
+        );
+
+      case AppRoute.socialFeed:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const SocialFeedScreen(),
+        );
+
+      case AppRoute.preferences:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const PreferencesScreen(),
+        );
+
+      case AppRoute.notificationSettings:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const NotificationSettingsScreen(),
+        );
+
+      case AppRoute.supportTickets:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const SupportTicketsScreen(),
         );
 
       // Default Route (e.g., Onboarding)

@@ -19,6 +19,7 @@ class SessionService {
   static const _keyAuthToken = 'auth_token';
   static const _keyRefreshToken = 'refresh_token';
   static const _keyUserId = 'user_id';
+  static const _keyEmail = 'email';
   static const _keyFullName = 'full_name';
   static const _keyPhone = 'phone';
   static const _keySavedLat = 'saved_lat';
@@ -39,6 +40,7 @@ class SessionService {
   String? get authToken => _prefs.getString(_keyAuthToken);
   String? get refreshToken => _prefs.getString(_keyRefreshToken);
   String? get userId => _prefs.getString(_keyUserId);
+  String get email => _prefs.getString(_keyEmail) ?? '';
   String get fullName => _prefs.getString(_keyFullName) ?? '';
   String get phone => _prefs.getString(_keyPhone) ?? '';
 
@@ -57,6 +59,7 @@ class SessionService {
     String? accessToken,
     String? refreshToken,
     String? userId,
+    String? email,
     String? fullName,
     String? phone,
   }) async {
@@ -68,6 +71,9 @@ class SessionService {
     }
     if (userId != null && userId.isNotEmpty) {
       await _prefs.setString(_keyUserId, userId);
+    }
+    if (email != null && email.isNotEmpty) {
+      await _prefs.setString(_keyEmail, email);
     }
     if (fullName != null && fullName.isNotEmpty) {
       await _prefs.setString(_keyFullName, fullName);

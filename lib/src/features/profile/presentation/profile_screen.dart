@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -13,6 +14,9 @@ import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_s
 import 'package:dropx_mobile/src/features/profile/presentation/social_feed_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/edit_profile_screen.dart';
 import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -25,239 +29,184 @@ class ProfileScreen extends ConsumerWidget {
     final displayName = userProfile?.fullName ?? 'User';
     final displayPhone = userProfile?.phone ?? '—';
 
-    return Scaffold(
+    return AppScaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
-        elevation: 0,
-        title: const AppText(
-          "Profile",
-          fontSize: 28,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.5,
-        ),
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: const AppAppBar(title: 'Profile', showBack: false),
+      children: [
+        // User Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF7A00), Color(0xFFFF9D42)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
             children: [
-              // User Header
               Container(
-                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF7A00), Color(0xFFFF9D42)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF7A00).withValues(alpha: 0.25),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
-                child: Row(
+                child: CircleAvatar(
+                  radius: 36,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  backgroundImage: userProfile?.avatarUrl != null
+                      ? NetworkImage(userProfile!.avatarUrl!)
+                      : null,
+                  child: userProfile?.avatarUrl == null
+                      ? AppText(
+                          _getInitials(displayName),
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: CircleAvatar(
-                        radius: 36,
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        backgroundImage: userProfile?.avatarUrl != null
-                            ? NetworkImage(userProfile!.avatarUrl!)
-                            : null,
-                        child: userProfile?.avatarUrl == null
-                            ? AppText(
-                                _getInitials(displayName),
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
+                    AppText(
+                      displayName,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppText(
-                            displayName,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(height: 4),
-                          AppText(
-                            displayPhone,
-                            fontSize: 15,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.edit_outlined,
-                        color: Colors.white,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EditProfileScreen(),
-                          ),
-                        );
-                      },
+                    const SizedBox(height: 4),
+                    AppText(
+                      displayPhone,
+                      fontSize: 15,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w500,
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(height: 32),
-              const AppText(
-                "CONNECT",
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-                color: AppColors.slate500,
-              ),
-              const SizedBox(height: 12),
-              _buildProfileOption(
-                icon: Icons.groups_rounded,
-                title: "Connect with Friends",
-                subtitle: "Sync contacts & invite",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ContactSyncScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.dynamic_feed_rounded,
-                title: "Social Feed",
-                subtitle: "See what friends are ordering",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SocialFeedScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
-              const AppText(
-                "ACCOUNT",
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-                color: AppColors.slate500,
-              ),
-
-              const SizedBox(height: 12),
-              _buildProfileOption(
-                icon: Icons.settings_rounded,
-                title: "Preferences",
-                subtitle: "Language, Theme, Currency",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PreferencesScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.notifications_active_rounded,
-                title: "Notifications",
-                subtitle: "Push, Email, SMS",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationSettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              const AppText(
-                "SUPPORT",
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-                color: AppColors.slate500,
-              ),
-              const SizedBox(height: 12),
-
-              _buildProfileOption(
-                icon: Icons.support_agent_rounded,
-                title: "Help & Support Tickets",
-                subtitle: "View active and past issues",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SupportTicketsScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildProfileOption(
-                icon: Icons.info_outline_rounded,
-                title: "About DropX",
-                onTap: () {},
-              ),
-              const SizedBox(height: 32),
-
-              SizedBox(
-                width: double.infinity,
-                child: TextButton.icon(
-                  onPressed: () => _showLogoutConfirmation(context, ref),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.errorRed.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  icon: const Icon(
-                    Icons.logout_rounded,
-                    color: AppColors.errorRed,
-                  ),
-                  label: const AppText(
-                    "Log Out",
-                    color: AppColors.errorRed,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
                 ),
+                onPressed: () {
+                  AppNavigator.push(context, AppRoute.editProfile);
+                },
               ),
-              const SizedBox(height: 24),
             ],
           ),
         ),
-      ),
+
+        const SizedBox(height: 32),
+        const AppText(
+          "CONNECT",
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+          color: AppColors.slate500,
+        ),
+        const SizedBox(height: 12),
+        _buildProfileOption(
+          icon: Icons.groups_rounded,
+          title: "Connect with Friends",
+          subtitle: "Sync contacts & invite",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.contactSync);
+          },
+        ),
+        _buildProfileOption(
+          icon: Icons.dynamic_feed_rounded,
+          title: "Social Feed",
+          subtitle: "See what friends are ordering",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.socialFeed);
+          },
+        ),
+
+        const SizedBox(height: 24),
+        const AppText(
+          "ACCOUNT",
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+          color: AppColors.slate500,
+        ),
+
+        const SizedBox(height: 12),
+        _buildProfileOption(
+          icon: Icons.settings_rounded,
+          title: "Preferences",
+          subtitle: "Language, Theme, Currency",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.preferences);
+          },
+        ),
+        _buildProfileOption(
+          icon: Icons.notifications_active_rounded,
+          title: "Notifications",
+          subtitle: "Push, Email, SMS",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.notificationSettings);
+          },
+        ),
+        const SizedBox(height: 24),
+        const AppText(
+          "SUPPORT",
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+          color: AppColors.slate500,
+        ),
+        const SizedBox(height: 12),
+
+        _buildProfileOption(
+          icon: Icons.support_agent_rounded,
+          title: "Help & Support Tickets",
+          subtitle: "View active and past issues",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.supportTickets);
+          },
+        ),
+        _buildProfileOption(
+          icon: Icons.info_outline_rounded,
+          title: "About DropX",
+          onTap: () {},
+        ),
+        const SizedBox(height: 32),
+
+        SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () => _showLogoutConfirmation(context, ref),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              backgroundColor: AppColors.errorRed.withValues(alpha: 0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.logout_rounded, color: AppColors.errorRed),
+            label: const AppText(
+              "Log Out",
+              color: AppColors.errorRed,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 
@@ -282,7 +231,7 @@ class ProfileScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
@@ -294,7 +243,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx);
+              AppNavigator.pop(ctx);
               final session = ref.read(sessionServiceProvider);
               final refreshToken = session.refreshToken;
 
@@ -311,9 +260,7 @@ class ProfileScreen extends ConsumerWidget {
               await session.clearSession();
               ApiClient().clearAuthToken();
               if (context.mounted) {
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(AppRoute.login, (route) => false);
+                AppNavigator.pushAndRemoveAll(context, AppRoute.login);
               }
             },
             style: ElevatedButton.styleFrom(

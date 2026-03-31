@@ -20,17 +20,28 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   late int _currentIndex = widget.initialTab;
 
-  void _onTabTapped(int index) {
-    final session = ref.read(sessionServiceProvider);
-    final isGuest = session.isGuest;
+  // Tracks which tabs have been visited (and therefore built) at least once.
+  // Only the initial tab is marked as visited on startup.
+  late final Set<int> _visited = {widget.initialTab};
 
-    // Restrict certain tabs for guest users (Orders, Wallet, Profile)
+  static const List<Widget> _tabs = [
+    HomeTab(),
+    DiscoverScreen(),
+    OrdersScreen(),
+    WalletScreen(),
+    ProfileScreen(),
+  ];
+
+  void _onTabTapped(int index) {
+    final isGuest = ref.read(sessionServiceProvider).isGuest;
+
     if (isGuest && (index == 2 || index == 3 || index == 4)) {
       _showSignUpSheet();
       return;
     }
 
     setState(() {
+      _visited.add(index);
       _currentIndex = index;
     });
   }
@@ -46,16 +57,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> tabs = [
-      HomeTab(),
-      const DiscoverScreen(),
-      const OrdersScreen(),
-      const WalletScreen(),
-      const ProfileScreen(),
-    ];
-
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: tabs),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: List.generate(
+          _tabs.length,
+          (i) => _visited.contains(i) ? _tabs[i] : const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,

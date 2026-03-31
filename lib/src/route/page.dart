@@ -22,4 +22,12 @@ class AppRoute {
   static const featuredFood = "/featured-food";
   static const fastestFood = "/fastest-food";
   static const notifications = "/notifications";
+  static const walletTopup = "/wallet-topup";
+  static const walletTopupCheckout = "/wallet-topup-checkout";
+  static const editProfile = "/edit-profile";
+  static const contactSync = "/contact-sync";
+  static const socialFeed = "/social-feed";
+  static const preferences = "/preferences";
+  static const notificationSettings = "/notification-settings";
+  static const supportTickets = "/support-tickets";
 }

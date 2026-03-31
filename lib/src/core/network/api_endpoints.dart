@@ -75,6 +75,12 @@ class ApiEndpoints {
   static const String notificationsReadAll = '/me/notifications/read-all';
   static String notificationRead(String id) => '/me/notifications/$id/read';
 
+  // Wallet
+  static const String wallet = '/me/wallet';
+  static const String walletLedger = '/me/wallet/ledger';
+  static const String walletTopupInitialize = '/me/wallet/topup/initialize';
+  static const String walletTopupVerify = '/me/wallet/topup/verify';
+
   // Support
   static const String supportTickets = '/support/tickets';
   static String supportTicketById(String id) => '/support/tickets/$id';

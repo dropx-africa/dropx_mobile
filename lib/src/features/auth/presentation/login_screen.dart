@@ -114,6 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         accessToken: authResponse.accessToken,
         refreshToken: authResponse.refreshToken,
         userId: authResponse.userId,
+        email: dto.email,
       );
 
       if (mounted) {

@@ -20,7 +20,7 @@ class OrdersScreen extends ConsumerWidget {
     return AppScaffold(
       appBar: const AppAppBar(
         title: 'Your Orders',
-        style: AppAppBarStyle.white,
+    
         showBack: false,
       ),
       slivers: [

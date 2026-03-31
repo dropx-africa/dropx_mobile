@@ -130,7 +130,7 @@ class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen>
                 // ],
                 const Spacer(flex: 2),
 
-                // Track My Order Button
+                // View Order Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -138,9 +138,9 @@ class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen>
                     onPressed: () {
                       Navigator.pushNamedAndRemoveUntil(
                         context,
-                        AppRoute.orderTracking,
+                        AppRoute.dashboard,
                         (route) => false,
-                        arguments: {'orderId': widget.orderId},
+                        arguments: {'initialTab': 2},
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -151,7 +151,7 @@ class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen>
                       elevation: 0,
                     ),
                     child: const AppText(
-                      'Track My Order',
+                      'View Order',
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

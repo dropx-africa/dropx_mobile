@@ -8,6 +8,7 @@ import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_item_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.dart';
@@ -20,6 +21,7 @@ import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/features/location/data/address_models.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -31,7 +33,7 @@ class CartScreen extends ConsumerStatefulWidget {
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isPlacingOrder = false;
   bool _isLoadingEstimate = false;
-  String _selectedPaymentMethod = 'PAYSTACK'; // Default to Paystack
+  String _selectedPaymentMethod = 'PAYSTACK';
   double _deliveryFee = 0.0;
   double _serviceFee = 0.0;
 
@@ -44,19 +46,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _loadEstimate() async {
-    debugPrint('🛒 [CART] _loadEstimate() called');
     final cartState = ref.read(cartProvider);
-
-    debugPrint('   vendorId=${cartState.vendorId}');
-    debugPrint('   zoneId=${cartState.zoneId}');
-    debugPrint('   items.length=${cartState.items.length}');
 
     if (cartState.vendorId == null ||
         cartState.zoneId == null ||
         cartState.items.isEmpty) {
-      debugPrint(
-        '   ⚠️ Skipping estimate: missing vendorId/zoneId or empty cart',
-      );
       setState(() {
         _deliveryFee = 0.0;
         _serviceFee = 0.0;
@@ -74,11 +68,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final deliveryLat = session.savedLat;
       final deliveryLng = session.savedLng;
       final savedAddress = session.savedAddress;
-      debugPrint('   📍 deliveryLat=$deliveryLat, deliveryLng=$deliveryLng');
-      debugPrint('   📍 savedAddress=$savedAddress');
 
-      // 1. Save the user's address and get a real address_id.
-      debugPrint('🟡 [CART] Step 1: Saving address via POST /me/addresses');
       String? deliveryAddressId;
       try {
         final createdAddress = await addressRepo.createAddress(
@@ -92,14 +82,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
         );
         deliveryAddressId = createdAddress.addressId;
-        debugPrint('✅ [CART] Address saved → addressId=$deliveryAddressId');
       } catch (e) {
-        debugPrint(
-          '❌ [CART] Address save FAILED (using fallback address-1): $e',
-        );
+        debugPrint('❌ [CART] Address save FAILED (using fallback): $e');
       }
 
-      // 2. Build estimate items.
       final orderItems = cartState.items.values.map((cartItem) {
         return EstimateOrderItem(
           itemId: cartItem.menuItem.id,
@@ -109,8 +95,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }).toList();
 
-      // 3. Call estimate.
-      debugPrint('🟡 [CART] Step 2: Calling POST /orders/estimate');
       final dto = EstimateOrderRequest(
         zoneId: cartState.zoneId!,
         vendorId: cartState.vendorId!,
@@ -124,32 +108,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final response = await orderRepo.estimateOrder(dto);
 
       if (mounted) {
-        final delFee = CurrencyUtils.koboToNaira(
-          int.parse(response.data.deliveryFeeKobo),
-        );
-        final svcFee = CurrencyUtils.koboToNaira(
-          int.parse(response.data.serviceFeeKobo),
-        );
-        debugPrint(
-          '✅ [CART] Estimate received → deliveryFee=₦$delFee, serviceFee=₦$svcFee',
-        );
         setState(() {
-          _deliveryFee = delFee;
-          _serviceFee = svcFee;
+          _deliveryFee = CurrencyUtils.koboToNaira(
+            int.parse(response.data.deliveryFeeKobo),
+          );
+          _serviceFee = CurrencyUtils.koboToNaira(
+            int.parse(response.data.serviceFeeKobo),
+          );
         });
       }
-    } catch (e, stack) {
-      if (mounted) {
-        debugPrint('❌ [CART] _loadEstimate FAILED: $e');
-        debugPrint('   Stack: $stack');
-      }
+    } catch (e) {
+      if (mounted) debugPrint('❌ [CART] _loadEstimate FAILED: $e');
     } finally {
       if (mounted) setState(() => _isLoadingEstimate = false);
     }
   }
 
   Future<void> _placeOrder() async {
-    debugPrint('🛒 [CART] _placeOrder() called');
     final cartState = ref.read(cartProvider);
     final session = ref.read(sessionServiceProvider);
     final orderRepo = ref.read(orderRepositoryProvider);
@@ -158,20 +133,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final zoneId = cartState.zoneId;
     final deliveryAddress = session.savedAddress;
 
-    debugPrint('   vendorId=$vendorId, zoneId=$zoneId');
-    debugPrint('   deliveryAddress=$deliveryAddress');
-    debugPrint('   paymentMethod=$_selectedPaymentMethod');
-
     if (vendorId == null || zoneId == null) {
-      debugPrint('   ⚠️ Aborting: missing vendorId or zoneId');
-      _showSnackBar('Unable to place order. Please add items from a vendor.');
+      AppToast.showError(
+        context,
+        'Unable to place order. Please add items from a vendor.',
+      );
       return;
     }
 
     setState(() => _isPlacingOrder = true);
 
     try {
-      // 1. Build CreateOrderDto from cart items.
       final orderItems = cartState.items.values.map((cartItem) {
         return CreateOrderItemDto(
           name: cartItem.menuItem.name,
@@ -187,30 +159,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         items: orderItems,
       );
 
-      // 2. Create the order.
-      debugPrint('🟡 [CART] Step 1: Creating order via POST /orders');
       final orderResponse = await orderRepo.createOrder(createDto);
       final orderId = orderResponse.order.orderId;
-      debugPrint('✅ [CART] Order created → orderId=$orderId');
 
-      // Determine logic based on selected payment method
       if (_selectedPaymentMethod == 'WALLET') {
-        debugPrint(
-          '🟡 [CART] Step 2: Placing order with WALLET via POST /orders/$orderId/place',
+        await orderRepo.placeOrder(
+          orderId,
+          PlaceOrderDto(paymentMethod: 'WALLET'),
         );
-        final walletDto = PlaceOrderDto(paymentMethod: 'WALLET');
-        await orderRepo.placeOrder(orderId, walletDto);
-        debugPrint('✅ [CART] Wallet payment successful');
-
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, AppRoute.orderSuccess);
+        AppNavigator.pushReplacement(context, AppRoute.orderSuccess);
       } else if (_selectedPaymentMethod == 'GENERATE_LINK') {
-        final linkDto = GeneratePaymentLinkDto(ttlMinutes: 30);
         final linkResponse = await orderRepo.generatePaymentLink(
           orderId,
-          linkDto,
+          GeneratePaymentLinkDto(ttlMinutes: 30),
         );
-
         if (!mounted) return;
 
         final shareableLink =
@@ -258,10 +221,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: shareableLink));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Link copied to clipboard!'),
-                            ),
+                          AppToast.showSuccess(
+                            context,
+                            'Link copied to clipboard!',
                           );
                         },
                       ),
@@ -272,9 +234,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => AppNavigator.pop(context),
                 child: const AppText(
                   'Close',
                   color: AppColors.grayText,
@@ -285,13 +245,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
         );
       } else {
-        // 3. Initialize payment (Default Paystack)
-        final paymentDto = InitializePaymentDto(orderId: orderId);
-        final paymentResponse = await orderRepo.initializePayment(paymentDto);
-
+        final paymentResponse = await orderRepo.initializePayment(
+          InitializePaymentDto(orderId: orderId),
+        );
         if (!mounted) return;
-
-        // 4. Navigate to Paystack checkout.
         AppNavigator.push(
           context,
           AppRoute.paystackCheckout,
@@ -302,20 +259,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           },
         );
       }
-    } catch (e, stack) {
-      debugPrint('❌ [CART] _placeOrder FAILED: $e');
-      debugPrint('   Stack: $stack');
-      if (mounted) {
-        _showSnackBar('Failed to place order: ${e.toString()}');
-      }
+    } catch (e) {
+      if (mounted)
+        AppToast.showError(context, 'Failed to place order: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+  void _showPaymentSheet(double totalAmount) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PaymentBottomSheet(
+        selectedPaymentMethod: _selectedPaymentMethod,
+        totalAmount: totalAmount,
+        isPlacingOrder: _isPlacingOrder,
+        onMethodChanged: (method) =>
+            setState(() => _selectedPaymentMethod = method),
+        onConfirm: () {
+          AppNavigator.pop(context);
+          _placeOrder();
+        },
+      ),
     );
   }
 
@@ -333,27 +300,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartItemsList = cartState.items.values.toList();
     final totalPrice = cartState.totalPrice;
 
-    // Fallback: if estimate hasn't loaded a delivery fee yet, use vendor's known fee
-    final double vendorDeliveryFee = cartState.zoneId != null
-        ? ref
-              .watch(vendorsByZoneProvider(cartState.zoneId!))
-              .maybeWhen(
-                data: (vendors) {
-                  final v = vendors.cast<Vendor?>().firstWhere(
-                    (v) => v?.id == cartState.vendorId,
-                    orElse: () => vendors.isNotEmpty ? vendors.first : null,
-                  );
-                  return v?.deliveryFee ?? 0.0;
-                },
-                orElse: () => 0.0,
-              )
-        : 0.0;
-    final double displayDeliveryFee = _deliveryFee > 0
-        ? _deliveryFee
-        : vendorDeliveryFee;
+    // Delivery fee fallback: use vendor's deliveryFeeNaira if estimate not yet loaded
+    // final double vendorDeliveryFee = cartState.zoneId != null
+    //     ? ref
+    //           .watch(vendorsByZoneProvider(cartState.zoneId!))
+    //           .maybeWhen(
+    //             data: (vendors) {
+    //               final v = vendors.cast<Vendor?>().firstWhere(
+    //                 (v) => v?.id == cartState.vendorId,
+    //                 orElse: () => vendors.isNotEmpty ? vendors.first : null,
+    //               );
+    //               return v?.deliveryFeeNaira ?? 0.0;
+    //             },
+    //             orElse: () => 0.0,
+    //           )
+    //     : 0.0;
 
-    // Calculate fees
-    final totalAmount = totalPrice + displayDeliveryFee + _serviceFee;
+    // final double displayDeliveryFee =
+    //     _deliveryFee > 0 ? _deliveryFee : vendorDeliveryFee;
+    final totalAmount = totalPrice + _deliveryFee + _serviceFee;
 
     return AppScaffold(
       appBar: SliverAppBar(
@@ -374,31 +339,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       slivers: [
         if (cartItemsList.isEmpty)
           SliverFillRemaining(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 64,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  AppText(
-                    "Your cart is empty",
-                    color: Colors.grey.shade500,
-                    fontSize: 16,
-                  ),
-                ],
-              ),
+            child: AppEmptyState(
+              icon: Icons.shopping_cart_outlined,
+              title: "Your cart is empty",
+              message: "Add items from a vendor to get started",
             ),
           )
         else ...[
-          // Vendor Info (fetched via getVendors with zoneId)
+          // Vendor Info
           if (cartState.zoneId != null)
             SliverToBoxAdapter(child: _buildVendorSection(cartState)),
 
-          // Address Section
+          // Delivery Address
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.all(16),
@@ -420,9 +372,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         color: Colors.grey.shade600,
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoute.manualLocation);
-                        },
+                        onTap: () =>
+                            AppNavigator.push(context, AppRoute.manualLocation),
                         child: const AppText(
                           "Change",
                           fontSize: 12,
@@ -471,48 +422,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
-          // Payment Method Selection
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(
-                    "PAYMENT METHOD",
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey.shade600,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPaymentMethodOption(
-                    'PAYSTACK',
-                    'Paystack',
-                    Icons.credit_card,
-                  ),
-                  _buildPaymentMethodOption(
-                    'WALLET',
-                    'Wallet',
-                    Icons.account_balance_wallet,
-                  ),
-                  _buildPaymentMethodOption(
-                    'GENERATE_LINK',
-                    'Generate Link',
-                    Icons.link,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-          // Bill Details (Sticky Footer)
+          // Bill Summary + Place Order button
           SliverFillRemaining(
             hasScrollBody: false,
             child: Container(
@@ -532,7 +442,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     "Delivery Fee",
                     _isLoadingEstimate
                         ? '...'
-                        : Formatters.formatNaira(displayDeliveryFee),
+                        : Formatters.formatNaira(_deliveryFee),
                   ),
                   const SizedBox(height: 12),
                   _buildBillRow(
@@ -554,7 +464,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                       AppText(
-                        Formatters.formatNaira(totalAmount),
+                        _isLoadingEstimate
+                            ? '...'
+                            : Formatters.formatNaira(totalAmount),
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -562,38 +474,47 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  // Place Order Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 54,
                     child: ElevatedButton(
-                      onPressed: _isPlacingOrder
+                      onPressed: _isLoadingEstimate
                           ? null
-                          : () {
-                              _placeOrder();
-                            },
+                          : () => _showPaymentSheet(totalAmount),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryOrange,
                         disabledBackgroundColor: AppColors.primaryOrange
-                            .withValues(alpha: 0.6),
+                            .withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
+                        elevation: 0,
                       ),
-                      child: _isPlacingOrder
+                      child: _isLoadingEstimate
                           ? const SizedBox(
-                              width: 24,
-                              height: 24,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
                                 color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
-                          : const AppText(
-                              "Place Order",
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                AppText(
+                                  "Place Order",
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -615,9 +536,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Image
               Container(
                 width: 60,
                 height: 60,
@@ -662,7 +581,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ],
                 ),
               ),
-              // Quantity Controls
               Container(
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
@@ -671,9 +589,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: Row(
                   children: [
                     InkWell(
-                      onTap: () {
-                        ref.read(cartProvider.notifier).decrement(item.id);
-                      },
+                      onTap: () =>
+                          ref.read(cartProvider.notifier).decrement(item.id),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 8,
@@ -687,9 +604,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     InkWell(
-                      onTap: () {
-                        ref.read(cartProvider.notifier).increment(item.id);
-                      },
+                      onTap: () =>
+                          ref.read(cartProvider.notifier).increment(item.id),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 8,
@@ -710,7 +626,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  /// Fetches vendors by zoneId and displays the matching vendor's info.
   Widget _buildVendorSection(CartState cartState) {
     final zoneId = cartState.zoneId!;
     final vendorsAsync = ref.watch(vendorsByZoneProvider(zoneId));
@@ -734,7 +649,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
       error: (_, __) => const SizedBox.shrink(),
       data: (vendors) {
-        // Find the vendor that matches the cart items
         Vendor? vendor;
         if (cartVendorId != null && vendors.isNotEmpty) {
           vendor = vendors.cast<Vendor?>().firstWhere(
@@ -743,7 +657,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           );
         }
         vendor ??= vendors.isNotEmpty ? vendors.first : null;
-
         if (vendor == null) return const SizedBox.shrink();
 
         return Container(
@@ -755,7 +668,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
           child: Row(
             children: [
-              // Vendor image
               Container(
                 width: 48,
                 height: 48,
@@ -807,7 +719,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         ),
                         const SizedBox(width: 4),
                         AppText(
-                          '₦${(vendor.deliveryFee ?? 0).toInt()}',
+                          Formatters.formatNaira(vendor.deliveryFeeNaira),
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
@@ -837,50 +749,228 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ],
     );
   }
+}
 
-  Widget _buildPaymentMethodOption(String value, String title, IconData icon) {
-    final isSelected = _selectedPaymentMethod == value;
+// ─── Payment bottom sheet ────────────────────────────────────────────────────
+
+class _PaymentBottomSheet extends StatefulWidget {
+  final String selectedPaymentMethod;
+  final double totalAmount;
+  final bool isPlacingOrder;
+  final ValueChanged<String> onMethodChanged;
+  final VoidCallback onConfirm;
+
+  const _PaymentBottomSheet({
+    required this.selectedPaymentMethod,
+    required this.totalAmount,
+    required this.isPlacingOrder,
+    required this.onMethodChanged,
+    required this.onConfirm,
+  });
+
+  @override
+  State<_PaymentBottomSheet> createState() => _PaymentBottomSheetState();
+}
+
+class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
+  late String _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.selectedPaymentMethod;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, bottomPad + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const AppText(
+            'Payment Method',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          const SizedBox(height: 4),
+          AppText(
+            'How would you like to pay?',
+            fontSize: 13,
+            color: Colors.grey.shade500,
+          ),
+          const SizedBox(height: 20),
+          _buildOption(
+            value: 'PAYSTACK',
+            title: 'Card / Bank Transfer',
+            subtitle: 'Pay securely via Paystack',
+            icon: Icons.credit_card_rounded,
+          ),
+          const SizedBox(height: 10),
+          _buildOption(
+            value: 'WALLET',
+            title: 'Wallet',
+            subtitle: 'Use your DropX wallet balance',
+            icon: Icons.account_balance_wallet_rounded,
+          ),
+          if (_selected == 'WALLET')
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: GestureDetector(
+                onTap: () async {
+                  AppNavigator.pop(context);
+                  await AppNavigator.push(context, AppRoute.walletTopup);
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_circle_outline_rounded,
+                      size: 14,
+                      color: AppColors.primaryOrange,
+                    ),
+                    SizedBox(width: 4),
+                    AppText(
+                      'Top up wallet',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryOrange,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          _buildOption(
+            value: 'GENERATE_LINK',
+            title: 'Payment Link',
+            subtitle: 'Share a link for someone else to pay',
+            icon: Icons.link_rounded,
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: widget.isPlacingOrder ? null : widget.onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryOrange,
+                disabledBackgroundColor: AppColors.primaryOrange.withValues(
+                  alpha: 0.5,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: widget.isPlacingOrder
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : AppText(
+                      'Confirm & Pay ${Formatters.formatNaira(widget.totalAmount)}',
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOption({
+    required String value,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isSelected = _selected == value;
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _selectedPaymentMethod = value;
-        });
+        setState(() => _selected = value);
+        widget.onMethodChanged(value);
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primaryOrange.withValues(alpha: 0.1)
-              : Colors.transparent,
+              ? AppColors.primaryOrange.withValues(alpha: 0.07)
+              : Colors.grey.shade50,
           border: Border.all(
-            color: isSelected ? AppColors.primaryOrange : Colors.grey.shade300,
+            color: isSelected ? AppColors.primaryOrange : Colors.grey.shade200,
             width: isSelected ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? AppColors.primaryOrange
-                  : Colors.grey.shade600,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primaryOrange.withValues(alpha: 0.12)
+                    : Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isSelected
+                    ? AppColors.primaryOrange
+                    : Colors.grey.shade600,
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-              child: AppText(
-                title,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: isSelected ? AppColors.primaryOrange : Colors.black87,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppText(
+                    title,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isSelected
+                        ? AppColors.primaryOrange
+                        : Colors.black87,
+                  ),
+                  const SizedBox(height: 2),
+                  AppText(subtitle, fontSize: 12, color: Colors.grey.shade500),
+                ],
               ),
             ),
             if (isSelected)
               const Icon(
-                Icons.check_circle,
+                Icons.check_circle_rounded,
                 color: AppColors.primaryOrange,
-                size: 20,
+                size: 22,
               ),
           ],
         ),

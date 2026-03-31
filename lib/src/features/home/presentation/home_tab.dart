@@ -37,8 +37,8 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onNotificationTap,
   });
 
-  // safeAreaTop + 16(top pad) + ~46(row) + 16(spacer) + 16(bottom pad)
-  double get _height => safeAreaTop + 94;
+  // safeAreaTop + 16(top pad) + 48(row, IconButton min) + 16(spacer) + 16(bottom pad)
+  double get _height => safeAreaTop + 98;
 
   @override
   double get maxExtent => _height;
@@ -129,10 +129,10 @@ class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 116;
+  double get maxExtent => 120;
 
   @override
-  double get minExtent => 116;
+  double get minExtent => 120;
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
@@ -182,7 +182,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               color: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: SizedBox(
-                height: 92,
+                height: 96,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
