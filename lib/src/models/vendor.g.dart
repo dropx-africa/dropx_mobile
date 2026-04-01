@@ -46,7 +46,6 @@ Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
   'delivery_fee': instance.deliveryFee,
   'image_url': instance.imageUrl,
   'logo_url': instance.logoUrl,
-  'cover_image_url': instance.coverImageUrl,
   'tags': instance.tags,
   'is_featured': instance.isFeatured,
   'is_fastest': instance.isFastest,
@@ -60,6 +59,7 @@ Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
   'delivery_fee_kobo': instance.deliveryFeeKobo,
   'distance_km': instance.distanceKm,
   'is_open': instance.isOpen,
+  'cover_image_url': instance.coverImageUrl,
 };
 
 const _$VendorCategoryEnumMap = {

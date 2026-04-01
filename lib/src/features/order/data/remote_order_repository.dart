@@ -32,18 +32,19 @@ class RemoteOrderRepository implements OrderRepository {
   RemoteOrderRepository(this._apiClient);
 
   @override
-  Future<List<Order>> getOrders() async {
+  Future<OrdersResponse> getOrders({String? cursor}) async {
     debugPrint(
-      '🔵 [ORDER-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orders}',
+      '🔵 [ORDER-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orders}${cursor != null ? '?cursor=$cursor' : ''}',
     );
     final response = await _apiClient.get<OrdersResponse>(
       ApiEndpoints.orders,
+      queryParams: cursor != null ? {'cursor': cursor} : null,
       fromJson: (json) => OrdersResponse.fromJson(json as Map<String, dynamic>),
     );
     debugPrint(
-      '✅ [ORDER-API] GET /orders → ${response.data.orders.length} orders',
+      '✅ [ORDER-API] GET /orders → ${response.data.orders.length} orders, nextCursor=${response.data.nextCursor}',
     );
-    return response.data.orders;
+    return response.data;
   }
 
   @override

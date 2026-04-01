@@ -15,7 +15,4 @@ VendorsResponse _$VendorsResponseFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$VendorsResponseToJson(VendorsResponse instance) =>
-    <String, dynamic>{
-      'ok': instance.ok,
-      'vendors': instance.vendors.map((e) => e.toJson()).toList(),
-    };
+    <String, dynamic>{'ok': instance.ok, 'vendors': instance.vendors};

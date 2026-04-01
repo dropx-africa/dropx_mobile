@@ -5,6 +5,18 @@ import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/order/presentation/widgets/order_status_badge.dart';
 
+String _timeAgo(String? createdAt) {
+  if (createdAt == null) return '';
+  final dt = DateTime.tryParse(createdAt)?.toLocal();
+  if (dt == null) return '';
+  final diff = DateTime.now().difference(dt);
+  if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  if (diff.inHours < 24) return '${diff.inHours}h ago';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${(diff.inDays / 7).floor()}w ago';
+}
+
 class RecentOrdersSection extends ConsumerWidget {
   const RecentOrdersSection({super.key});
 
@@ -130,7 +142,7 @@ class RecentOrdersSection extends ConsumerWidget {
                           OrderStatusBadge(status: order.state),
                           const Spacer(),
                           AppText(
-                            '${order.items?.length ?? 0} item(s)',
+                            _timeAgo(order.createdAt),
                             fontSize: 11,
                             color: AppColors.slate400,
                           ),

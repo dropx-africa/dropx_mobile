@@ -29,6 +29,9 @@ class FeedItem {
   @JsonKey(name: 'min_order_kobo')
   final String? minOrderKobo;
 
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
+
   const FeedItem({
     required this.vendorId,
     required this.displayName,
@@ -39,6 +42,7 @@ class FeedItem {
     this.categories,
     this.isOpen,
     this.minOrderKobo,
+    this.imageUrl,
   });
 
   /// Delivery fee in Naira (kobo → naira).

@@ -32,6 +32,9 @@ class ProfileScreen extends ConsumerWidget {
     return AppScaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const AppAppBar(title: 'Profile', showBack: false),
+      onRefresh: () async {
+        ref.invalidate(profileNotifierProvider);
+      },
       children: [
         // User Header
         Container(

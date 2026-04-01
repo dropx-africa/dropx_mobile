@@ -17,7 +17,4 @@ StoreCatalogResponse _$StoreCatalogResponseFromJson(
 
 Map<String, dynamic> _$StoreCatalogResponseToJson(
   StoreCatalogResponse instance,
-) => <String, dynamic>{
-  'store': instance.store,
-  'items': instance.items.map((e) => e.toJson()).toList(),
-};
+) => <String, dynamic>{'store': instance.store, 'items': instance.items};

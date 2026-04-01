@@ -56,6 +56,9 @@ class AppScaffold extends StatelessWidget {
   final ScrollPhysics? physics;
   final Widget? floatingActionButton;
 
+  /// When provided, wraps the scroll view in a [RefreshIndicator].
+  final Future<void> Function()? onRefresh;
+
   const AppScaffold({
     super.key,
     this.slivers,
@@ -67,6 +70,7 @@ class AppScaffold extends StatelessWidget {
     this.controller,
     this.physics,
     this.floatingActionButton,
+    this.onRefresh,
   }) : assert(
          slivers != null || children != null,
          'AppScaffold requires either slivers or children.',
@@ -76,7 +80,9 @@ class AppScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final scrollView = CustomScrollView(
       controller: controller,
-      physics: physics,
+      physics: onRefresh != null
+          ? const AlwaysScrollableScrollPhysics()
+          : physics,
       slivers: [
         if (appBar != null) appBar!,
         if (slivers != null)
@@ -100,9 +106,17 @@ class AppScaffold extends StatelessWidget {
         ? SafeArea(bottom: false, child: scrollView)
         : scrollView;
 
+    final content = onRefresh != null
+        ? RefreshIndicator(
+            onRefresh: onRefresh!,
+            color: AppColors.primaryOrange,
+            child: body,
+          )
+        : body;
+
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: body,
+      body: content,
       floatingActionButton: floatingActionButton,
     );
   }

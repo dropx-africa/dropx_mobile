@@ -1,16 +1,14 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'place_order_response.g.dart';
-
-@JsonSerializable()
 class PlaceOrderResponse {
-  @JsonKey(name: 'payment_method')
-  final String paymentMethod;
+  final String orderId;
+  final String state;
 
-  const PlaceOrderResponse({required this.paymentMethod});
+  const PlaceOrderResponse({required this.orderId, required this.state});
 
-  factory PlaceOrderResponse.fromJson(Map<String, dynamic> json) =>
-      _$PlaceOrderResponseFromJson(json);
-
-  Map<String, dynamic> toJson() => _$PlaceOrderResponseToJson(this);
+  factory PlaceOrderResponse.fromJson(Map<String, dynamic> json) {
+    final order = (json['order'] ?? json) as Map<String, dynamic>;
+    return PlaceOrderResponse(
+      orderId: order['order_id'] as String? ?? '',
+      state: order['state'] as String? ?? '',
+    );
+  }
 }

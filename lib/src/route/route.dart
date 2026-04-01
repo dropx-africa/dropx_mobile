@@ -220,11 +220,11 @@ abstract class AppRouter {
         );
 
       case AppRoute.walletTopupCheckout:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
-        final authorizationUrl = args['authorizationUrl'] as String;
-        final reference = args['reference'] as String;
-        final paymentAttemptId = args['paymentAttemptId'] as String;
-        return MaterialPageRoute(
+        final args = settings.arguments as Map<String, String>? ?? {};
+        final authorizationUrl = args['authorizationUrl'] ?? '';
+        final reference = args['reference'] ?? '';
+        final paymentAttemptId = args['paymentAttemptId'] ?? '';
+        return MaterialPageRoute<bool>(
           settings: settings,
           builder: (context) => WalletTopupCheckoutScreen(
             authorizationUrl: authorizationUrl,

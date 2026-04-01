@@ -14,6 +14,8 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart'; // session provider
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
+import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
+import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -155,6 +157,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
     return AppScaffold(
       useSafeArea: false,
+      onRefresh: () async {
+        ref.invalidate(ordersProvider);
+        ref.invalidate(homeFeedProvider);
+      },
       slivers: [
         // Fixed Orange Header
         SliverPersistentHeader(

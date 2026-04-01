@@ -18,6 +18,7 @@ FeedItem _$FeedItemFromJson(Map<String, dynamic> json) => FeedItem(
       .toList(),
   isOpen: json['is_open'] as bool?,
   minOrderKobo: json['min_order_kobo'] as String?,
+  imageUrl: json['image_url'] as String?,
 );
 
 Map<String, dynamic> _$FeedItemToJson(FeedItem instance) => <String, dynamic>{
@@ -30,4 +31,5 @@ Map<String, dynamic> _$FeedItemToJson(FeedItem instance) => <String, dynamic>{
   'categories': instance.categories,
   'is_open': instance.isOpen,
   'min_order_kobo': instance.minOrderKobo,
+  'image_url': instance.imageUrl,
 };

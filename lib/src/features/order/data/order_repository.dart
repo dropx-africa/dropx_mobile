@@ -1,4 +1,5 @@
 import 'package:dropx_mobile/src/models/order.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/orders_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.dart';
@@ -21,8 +22,8 @@ import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.
 
 /// Abstract repository interface for order & payment operations.
 abstract class OrderRepository {
-  /// Get all orders for the current user.
-  Future<List<Order>> getOrders();
+  /// Get orders for the current user. Pass [cursor] for pagination.
+  Future<OrdersResponse> getOrders({String? cursor});
 
   /// Get a single order by ID.
   Future<Order> getOrderById(String id);

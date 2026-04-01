@@ -9,92 +9,198 @@ import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/presentation/widgets/order_history_item.dart';
+import 'package:dropx_mobile/src/models/order.dart';
 
-class OrdersScreen extends ConsumerWidget {
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ordersAsync = ref.watch(ordersProvider);
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
+}
 
+class _OrdersScreenState extends ConsumerState<OrdersScreen> {
+  final _scrollController = ScrollController();
+
+  List<Order> _orders = [];
+  String? _nextCursor;
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_nextCursor == null || _isLoadingMore) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final response = await repo.getOrders();
+      if (mounted) {
+        setState(() {
+          _orders = response.orders;
+          _nextCursor = response.nextCursor;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _orders = [];
+      _nextCursor = null;
+      _error = null;
+    });
+    await _load();
+    ref.invalidate(ordersProvider);
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || _nextCursor == null) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final response = await repo.getOrders(cursor: _nextCursor);
+      if (mounted) {
+        setState(() {
+          _orders.addAll(response.orders);
+          _nextCursor = response.nextCursor;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
-      appBar: const AppAppBar(
-        title: 'Orders',
-    
-        showBack: false,
-      ),
+      controller: _scrollController,
+      onRefresh: _reload,
+      appBar: const AppAppBar(title: 'Orders', showBack: false),
       slivers: [
-        ordersAsync.when(
-          data: (orders) {
-            if (orders.isEmpty) {
-              return SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 64,
-                        color: AppColors.slate200,
-                      ),
-                      const SizedBox(height: 16),
-                      const AppText(
-                        "No orders yet",
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      const SizedBox(height: 8),
-                      AppText(
-                        "Your order history will appear here",
-                        color: AppColors.slate400,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: OrderHistoryItem(
-                    order: orders[index],
-                    onReorder: () {
-                      final order = orders[index];
-                      if (order.items != null && order.items!.isNotEmpty) {
-                        ref.read(cartProvider.notifier).reorder(order);
-                        AppNavigator.push(context, AppRoute.cart);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Cannot reorder: No items found in this order.',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                );
-              }, childCount: orders.length),
-            );
-          },
-          loading: () => const SliverFillRemaining(
+        if (_isLoading)
+          const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (error, _) => SliverFillRemaining(
+          )
+        else if (_error != null)
+          SliverFillRemaining(
             child: Center(
               child: AppText(
-                'Failed to load orders: $error',
+                'Failed to load orders: $_error',
                 color: AppColors.errorRed,
               ),
             ),
+          )
+        else if (_orders.isEmpty)
+          SliverFillRemaining(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 64,
+                    color: AppColors.slate200,
+                  ),
+                  const SizedBox(height: 16),
+                  const AppText(
+                    'No orders yet',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 8),
+                  const AppText(
+                    'Your order history will appear here',
+                    color: AppColors.slate400,
+                  ),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: OrderHistoryItem(
+                  order: _orders[index],
+                  onReorder: () {
+                    final order = _orders[index];
+                    if (order.items != null && order.items!.isNotEmpty) {
+                      ref.read(cartProvider.notifier).reorder(order);
+                      AppNavigator.push(context, AppRoute.cart);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Cannot reorder: No items found in this order.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+              childCount: _orders.length,
+            ),
           ),
-        ),
+          if (_isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            ),
+          if (_nextCursor == null && _orders.isNotEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: AppText(
+                    'All orders loaded',
+                    fontSize: 12,
+                    color: AppColors.slate400,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }

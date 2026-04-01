@@ -298,32 +298,53 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _checkWalletBalanceAndProceed(double totalAmount) async {
-    final balanceKobo = ref.read(walletBalanceKoboProvider);
+    ref.invalidate(walletBalanceProvider);
+    final walletBalance = await ref.read(walletBalanceProvider.future);
+    final balanceKobo = int.tryParse(walletBalance.availableBalanceKobo) ?? 0;
     final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
+    ref.read(walletBalanceKoboProvider.notifier).state = balanceKobo;
 
-    if (balanceNaira < 1000) {
-      // Pop the payment sheet before showing the topup sheet
-      if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+
+    if (balanceNaira < totalAmount) {
+      Navigator.of(context).pop();
       _showTopupBottomSheet(totalAmount, balanceNaira);
     } else {
+      Navigator.of(context).pop();
       await _placeOrder();
     }
   }
 
-  void _showTopupBottomSheet(double totalAmount, double currentBalance) {
-    showModalBottomSheet(
+  Future<void> _showTopupBottomSheet(double totalAmount, double currentBalance) async {
+    final topupData = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _TopupBottomSheet(
         totalAmount: totalAmount,
         currentBalance: currentBalance,
-        onTopupComplete: () {
-          AppNavigator.pop(context);
-          _placeOrder();
-        },
       ),
     );
+
+    if (topupData == null || !mounted) return;
+
+    final success = await AppNavigator.push<bool>(
+      context,
+      AppRoute.walletTopupCheckout,
+      arguments: topupData,
+    );
+
+    if (!mounted) return;
+
+    if (success == true) {
+      final balanceKobo = ref.read(walletBalanceKoboProvider);
+      final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
+      AppToast.showSuccess(
+        context,
+        'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
+      );
+      _showPaymentSheet(totalAmount);
+    }
   }
 
   @override
@@ -1005,12 +1026,10 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
 class _TopupBottomSheet extends ConsumerStatefulWidget {
   final double totalAmount;
   final double currentBalance;
-  final VoidCallback onTopupComplete;
 
   const _TopupBottomSheet({
     required this.totalAmount,
     required this.currentBalance,
-    required this.onTopupComplete,
   });
 
   @override
@@ -1074,27 +1093,11 @@ class _TopupBottomSheetState extends ConsumerState<_TopupBottomSheet> {
 
       if (!mounted) return;
 
-      final success = await AppNavigator.push<bool>(
-        context,
-        AppRoute.walletTopupCheckout,
-        arguments: {
-          'authorizationUrl': result.authorizationUrl,
-          'reference': result.reference,
-          'paymentAttemptId': result.paymentAttemptId,
-        },
-      );
-
-      if (!mounted) return;
-
-      if (success == true) {
-        final balanceKobo = ref.read(walletBalanceKoboProvider);
-        final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
-        AppToast.showSuccess(
-          context,
-          'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
-        );
-        widget.onTopupComplete();
-      }
+      Navigator.of(context).pop(<String, String>{
+        'authorizationUrl': result.authorizationUrl,
+        'reference': result.reference,
+        'paymentAttemptId': result.paymentAttemptId,
+      });
     } catch (e) {
       if (mounted) {
         AppToast.showError(context, 'Top-up failed: ${e.toString()}');

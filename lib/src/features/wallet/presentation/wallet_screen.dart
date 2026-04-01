@@ -273,8 +273,11 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
     final currencyFormat = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
 
     return AppScaffold(
-
       appBar: const AppAppBar(title: 'Wallet', showBack: false),
+      onRefresh: () async {
+        ref.invalidate(walletBalanceProvider);
+        ref.invalidate(walletLedgerProvider);
+      },
       children: [
         // Balance Card
         Container(

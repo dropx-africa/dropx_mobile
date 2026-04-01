@@ -17,6 +17,7 @@ class FeedVendorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return VendorGridCard(
       name: item.displayName,
+      imageUrl: item.imageUrl,
       tags: item.categories,
       distanceKm: item.distanceKm,
       etaMinutes: item.etaMinutes,

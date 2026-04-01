@@ -73,6 +73,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
     return AppScaffold(
       appBar: const AppAppBar(title: 'Discover', showBack: false),
+      onRefresh: () async {
+        ref.invalidate(homeFeedProvider);
+        ref.invalidate(menuItemsProvider);
+      },
       slivers: [
         SliverToBoxAdapter(
           child: Padding(

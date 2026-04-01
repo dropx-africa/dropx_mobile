@@ -15,9 +15,10 @@ final orderRepositoryProvider = Provider<OrderRepository>((ref) {
 
 /// ─── Data Providers ───────────────────────────────────────────
 
-/// All orders for the current user.
-final ordersProvider = FutureProvider<List<Order>>((ref) {
-  return ref.watch(orderRepositoryProvider).getOrders();
+/// First page of orders — used by RecentOrdersSection on home tab.
+final ordersProvider = FutureProvider<List<Order>>((ref) async {
+  final response = await ref.watch(orderRepositoryProvider).getOrders();
+  return response.orders;
 });
 
 /// Single order by ID.
