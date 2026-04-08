@@ -20,7 +20,7 @@ class FastestSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
     final feedParams = FeedParams(
-      category: category.name,
+      vertical: category.name,
       lat: session.savedLat,
       lng: session.savedLng,
       radiusKm: 10,
@@ -36,9 +36,6 @@ class FastestSection extends ConsumerWidget {
 
         String title;
         switch (category) {
-          case VendorCategory.parcel:
-            title = 'Express Logistics';
-            break;
           case VendorCategory.pharmacy:
             title = 'Quick Meds';
             break;
@@ -120,8 +117,6 @@ class FastestSection extends ConsumerWidget {
     String message = "No vendors available right now.";
     if (category == VendorCategory.pharmacy) {
       message = "No pharmacies found near your location.";
-    } else if (category == VendorCategory.parcel) {
-      message = "No logistics partners available right now.";
     } else if (category == VendorCategory.retail) {
       message = "No retail stores found near you.";
     }

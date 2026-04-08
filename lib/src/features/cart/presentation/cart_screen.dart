@@ -256,6 +256,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           arguments: {'initialTab': 2},
         );
       } else {
+        // PAYSTACK: place the order first (DRAFT → PAYMENT_PENDING),
+        // then initialize Paystack to get the checkout URL.
+        await orderRepo.placeOrder(
+          orderId,
+          PlaceOrderDto(paymentMethod: 'PAYSTACK'),
+        );
         final paymentResponse = await orderRepo.initializePayment(
           InitializePaymentDto(orderId: orderId),
         );

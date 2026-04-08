@@ -10,7 +10,7 @@ abstract class HomeFeedRepository {
     double? lng,
     double? radiusKm,
     int? maxEtaMinutes,
-    String? category,
+    String? vertical,
     String? q,
     int? limit,
     String? cursor,
@@ -19,7 +19,7 @@ abstract class HomeFeedRepository {
   /// Search for vendors and items.
   Future<SearchData> search({
     String? q,
-    String? category,
+    String? vertical,
     int? limit,
     String? cursor,
   });

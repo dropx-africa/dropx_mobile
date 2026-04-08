@@ -18,7 +18,7 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
     double? lng,
     double? radiusKm,
     int? maxEtaMinutes,
-    String? category,
+    String? vertical,
     String? q,
     int? limit,
     String? cursor,
@@ -31,7 +31,7 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
     if (maxEtaMinutes != null) {
       queryParams['max_eta_minutes'] = maxEtaMinutes.toString();
     }
-    if (category != null) queryParams['category'] = category;
+    if (vertical != null) queryParams['vertical'] = vertical;
     if (q != null && q.isNotEmpty) queryParams['q'] = q;
     if (limit != null) queryParams['limit'] = limit.toString();
     if (cursor != null) queryParams['cursor'] = cursor;
@@ -55,14 +55,14 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
   @override
   Future<SearchData> search({
     String? q,
-    String? category,
+    String? vertical,
     int? limit,
     String? cursor,
   }) async {
     final queryParams = <String, String>{};
     if (q != null && q.isNotEmpty) queryParams['q'] = q;
-    if (category != null && category.isNotEmpty) {
-      queryParams['category'] = category;
+    if (vertical != null && vertical.isNotEmpty) {
+      queryParams['vertical'] = vertical;
     }
     if (limit != null) queryParams['limit'] = limit.toString();
     if (cursor != null) queryParams['cursor'] = cursor;

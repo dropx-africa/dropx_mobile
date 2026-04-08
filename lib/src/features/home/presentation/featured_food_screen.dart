@@ -38,7 +38,7 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
     final feedData = await ref.read(
       homeFeedProvider(
         FeedParams(
-          category: VendorCategory.food.name,
+          vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
           q: _searchQuery.isNotEmpty ? _searchQuery : null,
@@ -63,7 +63,7 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
     final feedData = await ref.read(
       homeFeedProvider(
         FeedParams(
-          category: VendorCategory.food.name,
+          vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
           cursor: _nextCursor,

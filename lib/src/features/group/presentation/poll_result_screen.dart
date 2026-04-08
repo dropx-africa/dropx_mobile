@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/route/page.dart';
-import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart'; // Import for OrderType enum
 
 class PollResultScreen extends StatelessWidget {
   const PollResultScreen({super.key});
@@ -147,17 +146,7 @@ class PollResultScreen extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: () {
-                  // Navigate to Generic Order Screen for Retail/Food
-                  Navigator.pushNamed(
-                    context,
-                    AppRoute.genericOrder, // We need to define this
-                    arguments: {
-                      'orderType': OrderType.retail, // Assuming Food/Retail
-                      'preFilledItem': winningItem['name'],
-                      'quantity': winningItem['votes'],
-                      'isGroupOrder': true,
-                    },
-                  );
+                  Navigator.pushNamed(context, AppRoute.parcel);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryOrange,

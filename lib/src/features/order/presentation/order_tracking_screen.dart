@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dropx_mobile/src/common_widgets/app_google_map.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/order_tracking_live_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/delivery_otp_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/cancel_order_request.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/cancel_reason_code.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.dart';
@@ -55,6 +58,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   // Live data
   OrderTrackingLiveData? _liveData;
 
+  // Delivery OTP (fetched from dedicated endpoint when rider is in transit)
+  DeliveryOtpData? _deliveryOtpData;
+
   GoogleMapController? _mapController;
 
   @override
@@ -87,6 +93,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             );
           }
         });
+        // Fetch OTP from dedicated endpoint when rider is in transit or arrived
+        final state = _liveData?.state ?? '';
+        if (state == 'IN_TRANSIT' ||
+            state == 'PICKED_UP' ||
+            state == 'ARRIVED_DROPOFF') {
+          _fetchDeliveryOtp();
+        }
       }
     } catch (e) {
       debugPrint('❌ [TRACKING] Live tracking fetch failed: $e');
@@ -94,6 +107,24 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _fetchDeliveryOtp() async {
+    if (widget.orderId == null) return;
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final data = await repo.getDeliveryOtp(widget.orderId!);
+      if (mounted && data != null && data.deliveryOtpAvailable) {
+        setState(() => _deliveryOtpData = data);
+      }
+    } catch (e) {
+      debugPrint('❌ [TRACKING] getDeliveryOtp failed: $e');
+    }
+  }
+
+  /// The best available OTP string — from the dedicated endpoint, or from
+  /// live tracking data. Returns null when no OTP is available yet.
+  String? get _resolvedOtp =>
+      _deliveryOtpData?.deliveryOtp ?? _liveData?.deliveryOtp;
 
   /// Map API state string → local stage + labels.
   void _applyState(String state) {
@@ -150,6 +181,77 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   void dispose() {
 _mapController?.dispose();
     super.dispose();
+  }
+
+  // ─── Delivery OTP card ───────────────────────────────────────────────────
+
+  Widget _buildDeliveryOtpCard() {
+    final otp = _resolvedOtp!;
+    final arrived = _currentState == 'ARRIVED_DROPOFF';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: arrived ? Colors.green.shade200 : AppColors.primaryOrange.withValues(alpha: 0.3),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        color: arrived ? Colors.green.shade50 : Colors.orange.shade50,
+      ),
+      child: Column(
+        children: [
+          AppText(
+            arrived ? 'Rider has Arrived — Share your code' : 'Your Delivery Code',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: arrived ? Colors.green.shade700 : AppColors.primaryOrange,
+          ),
+          const SizedBox(height: 4),
+          AppText(
+            arrived
+                ? 'Verify your order before giving this code to the rider.'
+                : 'Have this code ready to give to the rider on arrival.',
+            fontSize: 11,
+            color: Colors.grey.shade600,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          // OTP digits display
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: AppText(
+              otp.split('').join('  '),
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              letterSpacing: 4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: otp));
+                  AppToast.showSuccess(context, 'Code copied!');
+                },
+                icon: const Icon(Icons.copy, size: 16),
+                label: const AppText('Copy', fontSize: 13),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryOrange,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   // ─── Cancel / Dispute state helpers ─────────────────────────────────────
@@ -359,50 +461,9 @@ _mapController?.dispose();
                   // Stage-based primary actions
                   if (_orderStage < 2) ...{
                     // Waiting — nothing actionable yet
-                  } else if (_currentState == 'ARRIVED_DROPOFF') ...{
-                    // ARRIVED - show OTP for Rider
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.green.shade100),
-                        borderRadius: BorderRadius.circular(12),
-                        color: Colors.green.shade50,
-                      ),
-                      child: Column(
-                        children: [
-                          const AppText(
-                            'Rider has Arrived',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: const AppText(
-                              'Please be sure this is what you ordered and it is not tampered with before providing the code to the rider.',
-                              fontSize: 12,
-                              color: Colors.red,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const AppText(
-                            'Provide this code to the rider:',
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 4),
-                          AppText(
-                            _liveData?.deliveryOtp ?? '1 2 3 4',
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ],
-                      ),
-                    ),
+                  } else if (_orderStage == 2) ...{
+                    // IN_TRANSIT / PICKED_UP / ARRIVED_DROPOFF — show delivery OTP
+                    if (_resolvedOtp != null) _buildDeliveryOtpCard(),
                   } else if (_orderStage >= 3) ...{
                     // Completed / Delivered actions
                     Row(

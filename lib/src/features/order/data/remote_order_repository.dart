@@ -22,6 +22,7 @@ import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_response.
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/delivery_otp_response.dart';
 import 'package:dropx_mobile/src/features/order/data/order_repository.dart';
 import 'package:dropx_mobile/src/models/order.dart';
 
@@ -323,6 +324,28 @@ class RemoteOrderRepository implements OrderRepository {
       return null;
     } catch (e) {
       debugPrint('❌ [ORDER-API] getMyReview failed: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<DeliveryOtpData?> getDeliveryOtp(String orderId) async {
+    try {
+      debugPrint(
+        '🔵 [ORDER-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orderDeliveryOtp(orderId)}',
+      );
+      final response = await _apiClient.get<DeliveryOtpData>(
+        ApiEndpoints.orderDeliveryOtp(orderId),
+        headers: ApiClient.traceHeaders(),
+        fromJson: (json) =>
+            DeliveryOtpData.fromJson(json as Map<String, dynamic>),
+      );
+      debugPrint(
+        '✅ [ORDER-API] GET /orders/$orderId/delivery-otp → available=${response.data.deliveryOtpAvailable}',
+      );
+      return response.data;
+    } catch (e) {
+      debugPrint('❌ [ORDER-API] getDeliveryOtp failed: $e');
       return null;
     }
   }

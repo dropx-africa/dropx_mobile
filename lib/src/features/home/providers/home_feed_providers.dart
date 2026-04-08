@@ -12,7 +12,7 @@ final homeFeedRepositoryProvider = Provider<HomeFeedRepository>((ref) {
 
 /// ─── Feed Parameters ──────────────────────────────────────────
 class FeedParams {
-  final String? category;
+  final String? vertical; // e.g. 'food', 'pharmacy', 'retail'
   final String? q;
   final double? lat;
   final double? lng;
@@ -20,7 +20,7 @@ class FeedParams {
   final String? cursor;
 
   const FeedParams({
-    this.category,
+    this.vertical,
     this.q,
     this.lat,
     this.lng,
@@ -33,7 +33,7 @@ class FeedParams {
       identical(this, other) ||
       other is FeedParams &&
           runtimeType == other.runtimeType &&
-          category == other.category &&
+          vertical == other.vertical &&
           q == other.q &&
           lat == other.lat &&
           lng == other.lng &&
@@ -42,7 +42,7 @@ class FeedParams {
 
   @override
   int get hashCode =>
-      category.hashCode ^
+      vertical.hashCode ^
       q.hashCode ^
       lat.hashCode ^
       lng.hashCode ^
@@ -60,7 +60,7 @@ final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
   return ref
       .watch(homeFeedRepositoryProvider)
       .getFeed(
-        category: params.category,
+        vertical: params.vertical,
         q: params.q,
         lat: params.lat,
         lng: params.lng,
@@ -76,5 +76,5 @@ final searchProvider = FutureProvider.family<SearchData, FeedParams>((
 ) {
   return ref
       .watch(homeFeedRepositoryProvider)
-      .search(q: params.q, category: params.category);
+      .search(q: params.q, vertical: params.vertical);
 });

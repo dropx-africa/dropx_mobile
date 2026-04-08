@@ -38,7 +38,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
     final feedData = await ref.read(
       homeFeedProvider(
         FeedParams(
-          category: VendorCategory.food.name,
+          vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
           radiusKm: 10,
@@ -64,7 +64,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
     final feedData = await ref.read(
       homeFeedProvider(
         FeedParams(
-          category: VendorCategory.food.name,
+          vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
           radiusKm: 10,

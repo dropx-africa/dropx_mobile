@@ -20,7 +20,7 @@ class FeaturedSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
     final feedParams = FeedParams(
-      category: category.name,
+      vertical: category.name,
       lat: session.savedLat,
       lng: session.savedLng,
     );
@@ -35,9 +35,6 @@ class FeaturedSection extends ConsumerWidget {
 
         String title;
         switch (category) {
-          case VendorCategory.parcel:
-            title = 'Top Logistics Partners';
-            break;
           case VendorCategory.pharmacy:
             title = 'Featured Pharmacies';
             break;
@@ -119,8 +116,6 @@ class FeaturedSection extends ConsumerWidget {
     String message = "No vendors available right now.";
     if (category == VendorCategory.pharmacy) {
       message = "No pharmacies found near your location.";
-    } else if (category == VendorCategory.parcel) {
-      message = "No logistics partners available right now.";
     } else if (category == VendorCategory.retail) {
       message = "No retail stores found near you.";
     }

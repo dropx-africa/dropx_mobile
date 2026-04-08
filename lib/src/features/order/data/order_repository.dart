@@ -19,6 +19,7 @@ import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_response.
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/delivery_otp_response.dart';
 
 /// Abstract repository interface for order & payment operations.
 abstract class OrderRepository {
@@ -72,4 +73,7 @@ abstract class OrderRepository {
 
   /// Get the current user's review for an order (null if none).
   Future<GetMyReviewData?> getMyReview(String orderId);
+
+  /// Fetch the delivery OTP for an in-transit order.
+  Future<DeliveryOtpData?> getDeliveryOtp(String orderId);
 }

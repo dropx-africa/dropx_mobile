@@ -1,0 +1,24 @@
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_quote_request.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_quote_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/create_parcel_dto.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/create_parcel_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_dto.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_dto.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
+
+abstract class ParcelRepository {
+  Future<ParcelQuoteData> getQuote(ParcelQuoteRequest request);
+
+  Future<CreateParcelData> createParcel(CreateParcelDto dto);
+
+  Future<PlaceParcelData> placeParcel(
+    String parcelId,
+    PlaceParcelDto dto,
+  );
+
+  Future<ParcelPaymentInitializeData> initializePayment(
+    String parcelId,
+    ParcelPaymentInitializeDto dto,
+  );
+}

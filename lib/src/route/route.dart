@@ -17,7 +17,7 @@ import 'package:dropx_mobile/src/features/order/presentation/receipt_screen.dart
 import 'package:dropx_mobile/src/features/order/presentation/transaction_details_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/order_success_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/paystack_checkout_screen.dart';
-import 'package:dropx_mobile/src/features/parcel/presentation/generic_order_screen.dart';
+import 'package:dropx_mobile/src/features/parcel/presentation/parcel_screen.dart';
 import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
 import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
@@ -138,21 +138,17 @@ abstract class AppRouter {
           builder: (context) => TransactionDetailsScreen(orderDetails: args),
         );
 
-      case AppRoute.genericOrder:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
-        final orderType = args['orderType'] as OrderType? ?? OrderType.parcel;
-        final preFilledItem = args['preFilledItem'] as String?;
-        final quantity = args['quantity'] as int?;
-        final isGroupOrder = args['isGroupOrder'] as bool? ?? false;
-
+      case AppRoute.parcel:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => GenericOrderScreen(
-            orderType: orderType,
-            preFilledItem: preFilledItem,
-            quantity: quantity,
-            isGroupOrder: isGroupOrder,
-          ),
+          builder: (context) => const ParcelScreen(),
+        );
+
+      case AppRoute.genericOrder:
+        // All generic order paths now go to ParcelScreen.
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const ParcelScreen(),
         );
 
       case AppRoute.pollResult:

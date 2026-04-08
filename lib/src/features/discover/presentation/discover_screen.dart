@@ -51,7 +51,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       case 'Pharmacy':
         return VendorCategory.pharmacy;
       case 'Parcel':
-        return VendorCategory.parcel;
+        return null; // Parcel navigates to ParcelScreen, not a feed filter
       case 'Retail':
         return VendorCategory.retail;
       default:
@@ -125,7 +125,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       ref
           .watch(
             searchProvider(
-              FeedParams(q: _searchQuery, category: _activeCategory?.name),
+              FeedParams(q: _searchQuery, vertical: _activeCategory?.name),
             ),
           )
           .when(

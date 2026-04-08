@@ -45,6 +45,22 @@ class ApiEndpoints {
   static String orderDispute(String id) => '/orders/$id/dispute';
   static String orderReviews(String id) => '/orders/$id/reviews';
   static String orderMyReview(String id) => '/orders/$id/reviews/me';
+  static String orderDeliveryOtp(String id) => '/orders/$id/delivery-otp';
+  static String orderPaymentStatus(String id) => '/orders/$id/payment-status';
+
+  // Parcels
+  static const String parcelsPaymentOptions = '/parcels/payment-options';
+  static const String parcelsQuote = '/parcels/quote';
+  static const String parcels = '/parcels';
+  static String parcelById(String id) => '/parcels/$id';
+  static String parcelPlace(String id) => '/parcels/$id/place';
+  static String parcelPaymentLink(String id) => '/parcels/$id/payment-link';
+  static String parcelPaymentInitialize(String id) =>
+      '/parcels/$id/payments/initialize';
+  static String parcelPaymentVerify(String id) =>
+      '/parcels/$id/payments/verify/paystack';
+  static String parcelRecipientConfirm(String id) =>
+      '/parcels/$id/recipient-confirmation/verify';
 
   // Payments
   static const String initializePayment = '/payments/initialize';
@@ -57,7 +73,8 @@ class ApiEndpoints {
       '/pay-links/$token/initialize';
 
   // Cart
-  static const String cart = '/cart';
+  static const String cart = '/me/cart';
+  static const String cartClear = '/me/cart/clear';
 
   // Location
   static const String searchLocation = '/locations/search'; // legacy
