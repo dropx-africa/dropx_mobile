@@ -6,18 +6,29 @@ import 'package:dropx_mobile/src/route/page.dart';
 
 /// Loads the Paystack authorization URL in a WebView.
 ///
-/// When the payment is completed (Paystack redirects back), the screen
-/// navigates to the [OrderSuccessScreen].
+/// When payment completes, navigates to [successRoute] (defaults to
+/// [AppRoute.orderSuccess]) with [successArgs] (or a default orderId/reference
+/// map).
 class PaystackCheckoutScreen extends StatefulWidget {
   final String authorizationUrl;
   final String? reference;
   final String? orderId;
+
+  /// Optional override for the route to push on success.
+  /// Defaults to [AppRoute.orderSuccess].
+  final String? successRoute;
+
+  /// Optional arguments passed to [successRoute].
+  /// Defaults to `{'orderId': orderId, 'reference': reference}`.
+  final Map<String, dynamic>? successArgs;
 
   const PaystackCheckoutScreen({
     super.key,
     required this.authorizationUrl,
     this.reference,
     this.orderId,
+    this.successRoute,
+    this.successArgs,
   });
 
   @override
@@ -48,7 +59,6 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
             // Detect Paystack callback / success redirect.
             // Paystack appends ?trxref=...&reference=... to the callback URL.
             if (url.contains('trxref=') || url.contains('reference=')) {
-              // Payment completed — navigate to success screen.
               _onPaymentComplete();
               return NavigationDecision.prevent;
             }
@@ -61,11 +71,15 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
   }
 
   void _onPaymentComplete() {
+    final route = widget.successRoute ?? AppRoute.orderSuccess;
+    final args = widget.successArgs ??
+        {'orderId': widget.orderId, 'reference': widget.reference};
+
     Navigator.pushNamedAndRemoveUntil(
       context,
-      AppRoute.orderSuccess,
-      (route) => false,
-      arguments: {'orderId': widget.orderId, 'reference': widget.reference},
+      route,
+      (r) => false,
+      arguments: args,
     );
   }
 
@@ -82,7 +96,7 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: () => _showCancelDialog(),
+          onPressed: _showCancelDialog,
         ),
       ),
       body: Stack(
@@ -117,7 +131,7 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.pop(context); // Pop back to cart / previous screen
+              Navigator.pop(context);
             },
             child: const AppText('Cancel', color: Colors.grey),
           ),

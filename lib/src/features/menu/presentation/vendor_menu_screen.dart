@@ -12,6 +12,7 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/bottom_cart_bar.dart';
+import 'package:dropx_mobile/src/features/menu/presentation/widgets/item_add_sheet.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
@@ -418,22 +419,32 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                                 } else {
                                   final zoneId =
                                       store['zone_id'] as String? ?? '';
-                                  final result = ref
-                                      .read(cartProvider.notifier)
-                                      .addToCart(
-                                        item,
-                                        vendorId: widget.vendorId,
-                                        zoneId: zoneId,
-                                      );
-                                  if (result ==
-                                      AddToCartResult.vendorConflict) {
-                                    _showVendorConflictDialog(
-                                      context,
-                                      ref,
-                                      item,
-                                      zoneId,
-                                    );
-                                  }
+                                  ItemAddSheet.show(
+                                    context,
+                                    item: item,
+                                    onConfirm: (qty, extrasPrice) {
+                                      // Add base item qty times
+                                      for (var i = 0; i < qty; i++) {
+                                        final result = ref
+                                            .read(cartProvider.notifier)
+                                            .addToCart(
+                                              item,
+                                              vendorId: widget.vendorId,
+                                              zoneId: zoneId,
+                                            );
+                                        if (result ==
+                                            AddToCartResult.vendorConflict) {
+                                          _showVendorConflictDialog(
+                                            context,
+                                            ref,
+                                            item,
+                                            zoneId,
+                                          );
+                                          break;
+                                        }
+                                      }
+                                    },
+                                  );
                                 }
                               }
                             : null,

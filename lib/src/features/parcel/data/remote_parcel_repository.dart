@@ -10,6 +10,7 @@ import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_dto.dart'
 import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_dto.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_detail_response.dart';
 
 class RemoteParcelRepository implements ParcelRepository {
   final ApiClient _apiClient;
@@ -78,5 +79,47 @@ class RemoteParcelRepository implements ParcelRepository {
     );
     debugPrint('✅ [PARCEL-API] payment init → ref=${response.data.reference}');
     return response.data;
+  }
+
+  @override
+  Future<List<ParcelDetail>> getParcels() async {
+    debugPrint('🟡 [PARCEL-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.parcels}');
+    final response = await _apiClient.get<List<ParcelDetail>>(
+      ApiEndpoints.parcels,
+      fromJson: (json) {
+        final list = json is List ? json : (json as Map<String, dynamic>)['parcels'] as List? ?? [];
+        return list.map((e) => ParcelDetail.fromJson(e as Map<String, dynamic>)).toList();
+      },
+    );
+    debugPrint('✅ [PARCEL-API] getParcels → ${response.data.length} parcels');
+    return response.data;
+  }
+
+  @override
+  Future<ParcelDetail> getParcel(String parcelId) async {
+    debugPrint('🟡 [PARCEL-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.parcelById(parcelId)}');
+    final response = await _apiClient.get<ParcelDetail>(
+      ApiEndpoints.parcelById(parcelId),
+      fromJson: (json) => ParcelDetail.fromJson(json as Map<String, dynamic>),
+    );
+    debugPrint('✅ [PARCEL-API] getParcel → state=${response.data.state}');
+    return response.data;
+  }
+
+  @override
+  Future<String> generatePaymentLink(String parcelId) async {
+    debugPrint('🟡 [PARCEL-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.parcelPaymentLink(parcelId)}');
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.parcelPaymentLink(parcelId),
+      data: {},
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+    final token = response.data['token'] as String? ??
+        response.data['payment_link'] as String? ??
+        response.data['url'] as String? ??
+        '';
+    debugPrint('✅ [PARCEL-API] paymentLink → token=$token');
+    return token;
   }
 }

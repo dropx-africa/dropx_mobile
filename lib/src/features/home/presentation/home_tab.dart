@@ -5,6 +5,8 @@ import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 
 import 'package:dropx_mobile/src/features/home/widgets/recent_orders_section.dart';
+import 'package:dropx_mobile/src/features/home/widgets/recent_parcels_section.dart';
+import 'package:dropx_mobile/src/features/parcel/providers/parcel_providers.dart';
 import 'package:dropx_mobile/src/features/home/widgets/featured_section.dart';
 import 'package:dropx_mobile/src/features/home/widgets/fastest_section.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -155,6 +157,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       useSafeArea: false,
       onRefresh: () async {
         ref.invalidate(ordersProvider);
+        ref.invalidate(parcelsProvider);
         ref.invalidate(homeFeedProvider);
       },
       slivers: [
@@ -233,7 +236,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppSpaces.v16,
-              if (!isGuest) const RecentOrdersSection(),
+              if (!isGuest) ...[
+                const RecentOrdersSection(),
+                const RecentParcelsSection(),
+              ],
               FeaturedSection(category: _selectedCategory),
               AppSpaces.v24,
               FastestSection(category: _selectedCategory),

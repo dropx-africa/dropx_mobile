@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -51,7 +52,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
   final _parcelValueCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   String _selectedParcelType = 'Document';
-  String _paymentMethod = 'CASH_ON_DELIVERY';
+  String _paymentMethod = 'PAYSTACK';
   bool _isUrgent = false;
 
   bool _isLoadingQuote = false;
@@ -202,8 +203,8 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       if (!mounted) return;
 
       if (_paymentMethod == 'PAYSTACK') {
-        // Card payments: initialize payment directly.
-        // The /place endpoint only accepts WALLET or CASH_ON_DELIVERY.
+        // Paystack: initialize then open checkout.
+        // On completion PaystackCheckoutScreen will navigate to parcelTracking.
         final payData = await repo.initializePayment(
           parcel.parcelId,
           const ParcelPaymentInitializeDto(),
@@ -216,10 +217,81 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
             'authorizationUrl': payData.authorizationUrl,
             'reference': payData.reference,
             'orderId': parcel.parcelId,
+            'successRoute': AppRoute.parcelTracking,
+            'successArgs': {'parcelId': parcel.parcelId},
           },
         );
+      } else if (_paymentMethod == 'GENERATE_LINK') {
+        // Generate a shareable payment link.
+        final token = await repo.generatePaymentLink(parcel.parcelId);
+        if (!mounted) return;
+        final shareableLink = 'https://dropxwebapp.vercel.app/pay-link/$token';
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const AppText(
+              'Payment Link Generated',
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppText(
+                  'Share this link to complete the payment:',
+                  fontSize: 14,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppText(
+                          shareableLink,
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: shareableLink));
+                          AppToast.showSuccess(ctx, 'Link copied!');
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const AppText(
+                  'Done',
+                  color: AppColors.primaryOrange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        AppNavigator.pushAndRemoveAll(
+          context,
+          AppRoute.parcelTracking,
+          arguments: {'parcelId': parcel.parcelId},
+        );
       } else {
-        // WALLET / CASH_ON_DELIVERY: place first, then go to tracking.
+        // WALLET: place immediately, then go to parcel tracking.
         await repo.placeParcel(
           parcel.parcelId,
           PlaceParcelDto(paymentMethod: _paymentMethod),
@@ -227,8 +299,8 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
         if (!mounted) return;
         AppNavigator.pushAndRemoveAll(
           context,
-          AppRoute.orderTracking,
-          arguments: {'orderId': parcel.parcelId},
+          AppRoute.parcelTracking,
+          arguments: {'parcelId': parcel.parcelId},
         );
       }
     } catch (e) {
@@ -418,11 +490,11 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                     _card(
                       child: Column(
                         children: [
-                          // _paymentRadio('PAYSTACK', 'Card / Transfer / USSD'),
-                          // const Divider(height: 1),
-                          _paymentRadio('CASH_ON_DELIVERY', 'Cash on Delivery'),
+                          _paymentRadio('PAYSTACK', 'Card / Transfer / USSD'),
                           const Divider(height: 1),
                           _paymentRadio('WALLET', 'DropX Wallet'),
+                          const Divider(height: 1),
+                          _paymentRadio('GENERATE_LINK', 'Generate Payment Link'),
                         ],
                       ),
                     ),

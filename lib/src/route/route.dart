@@ -18,6 +18,7 @@ import 'package:dropx_mobile/src/features/order/presentation/transaction_details
 import 'package:dropx_mobile/src/features/order/presentation/order_success_screen.dart';
 import 'package:dropx_mobile/src/features/order/presentation/paystack_checkout_screen.dart';
 import 'package:dropx_mobile/src/features/parcel/presentation/parcel_screen.dart';
+import 'package:dropx_mobile/src/features/parcel/presentation/parcel_tracking_screen.dart';
 import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
 import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
@@ -157,11 +158,21 @@ abstract class AppRouter {
           builder: (context) => const PollResultScreen(),
         );
 
+      case AppRoute.parcelTracking:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final parcelId = args['parcelId'] as String;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => ParcelTrackingScreen(parcelId: parcelId),
+        );
+
       case AppRoute.paystackCheckout:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         final authorizationUrl = args['authorizationUrl'] as String;
-        final reference = args['reference'] as String;
-        final orderId = args['orderId'] as String;
+        final reference = args['reference'] as String?;
+        final orderId = args['orderId'] as String?;
+        final successRoute = args['successRoute'] as String?;
+        final successArgs = args['successArgs'] as Map<String, dynamic>?;
 
         return MaterialPageRoute(
           settings: settings,
@@ -169,6 +180,8 @@ abstract class AppRouter {
             authorizationUrl: authorizationUrl,
             reference: reference,
             orderId: orderId,
+            successRoute: successRoute,
+            successArgs: successArgs,
           ),
         );
 
