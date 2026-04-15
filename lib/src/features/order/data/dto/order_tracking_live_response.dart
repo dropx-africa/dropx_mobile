@@ -72,7 +72,28 @@ class OrderTrackingRider {
   final String id;
   final String name;
 
-  const OrderTrackingRider({required this.id, required this.name});
+  @JsonKey(name: 'phone_e164')
+  final String? phoneE164;
+
+  @JsonKey(name: 'photo_url')
+  final String? photoUrl;
+
+  final String? vehicle;
+
+  @JsonKey(name: 'plate_number')
+  final String? plateNumber;
+
+  final num? rating;
+
+  const OrderTrackingRider({
+    required this.id,
+    required this.name,
+    this.phoneE164,
+    this.photoUrl,
+    this.vehicle,
+    this.plateNumber,
+    this.rating,
+  });
 
   factory OrderTrackingRider.fromJson(Map<String, dynamic> json) =>
       _$OrderTrackingRiderFromJson(json);

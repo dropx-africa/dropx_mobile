@@ -58,10 +58,26 @@ Map<String, dynamic> _$OrderTrackingLiveDataToJson(
 };
 
 OrderTrackingRider _$OrderTrackingRiderFromJson(Map<String, dynamic> json) =>
-    OrderTrackingRider(id: json['id'] as String, name: json['name'] as String);
+    OrderTrackingRider(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      phoneE164: json['phone_e164'] as String?,
+      photoUrl: json['photo_url'] as String?,
+      vehicle: json['vehicle'] as String?,
+      plateNumber: json['plate_number'] as String?,
+      rating: json['rating'] as num?,
+    );
 
 Map<String, dynamic> _$OrderTrackingRiderToJson(OrderTrackingRider instance) =>
-    <String, dynamic>{'id': instance.id, 'name': instance.name};
+    <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'phone_e164': instance.phoneE164,
+      'photo_url': instance.photoUrl,
+      'vehicle': instance.vehicle,
+      'plate_number': instance.plateNumber,
+      'rating': instance.rating,
+    };
 
 OrderTrackingLocation _$OrderTrackingLocationFromJson(
   Map<String, dynamic> json,

@@ -17,6 +17,7 @@ import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.d
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_reason_code.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dropx_mobile/src/core/utils/cloudinary_upload.dart';
@@ -55,6 +56,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   // Whether we are still waiting for the very first data fetch
   bool _isLoading = false;
 
+  // True when the last tracking call returned TRACKING_STALE (503)
+  bool _locationIsStale = false;
+
   // Live data
   OrderTrackingLiveData? _liveData;
 
@@ -84,6 +88,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       if (mounted) {
         setState(() {
           _liveData = response.data;
+          _locationIsStale = false;
           _applyState(_liveData?.state ?? 'PLACED');
           if (_liveData?.location != null && _mapController != null) {
             _mapController!.animateCamera(
@@ -102,7 +107,38 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ [TRACKING] Live tracking fetch failed: $e');
+      // 409 (TRACKING_NOT_AVAILABLE / RIDER_NOT_ASSIGNED) and
+      // 503 (TRACKING_STALE) both carry the real order state in
+      // error.details.state — extract and apply it so the UI always
+      // reflects the correct status even when live tracking is unavailable.
+      if (e is ApiException &&
+          (e.statusCode == 409 || e.statusCode == 503)) {
+        final errorBody = e.data as Map<String, dynamic>?;
+        final details =
+            errorBody?['error']?['details'] as Map<String, dynamic>?;
+        final stateFromError = details?['state'] as String?;
+
+        debugPrint(
+          '⚠️ [TRACKING] ${e.statusCode} — state=$stateFromError (${e.message})',
+        );
+
+        if (mounted) {
+          setState(() {
+            if (stateFromError != null) _applyState(stateFromError);
+            _locationIsStale = e.statusCode == 503;
+          });
+
+          // For in-transit states fetched from the error path, still
+          // attempt to load the delivery OTP.
+          if (stateFromError == 'IN_TRANSIT' ||
+              stateFromError == 'PICKED_UP' ||
+              stateFromError == 'ARRIVED_DROPOFF') {
+            _fetchDeliveryOtp();
+          }
+        }
+      } else {
+        debugPrint('❌ [TRACKING] Unexpected tracking error: $e');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -137,6 +173,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         _orderStage = 0;
         _status = 'Order Placed';
         _statusColor = Colors.grey;
+      case 'VENDOR_ACCEPTED':
+        _orderStage = 0;
+        _status = 'Vendor Accepted';
+        _statusColor = Colors.blue;
+      case 'READY_FOR_PICKUP':
+        _orderStage = 1;
+        _status = 'Ready for Pickup';
+        _statusColor = Colors.blue;
       case 'ACCEPTED':
         _orderStage = 1;
         _status = 'Order Accepted';
@@ -404,6 +448,37 @@ _mapController?.dispose();
                           color: AppColors.primaryOrange,
                           backgroundColor: Colors.transparent,
                         ),
+                      ),
+                    ),
+                  ],
+                  if (_locationIsStale && !_isLoading) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.wifi_tethering_error_rounded,
+                            size: 15,
+                            color: Colors.amber.shade800,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: AppText(
+                              'Rider location may be slightly outdated. Refreshing…',
+                              fontSize: 11,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1424,8 +1499,45 @@ _mapController?.dispose();
   // ─── Rider info ───────────────────────────────────────────────────────────
 
   Widget _buildRiderInfo() {
-    final riderName = _liveData?.rider?.name ?? 'Rider';
-    final hasRider = _liveData?.rider != null;
+    final rider = _liveData?.rider;
+    final hasRider = rider != null;
+    final riderName = rider?.name ?? 'Rider';
+
+    // Build vehicle + plate subtitle from real API data.
+    String? vehicleSubtitle;
+    if (hasRider) {
+      final parts = <String>[];
+      if (rider.vehicle != null && rider.vehicle!.isNotEmpty) {
+        parts.add(rider.vehicle!.toUpperCase());
+      }
+      if (rider.plateNumber != null && rider.plateNumber!.isNotEmpty) {
+        parts.add(rider.plateNumber!.toUpperCase());
+      }
+      if (parts.isNotEmpty) vehicleSubtitle = parts.join(' • ');
+    }
+
+    // Avatar: photo URL if present, otherwise coloured circle with initials.
+    Widget avatar;
+    if (hasRider && rider.photoUrl != null && rider.photoUrl!.isNotEmpty) {
+      avatar = CircleAvatar(
+        radius: 20,
+        backgroundImage: NetworkImage(rider.photoUrl!),
+      );
+    } else {
+      final initials = riderName.trim().isNotEmpty
+          ? riderName.trim()[0].toUpperCase()
+          : '?';
+      avatar = CircleAvatar(
+        radius: 20,
+        backgroundColor: AppColors.primaryOrange,
+        child: AppText(
+          initials,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1435,10 +1547,7 @@ _mapController?.dispose();
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 20,
-            backgroundImage: AssetImage('assets/images/user.png'),
-          ),
+          avatar,
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1452,30 +1561,16 @@ _mapController?.dispose();
                 const SizedBox(height: 2),
                 AppText(
                   hasRider
-                      ? 'Bajaj Boxer • LA-482-KJA'
+                      ? (vehicleSubtitle ?? 'On the way')
                       : 'Your order is being processed',
                   fontSize: 12,
                   color: Colors.grey.shade600,
                 ),
-                if (hasRider) ...[
-                  const SizedBox(height: 2),
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.star,
-                        color: AppColors.primaryOrange,
-                        size: 12,
-                      ),
-                      SizedBox(width: 4),
-                      AppText('4.9', fontSize: 12, fontWeight: FontWeight.bold),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
           if (hasRider) ...[
-            const CircleAvatar(
+            CircleAvatar(
               backgroundColor: Colors.white,
               radius: 18,
               child: Icon(
@@ -1485,7 +1580,7 @@ _mapController?.dispose();
               ),
             ),
             const SizedBox(width: 8),
-            const CircleAvatar(
+            CircleAvatar(
               backgroundColor: Colors.black,
               radius: 18,
               child: Icon(Icons.call, size: 18, color: Colors.white),

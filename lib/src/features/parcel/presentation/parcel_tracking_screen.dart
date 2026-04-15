@@ -19,7 +19,6 @@ const _stateOrder = [
   'PICKED_UP',
   'IN_TRANSIT',
   'DELIVERED',
-  'COMPLETED',
 ];
 
 const _stateLabels = {
