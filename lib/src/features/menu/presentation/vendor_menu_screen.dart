@@ -94,6 +94,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
             final isAcceptingOrders =
                 store['is_accepting_orders'] as bool? ?? true;
             final closedReason = store['closed_reason'] as String?;
+            final opensAt = store['opens_at'] as String?;
             final canOrder = isOpen && isAcceptingOrders;
 
             return SliverMainAxisGroup(
@@ -283,11 +284,11 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: AppText(
-                              closedReason?.isNotEmpty == true
-                                  ? closedReason!
-                                  : !isOpen
-                                  ? 'This store is currently closed.'
-                                  : 'This store is not accepting orders right now.',
+                              _buildClosedMessage(
+                                isOpen: isOpen,
+                                closedReason: closedReason,
+                                opensAt: opensAt,
+                              ),
                               fontSize: 13,
                               color: Colors.red.shade700,
                             ),
@@ -407,7 +408,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                         item: item,
                         quantity: quantity,
                         onAdd: canOrder
-                            ? () {
+                            ? () async {
                                 if (isGuest) {
                                   showModalBottomSheet(
                                     context: context,
@@ -416,36 +417,27 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                                     builder: (_) =>
                                         const SignUpToOrderSheet(),
                                   );
-                                } else {
-                                  final zoneId =
-                                      store['zone_id'] as String? ?? '';
-                                  ItemAddSheet.show(
-                                    context,
-                                    item: item,
-                                    onConfirm: (qty, extrasPrice) {
-                                      // Add base item qty times
-                                      for (var i = 0; i < qty; i++) {
-                                        final result = ref
-                                            .read(cartProvider.notifier)
-                                            .addToCart(
-                                              item,
-                                              vendorId: widget.vendorId,
-                                              zoneId: zoneId,
-                                            );
-                                        if (result ==
-                                            AddToCartResult.vendorConflict) {
-                                          _showVendorConflictDialog(
-                                            context,
-                                            ref,
-                                            item,
-                                            zoneId,
-                                          );
-                                          break;
-                                        }
-                                      }
-                                    },
-                                  );
+                                  return;
                                 }
+                                final zoneId =
+                                    store['zone_id'] as String? ?? '';
+                                // Fetch full item detail (includes addons & variants)
+                                MenuItem fullItem = item;
+                                try {
+                                  fullItem = await ref
+                                      .read(vendorRepositoryProvider)
+                                      .getStoreItem(widget.vendorId, item.id);
+                                } catch (_) {
+                                  // Fall back to catalog item if fetch fails
+                                }
+                                if (!context.mounted) return;
+                                ItemAddSheet.show(
+                                  context,
+                                  item: fullItem,
+                                  vendorId: widget.vendorId,
+                                  vendorName: storeName,
+                                  zoneId: zoneId,
+                                );
                               }
                             : null,
                         onIncrement: canOrder
@@ -491,6 +483,25 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     );
   }
 
+  String _buildClosedMessage({
+    required bool isOpen,
+    String? closedReason,
+    String? opensAt,
+  }) {
+    String base;
+    if (closedReason?.isNotEmpty == true) {
+      base = closedReason!;
+    } else if (!isOpen) {
+      base = 'This store is currently closed.';
+    } else {
+      base = 'This store is not accepting orders right now.';
+    }
+    if (opensAt != null && opensAt.isNotEmpty) {
+      base += ' Opens at $opensAt.';
+    }
+    return base;
+  }
+
   Widget _metaItem(IconData icon, String label, {Color? color}) {
     final c = color ?? Colors.grey.shade700;
     return Row(
@@ -503,50 +514,6 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
     );
   }
 
-  void _showVendorConflictDialog(
-    BuildContext context,
-    WidgetRef ref,
-    MenuItem item,
-    String zoneId,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const AppText(
-          'Different Vendor',
-          fontWeight: FontWeight.bold,
-        ),
-        content: const AppText(
-          'You already have items from another vendor in your cart. Would you like to clear your cart and add this item?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const AppText(
-              'Cancel',
-              color: AppColors.grayText,
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              ref.read(cartProvider.notifier).clearCart();
-              ref.read(cartProvider.notifier).addToCart(
-                    item,
-                    vendorId: widget.vendorId,
-                    zoneId: zoneId,
-                  );
-              Navigator.pop(ctx);
-            },
-            child: const AppText(
-              'Clear & Add',
-              color: AppColors.primaryOrange,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {

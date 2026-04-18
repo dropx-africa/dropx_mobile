@@ -11,6 +11,7 @@ import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_response.
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_dto.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_detail_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_tracking_live_response.dart';
 
 class RemoteParcelRepository implements ParcelRepository {
   final ApiClient _apiClient;
@@ -103,6 +104,21 @@ class RemoteParcelRepository implements ParcelRepository {
       fromJson: (json) => ParcelDetail.fromJson(json as Map<String, dynamic>),
     );
     debugPrint('✅ [PARCEL-API] getParcel → state=${response.data.state}');
+    return response.data;
+  }
+
+  @override
+  Future<ParcelTrackingLiveData> getParcelTrackingLive(String parcelId) async {
+    debugPrint('🟡 [PARCEL-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.parcelTrackingLive(parcelId)}');
+    final response = await _apiClient.get<ParcelTrackingLiveData>(
+      ApiEndpoints.parcelTrackingLive(parcelId),
+      fromJson: (json) {
+        final map = json as Map<String, dynamic>;
+        final data = map['data'] as Map<String, dynamic>? ?? map;
+        return ParcelTrackingLiveData.fromJson(data);
+      },
+    );
+    debugPrint('✅ [PARCEL-API] parcelTrackingLive → state=${response.data.state}, tracking=${response.data.trackingAvailable}');
     return response.data;
   }
 

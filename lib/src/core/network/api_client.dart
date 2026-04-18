@@ -8,6 +8,12 @@ import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/core/network/api_response.dart';
 import 'package:flutter/foundation.dart';
 
+class SseEvent {
+  final String type;
+  final String data;
+  const SseEvent({required this.type, required this.data});
+}
+
 /// Centralized HTTP client for all API operations.
 ///
 /// Usage:
@@ -139,6 +145,53 @@ class ApiClient {
           .delete(uri, headers: requestHeaders)
           .timeout(_timeout);
     }, (_) => true);
+  }
+
+  /// Opens a Server-Sent Events stream. Yields [SseEvent] objects as they arrive.
+  /// The stream ends when the server closes the connection.
+  Stream<SseEvent> sseStream(String path) async* {
+    final uri = _buildUri(path);
+    final request = http.Request('GET', uri);
+    request.headers.addAll({
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      if (_authToken != null) 'Authorization': 'Bearer $_authToken',
+    });
+
+    http.StreamedResponse response;
+    try {
+      response = await _client.send(request);
+    } catch (_) {
+      return;
+    }
+    if (response.statusCode != 200) return;
+
+    String eventType = '';
+    String eventData = '';
+
+    try {
+      await for (final line in response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (line.isEmpty) {
+          if (eventData.isNotEmpty) {
+            yield SseEvent(
+              type: eventType.isEmpty ? 'message' : eventType,
+              data: eventData,
+            );
+          }
+          eventType = '';
+          eventData = '';
+        } else if (line.startsWith('event:')) {
+          eventType = line.substring(6).trim();
+        } else if (line.startsWith('data:')) {
+          eventData = line.substring(5).trim();
+        }
+        // ignore comment lines (': heartbeat')
+      }
+    } catch (_) {
+      // Stream ended or error — caller handles reconnect
+    }
   }
 
   // --- Internal Helpers ---

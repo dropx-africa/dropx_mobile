@@ -34,6 +34,7 @@ Vendor _$VendorFromJson(Map<String, dynamic> json) => Vendor(
   deliveryFeeKobo: json['delivery_fee_kobo'] as String?,
   distanceKm: (json['distance_km'] as num?)?.toDouble(),
   isOpen: json['is_open'] as bool?,
+  opensAt: json['opens_at'] as String?,
 );
 
 Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
@@ -60,6 +61,7 @@ Map<String, dynamic> _$VendorToJson(Vendor instance) => <String, dynamic>{
   'distance_km': instance.distanceKm,
   'is_open': instance.isOpen,
   'cover_image_url': instance.coverImageUrl,
+  'opens_at': instance.opensAt,
 };
 
 const _$VendorCategoryEnumMap = {

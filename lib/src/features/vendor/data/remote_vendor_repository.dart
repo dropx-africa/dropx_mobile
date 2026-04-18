@@ -70,6 +70,15 @@ class RemoteVendorRepository implements VendorRepository {
   }
 
   @override
+  Future<MenuItem> getStoreItem(String vendorId, String itemId) async {
+    final response = await _apiClient.get<MenuItem>(
+      ApiEndpoints.storeItem(vendorId, itemId),
+      fromJson: (json) => MenuItem.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data;
+  }
+
+  @override
   Future<List<Vendor>> searchVendors(String query) async {
     final vendors = await getVendors();
     final lowered = query.toLowerCase();

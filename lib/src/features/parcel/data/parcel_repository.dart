@@ -7,6 +7,7 @@ import 'package:dropx_mobile/src/features/parcel/data/dto/place_parcel_response.
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_dto.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_detail_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_tracking_live_response.dart';
 
 abstract class ParcelRepository {
   Future<ParcelQuoteData> getQuote(ParcelQuoteRequest request);
@@ -30,4 +31,7 @@ abstract class ParcelRepository {
 
   /// POST /parcels/:id/payment-link — returns a shareable token/URL.
   Future<String> generatePaymentLink(String parcelId);
+
+  /// GET /parcels/:id/tracking-live — live rider position and ETA.
+  Future<ParcelTrackingLiveData> getParcelTrackingLive(String parcelId);
 }

@@ -1,51 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
+import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 
-/// Dummy extra option — replace with real model once API is confirmed.
-class _DummyExtra {
-  final String id;
-  final String name;
-  final double price;
-
-  const _DummyExtra({required this.id, required this.name, required this.price});
-}
-
-// TODO: Replace dummy extras with real API data once endpoint is confirmed.
-const _dummyExtras = <_DummyExtra>[
-  _DummyExtra(id: 'ex1', name: 'Extra Sauce', price: 150),
-  _DummyExtra(id: 'ex2', name: 'Extra Protein', price: 300),
-  _DummyExtra(id: 'ex3', name: 'Extra Cheese', price: 200),
-  _DummyExtra(id: 'ex4', name: 'Side Salad', price: 500),
-];
-
-/// Bottom sheet shown when the user taps "Add" on a menu item.
-///
-/// Displays item details, optional extras (currently dummy data), and a
-/// quantity picker. Calls [onConfirm] with the chosen quantity and total
-/// price (base + selected extras) so the caller can add to cart.
-class ItemAddSheet extends StatefulWidget {
+class ItemAddSheet extends ConsumerStatefulWidget {
   final MenuItem item;
-  final VoidCallback? onConfirm;
-
-  /// Called with (quantity, extrasTotalPrice) so the caller can decide how
-  /// to record the extras in the cart.
-  final void Function(int quantity, double extrasTotalPrice)? onConfirmWithExtras;
+  final String vendorId;
+  final String vendorName;
+  final String zoneId;
 
   const ItemAddSheet({
     super.key,
     required this.item,
-    this.onConfirm,
-    this.onConfirmWithExtras,
+    required this.vendorId,
+    required this.vendorName,
+    required this.zoneId,
   });
 
-  /// Show the sheet and await the result.
   static Future<void> show(
     BuildContext context, {
     required MenuItem item,
-    required void Function(int qty, double extrasPrice) onConfirm,
+    required String vendorId,
+    required String vendorName,
+    required String zoneId,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -53,29 +34,172 @@ class ItemAddSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => ItemAddSheet(
         item: item,
-        onConfirmWithExtras: onConfirm,
+        vendorId: vendorId,
+        vendorName: vendorName,
+        zoneId: zoneId,
       ),
     );
   }
 
   @override
-  State<ItemAddSheet> createState() => _ItemAddSheetState();
+  ConsumerState<ItemAddSheet> createState() => _ItemAddSheetState();
 }
 
-class _ItemAddSheetState extends State<ItemAddSheet> {
+class _ItemAddSheetState extends ConsumerState<ItemAddSheet> {
   int _qty = 1;
-  final Set<String> _selectedExtras = {};
 
-  double get _extrasTotal => _dummyExtras
-      .where((e) => _selectedExtras.contains(e.id))
-      .fold(0, (sum, e) => sum + e.price);
+  // Selected variant id (null = default / no variants).
+  String? _selectedVariantId;
 
-  double get _total => (widget.item.price + _extrasTotal) * _qty;
+  // Selected addon ids.
+  final Set<String> _selectedAddonIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-select the default variant.
+    final defaultVariant = widget.item.variants
+        ?.where((v) => v.isDefault && v.status == 'ACTIVE')
+        .firstOrNull;
+    _selectedVariantId = defaultVariant?.variantId;
+  }
+
+  // ─── Active addon/variant helpers ──────────────────────────────────────────
+
+  List<MenuItemVariant> get _activeVariants =>
+      (widget.item.variants ?? [])
+          .where((v) => v.status == 'ACTIVE')
+          .toList();
+
+  List<MenuItemAddon> get _activeAddons =>
+      (widget.item.addons ?? [])
+          .where((a) => a.status == 'ACTIVE')
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+  // Group active addons by group_name preserving insertion order.
+  Map<String, List<MenuItemAddon>> get _addonGroups {
+    final result = <String, List<MenuItemAddon>>{};
+    for (final addon in _activeAddons) {
+      result.putIfAbsent(addon.groupName, () => []).add(addon);
+    }
+    return result;
+  }
+
+  // ─── Price calculation ──────────────────────────────────────────────────────
+
+  double get _variantDelta {
+    if (_selectedVariantId == null) return 0;
+    return _activeVariants
+        .where((v) => v.variantId == _selectedVariantId)
+        .map((v) => v.priceDelta)
+        .firstOrNull ?? 0;
+  }
+
+  double get _addonsTotal => _activeAddons
+      .where((a) => _selectedAddonIds.contains(a.addonId))
+      .fold(0.0, (sum, a) => sum + a.price);
+
+  double get _unitPrice => widget.item.price + _variantDelta + _addonsTotal;
+
+  double get _total => _unitPrice * _qty;
+
+  // ─── Addon selection (respects max_select per group) ───────────────────────
+
+  void _toggleAddon(MenuItemAddon addon, List<MenuItemAddon> groupAddons) {
+    setState(() {
+      if (_selectedAddonIds.contains(addon.addonId)) {
+        _selectedAddonIds.remove(addon.addonId);
+      } else {
+        final groupSelected = groupAddons
+            .where((a) => _selectedAddonIds.contains(a.addonId))
+            .toList();
+        if (groupSelected.length >= addon.maxSelect) {
+          // Deselect oldest if max reached.
+          _selectedAddonIds.remove(groupSelected.first.addonId);
+        }
+        _selectedAddonIds.add(addon.addonId);
+      }
+    });
+  }
+
+  // ─── Add to cart ────────────────────────────────────────────────────────────
+
+  MenuItemVariant? get _selectedVariant => _activeVariants
+      .where((v) => v.variantId == _selectedVariantId)
+      .firstOrNull;
+
+  List<MenuItemAddon> get _selectedAddonsList =>
+      _activeAddons.where((a) => _selectedAddonIds.contains(a.addonId)).toList();
+
+  void _addToCart() {
+    final notifier = ref.read(cartProvider.notifier);
+    for (var i = 0; i < _qty; i++) {
+      final result = notifier.addToCart(
+        widget.item,
+        vendorId: widget.vendorId,
+        vendorName: widget.vendorName,
+        zoneId: widget.zoneId,
+        selectedVariant: _selectedVariant,
+        selectedAddons: _selectedAddonsList,
+      );
+      if (result == AddToCartResult.vendorConflict) {
+        _showVendorConflictDialog();
+        return;
+      }
+    }
+    Navigator.pop(context);
+  }
+
+  void _showVendorConflictDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const AppText('Different Vendor', fontWeight: FontWeight.bold),
+        content: const AppText(
+          'You already have items from another vendor in your cart. Would you like to clear your cart and add this item?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const AppText('Cancel', color: AppColors.grayText),
+          ),
+          TextButton(
+            onPressed: () {
+              final notifier = ref.read(cartProvider.notifier);
+              notifier.clearCart();
+              for (var i = 0; i < _qty; i++) {
+                notifier.addToCart(
+                  widget.item,
+                  vendorId: widget.vendorId,
+                  vendorName: widget.vendorName,
+                  zoneId: widget.zoneId,
+                  selectedVariant: _selectedVariant,
+                  selectedAddons: _selectedAddonsList,
+                );
+              }
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            child: const AppText(
+              'Clear & Add',
+              color: AppColors.primaryOrange,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
     final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
+    final showVariants = _activeVariants.length > 1;
+    final groups = _addonGroups;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
@@ -88,7 +212,6 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
         ),
         child: Column(
           children: [
-            // Drag handle
             const SizedBox(height: 12),
             Container(
               width: 40,
@@ -107,7 +230,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Item image
+                    // ── Image ─────────────────────────────────────────────
                     if (hasImage)
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
@@ -134,7 +257,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
 
                     const SizedBox(height: 16),
 
-                    // Name + price row
+                    // ── Name + price ───────────────────────────────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -146,7 +269,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                           ),
                         ),
                         AppText(
-                          '₦${item.price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                          Formatters.formatNaira(item.price),
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primaryOrange,
@@ -164,100 +287,61 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                       ),
                     ],
 
+                    // ── Variants ───────────────────────────────────────────
+                    if (showVariants) ...[
+                      const SizedBox(height: 20),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      _sectionHeader('Choose a size', required: true),
+                      const SizedBox(height: 10),
+                      ..._activeVariants.map((v) {
+                        final selected = _selectedVariantId == v.variantId;
+                        return _selectionTile(
+                          id: v.variantId,
+                          label: v.name,
+                          priceSuffix: v.priceDelta > 0
+                              ? '+${Formatters.formatNaira(v.priceDelta)}'
+                              : null,
+                          selected: selected,
+                          isRadio: true,
+                          onTap: () =>
+                              setState(() => _selectedVariantId = v.variantId),
+                        );
+                      }),
+                    ],
+
+                    // ── Addon groups ───────────────────────────────────────
+                    for (final entry in groups.entries) ...[
+                      const SizedBox(height: 20),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      _sectionHeader(
+                        entry.key,
+                        required: entry.value.any((a) => a.required),
+                        maxSelect: entry.value.first.maxSelect,
+                      ),
+                      const SizedBox(height: 10),
+                      ...entry.value.map((addon) {
+                        final selected =
+                            _selectedAddonIds.contains(addon.addonId);
+                        return _selectionTile(
+                          id: addon.addonId,
+                          label: addon.name,
+                          priceSuffix: addon.price > 0
+                              ? '+${Formatters.formatNaira(addon.price)}'
+                              : 'Free',
+                          selected: selected,
+                          isRadio: addon.maxSelect == 1,
+                          onTap: () => _toggleAddon(addon, entry.value),
+                        );
+                      }),
+                    ],
+
                     const SizedBox(height: 20),
                     const Divider(),
                     const SizedBox(height: 12),
 
-                    // ── Extras section ──────────────────────────────────────
-                    const AppText(
-                      'Add Extras',
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    const SizedBox(height: 4),
-                    AppSubText(
-                      'Customise your order (optional)',
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(height: 10),
-
-                    ..._dummyExtras.map((extra) {
-                      final selected = _selectedExtras.contains(extra.id);
-                      return GestureDetector(
-                        onTap: () => setState(() {
-                          if (selected) {
-                            _selectedExtras.remove(extra.id);
-                          } else {
-                            _selectedExtras.add(extra.id);
-                          }
-                        }),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.primaryOrange.withValues(alpha: 0.06)
-                                : Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: selected
-                                  ? AppColors.primaryOrange
-                                  : Colors.grey.shade200,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: selected
-                                      ? AppColors.primaryOrange
-                                      : Colors.white,
-                                  border: Border.all(
-                                    color: selected
-                                        ? AppColors.primaryOrange
-                                        : Colors.grey.shade400,
-                                  ),
-                                ),
-                                child: selected
-                                    ? const Icon(
-                                        Icons.check,
-                                        size: 14,
-                                        color: Colors.white,
-                                      )
-                                    : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: AppText(
-                                  extra.name,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              AppText(
-                                '+₦${extra.price.toInt()}',
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 12),
-
-                    // ── Quantity picker ────────────────────────────────────
+                    // ── Quantity ───────────────────────────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -266,42 +350,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              _qtyButton(
-                                icon: Icons.remove,
-                                onTap: _qty > 1
-                                    ? () => setState(() => _qty--)
-                                    : null,
-                              ),
-                              SizedBox(
-                                width: 36,
-                                child: Center(
-                                  child: Text(
-                                    '$_qty',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              _qtyButton(
-                                icon: Icons.add,
-                                onTap: () => setState(() => _qty++),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _qtyPicker(),
                       ],
                     ),
 
@@ -311,7 +360,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
               ),
             ),
 
-            // ── Add to cart button ────────────────────────────────────────
+            // ── Add to cart button ─────────────────────────────────────────
             Container(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               decoration: BoxDecoration(
@@ -330,11 +379,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onConfirmWithExtras?.call(_qty, _extrasTotal);
-                      widget.onConfirm?.call();
-                    },
+                    onPressed: _addToCart,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryOrange,
                       shape: RoundedRectangleBorder(
@@ -368,7 +413,7 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
                           fontSize: 16,
                         ),
                         AppText(
-                          '₦${_total.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')}',
+                          Formatters.formatNaira(_total),
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -384,6 +429,133 @@ class _ItemAddSheetState extends State<ItemAddSheet> {
       ),
     );
   }
+
+  // ─── Helper widgets ─────────────────────────────────────────────────────────
+
+  Widget _sectionHeader(
+    String title, {
+    bool required = false,
+    int? maxSelect,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: AppText(title, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        if (required)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primaryOrange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: AppText(
+              'Required',
+              fontSize: 10,
+              color: AppColors.primaryOrange,
+              fontWeight: FontWeight.w600,
+            ),
+          )
+        else if (maxSelect != null && maxSelect > 1)
+          AppSubText(
+            'Pick up to $maxSelect',
+            fontSize: 11,
+            color: Colors.grey.shade500,
+          )
+        else
+          AppSubText('Optional', fontSize: 11, color: Colors.grey.shade500),
+      ],
+    );
+  }
+
+  Widget _selectionTile({
+    required String id,
+    required String label,
+    String? priceSuffix,
+    required bool selected,
+    required bool isRadio,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryOrange.withValues(alpha: 0.06)
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color:
+                selected ? AppColors.primaryOrange : Colors.grey.shade200,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: isRadio ? BoxShape.circle : BoxShape.rectangle,
+                borderRadius: isRadio ? null : BorderRadius.circular(5),
+                color: selected ? AppColors.primaryOrange : Colors.white,
+                border: Border.all(
+                  color: selected
+                      ? AppColors.primaryOrange
+                      : Colors.grey.shade400,
+                ),
+              ),
+              child: selected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppText(
+                label,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (priceSuffix != null)
+              AppText(
+                priceSuffix,
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _qtyPicker() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        _qtyButton(
+          icon: Icons.remove,
+          onTap: _qty > 1 ? () => setState(() => _qty--) : null,
+        ),
+        SizedBox(
+          width: 36,
+          child: Center(
+            child: Text(
+              '$_qty',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        _qtyButton(icon: Icons.add, onTap: () => setState(() => _qty++)),
+      ],
+    ),
+  );
 
   Widget _qtyButton({required IconData icon, VoidCallback? onTap}) =>
       GestureDetector(

@@ -332,9 +332,10 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
               AppSpaces.v12,
               balanceAsync.when(
                 data: (balance) {
-                  final naira = CurrencyUtils.koboToNaira(
+                  final rawNaira = CurrencyUtils.koboToNaira(
                     balance.availableBalanceKobo,
                   );
+                  final naira = rawNaira < 0 ? 0.0 : rawNaira;
                   return AppText(
                     currencyFormat.format(naira),
                     fontSize: 36,

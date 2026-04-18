@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,8 @@ import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.d
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_reason_code.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/core/network/api_client.dart';
+import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -66,6 +69,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   DeliveryOtpData? _deliveryOtpData;
 
   GoogleMapController? _mapController;
+  StreamSubscription<SseEvent>? _sseSub;
 
   @override
   void initState() {
@@ -77,6 +81,52 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       '📍 [TRACKING] initState orderId=${widget.orderId ?? "null (simulation)"}',
     );
     _fetchLiveTracking();
+    _subscribeToSse();
+  }
+
+  void _subscribeToSse() {
+    if (widget.orderId == null || !mounted) return;
+    _sseSub?.cancel();
+    final client = ref.read(apiClientProvider);
+    _sseSub = client
+        .sseStream(ApiEndpoints.sseOrder(widget.orderId!))
+        .listen(
+          _onSseEvent,
+          onDone: () => Future.delayed(
+            const Duration(seconds: 3),
+            () { if (mounted) _subscribeToSse(); },
+          ),
+          onError: (_) => Future.delayed(
+            const Duration(seconds: 5),
+            () { if (mounted) _subscribeToSse(); },
+          ),
+        );
+  }
+
+  void _onSseEvent(SseEvent event) {
+    if (!mounted || event.type != 'order.state') return;
+    try {
+      final json = jsonDecode(event.data) as Map<String, dynamic>;
+      final updated = OrderTrackingLiveData.fromJson(json);
+      setState(() {
+        _liveData = updated;
+        _locationIsStale = updated.isStale ?? false;
+        _applyState(updated.state);
+      });
+      if (updated.location != null && _mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newLatLng(
+            LatLng(updated.location!.lat, updated.location!.lng),
+          ),
+        );
+      }
+      final state = updated.state;
+      if (state == 'IN_TRANSIT' ||
+          state == 'PICKED_UP' ||
+          state == 'ARRIVED_DROPOFF') {
+        _fetchDeliveryOtp();
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchLiveTracking() async {
@@ -223,7 +273,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   @override
   void dispose() {
-_mapController?.dispose();
+    _sseSub?.cancel();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -328,88 +379,156 @@ _mapController?.dispose();
         ? LatLng(_liveData!.location!.lat, _liveData!.location!.lng)
         : null;
 
-    final mapTarget = riderLatLng ?? userLatLng;
     final displayAddress = session.savedAddress;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // ── 1. Map always visible ──────────────────────────────────────
-          SizedBox(
-            width: double.infinity,
-            height: double.infinity,
-            child: AppGoogleMap(
-              initialTarget: mapTarget,
-              zoom: 16,
-              onMapCreated: (c) => _mapController = c,
-              markers: {
-                Marker(
-                  markerId: const MarkerId('user_location'),
-                  position: userLatLng,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueBlue,
-                  ),
-                  infoWindow: InfoWindow(
-                    title: 'Delivery Location',
-                    snippet: displayAddress.isNotEmpty
-                        ? displayAddress
-                        : 'lat: ${userLatLng.latitude}, lng: ${userLatLng.longitude}',
-                  ),
-                ),
-                if (riderLatLng != null)
-                  Marker(
-                    markerId: const MarkerId('rider'),
-                    position: riderLatLng,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueOrange,
-                    ),
-                    infoWindow: InfoWindow(
-                      title: 'Rider',
-                      snippet: _liveData?.rider?.name ?? 'On the way',
-                    ),
-                  ),
-              },
-            ),
-          ),
+      body: riderLatLng != null
+          ? _buildMapLayout(context, userLatLng, riderLatLng, displayAddress)
+          : _buildFallbackLayout(context),
+    );
+  }
 
-          // ── 2. Top actions (Back button & Debug) ─────────────────────────────
-          Positioned(
-            top: 50,
-            left: 16,
+  // ── Map layout (live telemetry available) ─────────────────────────────────
+
+  Widget _buildMapLayout(
+    BuildContext context,
+    LatLng userLatLng,
+    LatLng riderLatLng,
+    String displayAddress,
+  ) {
+    return Stack(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: AppGoogleMap(
+            initialTarget: riderLatLng,
+            zoom: 16,
+            onMapCreated: (c) => _mapController = c,
+            markers: {
+              Marker(
+                markerId: const MarkerId('user_location'),
+                position: userLatLng,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue,
+                ),
+                infoWindow: InfoWindow(
+                  title: 'Delivery Location',
+                  snippet: displayAddress.isNotEmpty
+                      ? displayAddress
+                      : 'lat: ${userLatLng.latitude}, lng: ${userLatLng.longitude}',
+                ),
+              ),
+              Marker(
+                markerId: const MarkerId('rider'),
+                position: riderLatLng,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueOrange,
+                ),
+                infoWindow: InfoWindow(
+                  title: 'Rider',
+                  snippet: _liveData?.rider?.name ?? 'On the way',
+                ),
+              ),
+            },
+          ),
+        ),
+        Positioned(
+          top: 50,
+          left: 16,
+          child: _buildBackButton(context),
+        ),
+        Positioned(
+          top: 50,
+          right: 16,
+          child: _buildRefreshButton(),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: _buildStatusSheet(context),
+        ),
+      ],
+    );
+  }
+
+  // ── Fallback layout (no live telemetry) ───────────────────────────────────
+
+  Widget _buildFallbackLayout(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
             child: Row(
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    color: Colors.black,
-                    onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
-                      AppRoute.dashboard,
-                      (route) => false,
-                      arguments: {'initialTab': 2},
-                    ),
+                _buildBackButton(context),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: AppText(
+                    'Order Tracking',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
+                _buildRefreshButton(),
               ],
             ),
           ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: _buildStatusSheet(context, scrollable: true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // ── 3. Status sheet ────────────────────────────────────────────
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
+  Widget _buildBackButton(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        color: Colors.black,
+        onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoute.dashboard,
+          (route) => false,
+          arguments: {'initialTab': 2},
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRefreshButton() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+        ],
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.refresh),
+        color: Colors.black,
+        onPressed: () {
+          setState(() => _isLoading = true);
+          _fetchLiveTracking();
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatusSheet(BuildContext context, {bool scrollable = false}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -674,11 +793,7 @@ _mapController?.dispose();
                   ],
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
+          );
   }
 
   // ─── Cancel bottom sheet ─────────────────────────────────────────────────
@@ -734,7 +849,36 @@ _mapController?.dispose();
                         fontSize: 13,
                         color: Colors.grey.shade600,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 14, color: Colors.amber.shade800),
+                                const SizedBox(width: 6),
+                                AppText('Refund Policy', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            AppText(
+                              '• You can cancel within 5 minutes of placing the order.\n'
+                              '• Refunds are processed within 3 business days.\n'
+                              '• Once your order is picked up, the service charge and rider fee are non-refundable.',
+                              fontSize: 11,
+                              color: Colors.amber.shade900,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       // Reason picker
                       DropdownButtonFormField<CancelReasonCode>(

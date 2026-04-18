@@ -53,6 +53,8 @@ class Vendor {
   final bool? isOpen;
   @JsonKey(name: 'cover_image_url')
   final String? coverImageUrl;
+  @JsonKey(name: 'opens_at')
+  final String? opensAt;
 
   /// Delivery fee in Naira (kobo → naira).
   double get deliveryFeeNaira {
@@ -84,6 +86,7 @@ class Vendor {
     this.deliveryFeeKobo,
     this.distanceKm,
     this.isOpen,
+    this.opensAt,
   });
 
   factory Vendor.fromJson(Map<String, dynamic> json) => _$VendorFromJson(json);

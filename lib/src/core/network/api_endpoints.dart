@@ -31,6 +31,7 @@ class ApiEndpoints {
   static String vendorById(String id) => '/vendors/$id';
   static String vendorMenu(String vendorId) => '/vendors/$vendorId/menu';
   static String storeCatalog(String vendorId) => '/stores/$vendorId/catalog';
+  static String storeItem(String vendorId, String itemId) => '/stores/$vendorId/items/$itemId';
 
   // Orders
   static const String orders = '/orders';
@@ -61,6 +62,12 @@ class ApiEndpoints {
       '/parcels/$id/payments/verify/paystack';
   static String parcelRecipientConfirm(String id) =>
       '/parcels/$id/recipient-confirmation/verify';
+  static String parcelTrackingLive(String id) =>
+      '/parcels/$id/tracking-live';
+
+  // SSE
+  static String sseOrder(String id) => '/sse/orders/$id';
+  static String sseParcel(String id) => '/sse/parcels/$id';
 
   // Payments
   static const String initializePayment = '/payments/initialize';

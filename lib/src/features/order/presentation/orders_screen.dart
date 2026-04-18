@@ -106,7 +106,20 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     return AppScaffold(
       controller: _scrollController,
       onRefresh: _reload,
-      appBar: const AppAppBar(title: 'Orders', showBack: false),
+      appBar: AppAppBar(
+        title: 'Food Orders',
+        showBack: false,
+        actions: [
+       IconButton(
+  icon: const Icon(
+    Icons.refresh,
+    color: Colors.white,
+  ),
+  tooltip: 'Retry',
+  onPressed: _isLoading ? null : _reload,
+),
+        ],
+      ),
       slivers: [
         if (_isLoading)
           const SliverFillRemaining(
@@ -115,9 +128,49 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         else if (_error != null)
           SliverFillRemaining(
             child: Center(
-              child: AppText(
-                'Failed to load orders: $_error',
-                color: AppColors.errorRed,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 56,
+                      color: AppColors.slate200,
+                    ),
+                    const SizedBox(height: 16),
+                    const AppText(
+                      'Failed to load orders',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(height: 8),
+                    AppText(
+                      _error!,
+                      fontSize: 13,
+                      color: AppColors.slate400,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _load,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryOrange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           )

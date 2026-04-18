@@ -20,6 +20,8 @@ import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_ca
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/features/menu/presentation/widgets/bottom_cart_bar.dart';
+import 'package:dropx_mobile/src/features/menu/presentation/widgets/item_add_sheet.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -71,36 +73,51 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       });
     }
 
-    return AppScaffold(
-      appBar: const AppAppBar(title: 'Discover', showBack: false),
-      onRefresh: () async {
-        ref.invalidate(homeFeedProvider);
-        ref.invalidate(menuItemsProvider);
-      },
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: AppSearchBar(
-              hintText: 'Search for anything',
-              onChanged: (value) => setState(() {
-                _searchQuery = value;
-                // Reset vendor expansion on new search
-                _expandedVendorId = null;
-                _expandedVendorName = null;
-              }),
+    return Stack(
+      children: [
+        AppScaffold(
+          appBar: const AppAppBar(title: 'Discover', showBack: false),
+          onRefresh: () async {
+            ref.invalidate(homeFeedProvider);
+            ref.invalidate(menuItemsProvider);
+          },
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: AppSearchBar(
+                  hintText: 'Search for anything',
+                  onChanged: (value) => setState(() {
+                    _searchQuery = value;
+                    _expandedVendorId = null;
+                    _expandedVendorName = null;
+                  }),
+                ),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _CategoryHeaderDelegate(
+                categories: _categories,
+                selected: _selectedCategory,
+                onSelect: (cat) => setState(() => _selectedCategory = cat),
+              ),
+            ),
+            ..._buildContent(cartState, isGuest),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ],
+        ),
+        if (cartState.totalItemCount > 0)
+          Positioned(
+            bottom: 24,
+            left: 16,
+            right: 16,
+            child: BottomCartBar(
+              itemCount: cartState.totalItemCount,
+              totalPrice: cartState.totalPrice,
+              isGuest: isGuest,
             ),
           ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _CategoryHeaderDelegate(
-            categories: _categories,
-            selected: _selectedCategory,
-            onSelect: (cat) => setState(() => _selectedCategory = cat),
-          ),
-        ),
-        ..._buildContent(cartState, isGuest),
       ],
     );
   }
@@ -184,7 +201,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 0.78,
+                childAspectRatio: 0.70,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _buildVendorCard(vendors[index]),
@@ -296,7 +313,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
-  void _handleAdd(MenuItem item, bool isGuest, CartState cartState) {
+  Future<void> _handleAdd(MenuItem item, bool isGuest, CartState cartState) async {
     if (isGuest) {
       showModalBottomSheet(
         context: context,
@@ -308,60 +325,38 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }
 
     final vendorId = item.vendorId ?? '';
-    final zoneId = ''; // zone not available in search results — cart handles it
-    final result = ref.read(cartProvider.notifier).addToCart(
-          item,
-          vendorId: vendorId,
-          zoneId: zoneId,
-        );
 
-    if (result == AddToCartResult.vendorConflict) {
-      _showVendorConflictDialog(item, vendorId);
-    } else {
-      // Success — expand to show all items from this vendor
+    // Fetch the full item detail (includes variants & addons) from the
+    // per-item endpoint. Fall back to the catalog item if the call fails.
+    MenuItem fullItem = item;
+    try {
+      fullItem = await ref
+          .read(vendorRepositoryProvider)
+          .getStoreItem(vendorId, item.id);
+    } catch (_) {
+      // catalogue item used as fallback — addons may be absent
+    }
+
+    if (!mounted) return;
+
+    await ItemAddSheet.show(
+      context,
+      item: fullItem,
+      vendorId: vendorId,
+      vendorName: fullItem.vendorDisplayName ?? item.vendorDisplayName ?? vendorId,
+      zoneId: '',
+    );
+
+    // After the sheet closes, expand this vendor's items if the cart now
+    // contains something from it.
+    if (!mounted) return;
+    final updatedCart = ref.read(cartProvider);
+    if (updatedCart.vendorId == vendorId || updatedCart.vendorId == null) {
       setState(() {
         _expandedVendorId = vendorId;
-        _expandedVendorName = item.vendorDisplayName;
+        _expandedVendorName = fullItem.vendorDisplayName ?? item.vendorDisplayName;
       });
     }
-  }
-
-  void _showVendorConflictDialog(MenuItem item, String vendorId) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const AppText('Different Vendor', fontWeight: FontWeight.bold),
-        content: const AppText(
-          'You already have items from another vendor in your cart. Clear your cart and add this item?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const AppText('Cancel', color: AppColors.grayText),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(cartProvider.notifier).clearCart();
-              ref.read(cartProvider.notifier).addToCart(
-                    item,
-                    vendorId: vendorId,
-                    zoneId: '',
-                  );
-              setState(() {
-                _expandedVendorId = vendorId;
-                _expandedVendorName = item.vendorDisplayName;
-              });
-            },
-            child: const AppText(
-              'Clear & Add',
-              color: AppColors.primaryOrange,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildVendorCard(Vendor vendor) {

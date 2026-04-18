@@ -21,6 +21,9 @@ abstract class VendorRepository {
   /// Get the full store catalog (store info + items) for a vendor.
   Future<StoreCatalogResponse> getStoreCatalog(String vendorId);
 
+  /// Get full detail for a single store item (includes addons and variants).
+  Future<MenuItem> getStoreItem(String vendorId, String itemId);
+
   /// Search vendors by name query.
   Future<List<Vendor>> searchVendors(String query);
 }

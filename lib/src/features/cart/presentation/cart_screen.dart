@@ -24,6 +24,7 @@ import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/features/location/data/address_models.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
+import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -144,10 +145,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     try {
       final orderItems = cartState.items.values.map((cartItem) {
+        final variantDelta = cartItem.selectedVariant?.priceDelta ?? 0.0;
+        final addonTotal = cartItem.selectedAddons.fold<double>(
+          0,
+          (s, a) => s + a.price,
+        );
         return CreateOrderItemDto(
           name: cartItem.menuItem.name,
           qty: cartItem.quantity,
-          unitPriceKobo: CurrencyUtils.nairaToKobo(cartItem.menuItem.price),
+          unitPriceKobo: CurrencyUtils.nairaToKobo(
+            cartItem.menuItem.price + variantDelta + addonTotal,
+          ),
         );
       }).toList();
 
@@ -283,6 +291,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   void _showPaymentSheet(double totalAmount) {
+    final session = ref.read(sessionServiceProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -290,6 +299,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       builder: (_) => _PaymentBottomSheet(
         selectedPaymentMethod: _selectedPaymentMethod,
         totalAmount: totalAmount,
+        isAuthenticated: session.isLoggedIn,
         onMethodChanged: (method) =>
             setState(() => _selectedPaymentMethod = method),
         onConfirm: () async {
@@ -366,6 +376,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartState = ref.watch(cartProvider);
     final cartItemsList = cartState.items.values.toList();
     final totalPrice = cartState.totalPrice;
+
+    // Resolve vendor open state from the zone vendor list
+    bool vendorIsOpen = true;
+    String? vendorOpensAt;
+    if (cartState.zoneId != null) {
+      ref.watch(vendorsByZoneProvider(cartState.zoneId!)).whenData((vendors) {
+        final v = vendors.cast<dynamic>().firstWhere(
+          (v) => v.id == cartState.vendorId,
+          orElse: () => null,
+        );
+        if (v != null) {
+          vendorIsOpen = v.isOpen != false;
+          vendorOpensAt = v.opensAt as String?;
+        }
+      });
+    }
 
     // Delivery fee fallback: use vendor's deliveryFeeNaira if estimate not yet loaded
     // final double vendorDeliveryFee = cartState.zoneId != null
@@ -489,6 +515,53 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
+          // Closed vendor banner
+          if (!vendorIsOpen)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.storefront_outlined,
+                        size: 18, color: Colors.red.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AppText(
+                            'Vendor is currently closed',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                          ),
+                          if (vendorOpensAt != null &&
+                              vendorOpensAt!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            AppText(
+                              'Opens at $vendorOpensAt',
+                              fontSize: 12,
+                              color: Colors.red.shade600,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Bill Summary + Place Order button
           SliverFillRemaining(
             hasScrollBody: false,
@@ -545,9 +618,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: _isLoadingEstimate
+                      onPressed: (_isLoadingEstimate || !vendorIsOpen)
                           ? null
-                          : () => _showPaymentSheet(totalAmount),
+                          : () {
+                              if (!session.isLoggedIn) {
+                                showModalBottomSheet<void>(
+                                  context: context,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => const SignUpToOrderSheet(),
+                                );
+                                return;
+                              }
+                              _showPaymentSheet(totalAmount);
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryOrange,
                         disabledBackgroundColor: AppColors.primaryOrange
@@ -566,17 +649,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                 strokeWidth: 2.5,
                               ),
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // Icon(
-                                //   Icons.lock_outline,
-                                //   color: Colors.white,
-                                //   size: 18,
-                                // ),
-                                // SizedBox(width: 8),
+                                if (!vendorIsOpen)
+                                  const Padding(
+                                    padding: EdgeInsets.only(right: 8),
+                                    child: Icon(
+                                      Icons.lock_outline,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
                                 AppText(
-                                  "Place Order",
+                                  vendorIsOpen ? "Place Order" : "Vendor Closed",
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -597,12 +683,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   Widget _buildCartItem(WidgetRef ref, CartItem cartItem) {
     final item = cartItem.menuItem;
+    final variantDelta = cartItem.selectedVariant?.priceDelta ?? 0.0;
+    final addonTotal = cartItem.selectedAddons.fold<double>(
+      0,
+      (s, a) => s + a.price,
+    );
+    final linePrice = item.price + variantDelta + addonTotal;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 60,
@@ -626,28 +720,71 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppText(
-                      item.name,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: AppText(
+                            item.name,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => ref
+                              .read(cartProvider.notifier)
+                              .removeFromCart(item.id),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red.shade400,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (item.description != null &&
+                        item.description!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppText(
+                        item.description!,
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (cartItem.selectedVariant != null) ...[
+                      const SizedBox(height: 2),
+                      AppText(
+                        cartItem.selectedVariant!.name,
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ],
+                    if (cartItem.selectedAddons.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      AppText(
+                        cartItem.selectedAddons.map((a) => a.name).join(', '),
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     AppText(
-                      item.description ?? '',
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    AppText(
-                      Formatters.formatNaira(item.price),
+                      Formatters.formatNaira(linePrice),
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
@@ -823,12 +960,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 class _PaymentBottomSheet extends StatefulWidget {
   final String selectedPaymentMethod;
   final double totalAmount;
+  final bool isAuthenticated;
   final ValueChanged<String> onMethodChanged;
   final Future<void> Function() onConfirm;
 
   const _PaymentBottomSheet({
     required this.selectedPaymentMethod,
     required this.totalAmount,
+    required this.isAuthenticated,
     required this.onMethodChanged,
     required this.onConfirm,
   });
@@ -891,13 +1030,15 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
             subtitle: 'Pay securely via Paystack',
             icon: Icons.credit_card_rounded,
           ),
-          const SizedBox(height: 10),
-          _buildOption(
-            value: 'WALLET',
-            title: 'Wallet',
-            subtitle: 'Use your DropX wallet balance',
-            icon: Icons.account_balance_wallet_rounded,
-          ),
+          if (widget.isAuthenticated) ...[
+            const SizedBox(height: 10),
+            _buildOption(
+              value: 'WALLET',
+              title: 'Wallet',
+              subtitle: 'Use your DropX wallet balance',
+              icon: Icons.account_balance_wallet_rounded,
+            ),
+          ],
           const SizedBox(height: 10),
           _buildOption(
             value: 'GENERATE_LINK',

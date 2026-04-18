@@ -211,7 +211,11 @@ class _ParcelCard extends StatelessWidget {
               children: [
                 Icon(Icons.chevron_right, size: 14, color: AppColors.slate400),
                 AppText(
-                  'Tap to track',
+                  (parcel.state == 'DELIVERED' ||
+                          parcel.state == 'COMPLETED' ||
+                          parcel.state == 'CANCELLED')
+                      ? 'View details'
+                      : 'Tap to track',
                   fontSize: 11,
                   color: AppColors.slate400,
                 ),
