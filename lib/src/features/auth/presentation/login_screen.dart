@@ -100,7 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           AppRoute.otp,
           arguments: {
             'sentTo': isEmail ? email! : phone!,
-            'channel': challenge.channel,
+            'channel': challenge.channel ?? 'email',
             'otpChallengeId': challenge.otpChallengeId,
             'resendAvailableAt': challenge.resendAvailableAt,
             'purpose': 'LOGIN',

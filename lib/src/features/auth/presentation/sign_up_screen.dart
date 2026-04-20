@@ -131,7 +131,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
           AppRoute.otp,
           arguments: {
             'sentTo': sentTo,
-            'channel': challenge.channel,
+            'channel': challenge.channel ?? 'email',
             'otpChallengeId': challenge.otpChallengeId,
             'resendAvailableAt': challenge.resendAvailableAt,
           },
