@@ -14,7 +14,8 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  const String flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+  await dotenv.load(fileName: '.env.$flavor');
   final prefs = await SharedPreferences.getInstance();
   final sessionService = SessionService(prefs);
 

@@ -669,6 +669,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                               onPressed: () => Navigator.pushNamed(
                                 context,
                                 AppRoute.receipt,
+                                arguments: {'orderId': widget.orderId},
                               ),
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(
