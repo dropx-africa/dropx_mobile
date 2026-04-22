@@ -4,13 +4,13 @@
 /// when the backend changes.
 library;
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../app_config.dart';
 
 class ApiEndpoints {
   ApiEndpoints._();
 
   // Base
-  static String get baseUrl => dotenv.env['BACKEND_BASE_URL'] ?? '';
+  static const String baseUrl = AppConfig.backendBaseUrl;
 
   // Auth
   static const String login = '/auth/login';

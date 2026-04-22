@@ -4,23 +4,35 @@
 
 all: get
 
+DEV_DEFINES = \
+	--dart-define=BACKEND_BASE_URL=https://api-production-dcbb.up.railway.app \
+	--dart-define=CLOUDINARY_CLOUD_NAME=dxcyytvmm \
+	--dart-define=CLOUDINARY_UPLOAD_PRESET=flutter_unsigned_upload \
+	--dart-define=GOOGLE_MAPS_API_KEY=AIzaSyBW0zgD8_dIPtv9u2UWYM8vWgaIeIMM-Jk
+
+PROD_DEFINES = \
+	--dart-define=BACKEND_BASE_URL=https://api-production-dcbb.up.railway.app \
+	--dart-define=CLOUDINARY_CLOUD_NAME=dxcyytvmm \
+	--dart-define=CLOUDINARY_UPLOAD_PRESET=flutter_unsigned_upload \
+	--dart-define=GOOGLE_MAPS_API_KEY=AIzaSyBW0zgD8_dIPtv9u2UWYM8vWgaIeIMM-Jk
+
 run-dev:
-	flutter run --dart-define=FLAVOR=dev
+	flutter run $(DEV_DEFINES)
 
 run-prod:
-	flutter run --dart-define=FLAVOR=prod
+	flutter run $(PROD_DEFINES)
 
 build-apk-dev:
-	flutter build apk --dart-define=FLAVOR=dev
+	flutter build apk $(DEV_DEFINES)
 
 build-apk-prod:
-	flutter build apk --dart-define=FLAVOR=prod
+	flutter build apk $(PROD_DEFINES)
 
 build-aab-dev:
-	flutter build appbundle --dart-define=FLAVOR=dev
+	flutter build appbundle $(DEV_DEFINES)
 
 build-aab-prod:
-	flutter build appbundle --dart-define=FLAVOR=prod
+	flutter build appbundle $(PROD_DEFINES)
 
 clean:
 	flutter clean
