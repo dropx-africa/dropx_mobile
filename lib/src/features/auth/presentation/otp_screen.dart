@@ -157,7 +157,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         if (mounted) {
           AppToast.showSuccess(context, 'OTP verified successfully!');
           if (session.hasConfirmedLocation) {
-            AppNavigator.pushReplacement(context, AppRoute.dashboard);
+            AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
           } else {
             AppNavigator.pushReplacement(context, AppRoute.manualLocation);
           }

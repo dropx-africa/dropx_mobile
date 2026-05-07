@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
+import 'package:dropx_mobile/src/core/app_config.dart';
 
 /// Service for Google Maps geocoding and Places Autocomplete.
 ///
@@ -11,7 +11,7 @@ import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
 /// both use the Google Maps Platform APIs directly.
 class PlacesService {
   final http.Client _client = http.Client();
-  final String _apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+  static const String _apiKey = AppConfig.googleMapsApiKey;
 
   // ── Forward search (autocomplete) ────────────────────────────────────
 
