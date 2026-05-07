@@ -285,8 +285,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         AppToast.showError(context, 'Failed to place order: ${e.toString()}');
+      }
     }
   }
 
@@ -336,7 +337,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _TopupBottomSheet(
+      builder: (_) => TopupBottomSheet(
         totalAmount: totalAmount,
         currentBalance: currentBalance,
       ),
@@ -1170,20 +1171,20 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
 
 // ─── Top-up bottom sheet ────────────────────────────────────────────────────
 
-class _TopupBottomSheet extends ConsumerStatefulWidget {
+class TopupBottomSheet extends ConsumerStatefulWidget {
   final double totalAmount;
   final double currentBalance;
 
-  const _TopupBottomSheet({
+  const TopupBottomSheet({
     required this.totalAmount,
     required this.currentBalance,
   });
 
   @override
-  ConsumerState<_TopupBottomSheet> createState() => _TopupBottomSheetState();
+  ConsumerState<TopupBottomSheet> createState() => _TopupBottomSheetState();
 }
 
-class _TopupBottomSheetState extends ConsumerState<_TopupBottomSheet> {
+class _TopupBottomSheetState extends ConsumerState<TopupBottomSheet> {
   final _amountController = TextEditingController();
   bool _isLoading = false;
 

@@ -57,11 +57,21 @@ class _ItemAddSheetState extends ConsumerState<ItemAddSheet> {
   @override
   void initState() {
     super.initState();
-    // Pre-select the default variant.
-    final defaultVariant = widget.item.variants
-        ?.where((v) => v.isDefault && v.status == 'ACTIVE')
-        .firstOrNull;
-    _selectedVariantId = defaultVariant?.variantId;
+
+    final active = (widget.item.variants ?? [])
+        .where((v) => v.status == 'ACTIVE')
+        .toList();
+
+    if (active.length == 1) {
+      // Only one variant — select it automatically
+      _selectedVariantId = active.first.variantId;
+    } else {
+      // Multiple variants — pre-select the default one if present
+      final defaultVariant = active
+          .where((v) => v.isDefault)
+          .firstOrNull;
+      _selectedVariantId = defaultVariant?.variantId;
+    }
   }
 
   // ─── Active addon/variant helpers ──────────────────────────────────────────
@@ -198,7 +208,7 @@ class _ItemAddSheetState extends ConsumerState<ItemAddSheet> {
   Widget build(BuildContext context) {
     final item = widget.item;
     final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
-    final showVariants = _activeVariants.length > 1;
+    final showVariants = _activeVariants.isNotEmpty;
     final groups = _addonGroups;
 
     return DraggableScrollableSheet(

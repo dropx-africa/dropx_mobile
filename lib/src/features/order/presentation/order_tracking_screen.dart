@@ -104,31 +104,77 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
   void _onSseEvent(SseEvent event) {
-    if (!mounted || event.type != 'order.state') return;
+    debugPrint('📡 [SSE] type=${event.type} data=${event.data}');
+    if (!mounted) return;
+    if (event.type == 'heartbeat' || event.data.isEmpty) return;
+
+    // Accept state_change events
+    if (event.type != 'state_change') return;
+
     try {
       final json = jsonDecode(event.data) as Map<String, dynamic>;
-      final updated = OrderTrackingLiveData.fromJson(json);
-      setState(() {
-        _liveData = updated;
-        _locationIsStale = updated.isStale ?? false;
-        _applyState(updated.state);
-      });
-      if (updated.location != null && _mapController != null) {
-        _mapController!.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(updated.location!.lat, updated.location!.lng),
-          ),
-        );
-      }
-      final state = updated.state;
-      if (state == 'IN_TRANSIT' ||
-          state == 'PICKED_UP' ||
-          state == 'ARRIVED_DROPOFF') {
+      final newState = json['state'] as String?;
+
+      debugPrint('📡 [SSE] state_change → $newState');
+
+      if (newState == null) return;
+
+      // Apply the state immediately from the SSE payload
+      // Don't try to parse a full OrderTrackingLiveData from this minimal payload
+      setState(() => _applyState(newState));
+
+      // Then fetch full tracking data to get rider info, ETA, location etc.
+      _fetchLiveTrackingSilent();
+
+      if (newState == 'IN_TRANSIT' ||
+          newState == 'PICKED_UP' ||
+          newState == 'ARRIVED_DROPOFF') {
         _fetchDeliveryOtp();
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('📡 [SSE] parse error: $e');
+    }
   }
-
+  Future<void> _fetchLiveTrackingSilent() async {
+    if (widget.orderId == null) return;
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final response = await repo.trackOrderLive(widget.orderId!);
+      if (mounted) {
+        setState(() {
+          _liveData = response.data;
+          _locationIsStale = false;
+          _applyState(_liveData?.state ?? 'PLACED');
+          if (_liveData?.location != null && _mapController != null) {
+            _mapController!.animateCamera(
+              CameraUpdate.newLatLng(
+                LatLng(_liveData!.location!.lat, _liveData!.location!.lng),
+              ),
+            );
+          }
+        });
+        final state = _liveData?.state ?? '';
+        if (state == 'IN_TRANSIT' ||
+            state == 'PICKED_UP' ||
+            state == 'ARRIVED_DROPOFF') {
+          _fetchDeliveryOtp();
+        }
+      }
+    } catch (e) {
+      if (e is ApiException && (e.statusCode == 409 || e.statusCode == 503)) {
+        final errorBody = e.data as Map<String, dynamic>?;
+        final details = errorBody?['error']?['details'] as Map<String, dynamic>?;
+        final stateFromError = details?['state'] as String?;
+        if (mounted && stateFromError != null) {
+          setState(() {
+            _applyState(stateFromError);
+            _locationIsStale = e.statusCode == 503;
+          });
+        }
+      }
+      // Silent — no spinner, no snackbar
+    }
+  }
   Future<void> _fetchLiveTracking() async {
     if (widget.orderId == null) return;
     setState(() => _isLoading = true);

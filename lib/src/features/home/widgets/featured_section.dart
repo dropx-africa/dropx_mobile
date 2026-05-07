@@ -20,7 +20,7 @@ class FeaturedSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
     final feedParams = FeedParams(
-      vertical: category.name,
+      vertical: category.apiValue,
       lat: session.savedLat,
       lng: session.savedLng,
     );
@@ -28,27 +28,31 @@ class FeaturedSection extends ConsumerWidget {
 
     return feedAsync.when(
       loading: () =>
-          const SizedBox(height: 250, child: Center(child: AppLoading())),
+      const SizedBox(height: 250, child: Center(child: AppLoading())),
       error: (e, st) => const SizedBox.shrink(),
       data: (feedData) {
         final items = feedData.items;
 
         String title;
         switch (category) {
-          case VendorCategory.pharmacy:
-            title = 'Featured Pharmacies';
+          case VendorCategory.food:
+            title = 'Featured Food';
             break;
           case VendorCategory.retail:
             title = 'Top Stores';
             break;
-          case VendorCategory.food:
-            title = 'Featured Food';
+          case VendorCategory.pharmacy:
+            title = 'Featured Pharmacies';
             break;
-          default:
+          case VendorCategory.parcel:
+          case VendorCategory.other:
             title = 'Featured Vendors';
+            break;
         }
 
         if (items.isEmpty) {
+          // For food we hide the section silently when empty.
+          // For retail we show a coming soon state.
           if (category == VendorCategory.food) {
             return const SizedBox.shrink();
           }
@@ -81,6 +85,8 @@ class FeaturedSection extends ConsumerWidget {
                     onPressed: () {
                       if (category == VendorCategory.food) {
                         AppNavigator.push(context, AppRoute.featuredFood);
+                      } else if (category == VendorCategory.retail) {
+                        AppNavigator.push(context, AppRoute.featuredRetail);
                       }
                     },
                     child: const Text(
@@ -113,16 +119,23 @@ class FeaturedSection extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(VendorCategory category) {
-    String message = "No vendors available right now.";
-    if (category == VendorCategory.pharmacy) {
-      message = "No pharmacies found near your location.";
-    } else if (category == VendorCategory.retail) {
-      message = "No retail stores found near you.";
+    String message;
+    switch (category) {
+      case VendorCategory.retail:
+        message = 'No stores near you right now.';
+        break;
+      case VendorCategory.pharmacy:
+        message = 'No pharmacies found near your location.';
+        break;
+      case VendorCategory.food:
+      case VendorCategory.parcel:
+      case VendorCategory.other:
+        message = 'No vendors available right now.';
+        break;
     }
-
     return AppEmptyState(
       icon: Icons.storefront_outlined,
-      title: "Coming Soon",
+      title: 'Coming Soon',
       message: message,
     );
   }

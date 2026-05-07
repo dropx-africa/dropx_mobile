@@ -4,7 +4,6 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/support/providers/support_providers.dart';
 import 'package:dropx_mobile/src/features/support/data/dto/ticket_dto.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/support_ticket_detail_screen.dart';
 
 class SupportTicketsScreen extends ConsumerStatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -63,7 +62,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     decoration: const InputDecoration(labelText: "Category"),
                     items: ['PAYMENT', 'DELIVERY', 'ACCOUNT']
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
@@ -73,7 +72,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _selectedPriority,
+                    initialValue: _selectedPriority,
                     decoration: const InputDecoration(labelText: "Priority"),
                     items: ['LOW', 'MEDIUM', 'HIGH']
                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))

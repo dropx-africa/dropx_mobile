@@ -43,7 +43,40 @@ class SessionService {
   String get email => _prefs.getString(_keyEmail) ?? '';
   String get fullName => _prefs.getString(_keyFullName) ?? '';
   String get phone => _prefs.getString(_keyPhone) ?? '';
+// ── Group Order Session ───────────────────────────────────────────────
+  static const _keyGroupOrderId = 'active_group_order_id';
+  static const _keyGroupParticipantToken = 'active_group_participant_token';
+  static const _keyGroupInviteUrl = 'active_group_invite_url';
+  static const _keyGroupVendorId = 'active_group_vendor_id';
+  static const _keyGroupIsHost = 'active_group_is_host';
 
+  String? get activeGroupOrderId => _prefs.getString(_keyGroupOrderId);
+  String? get activeGroupParticipantToken => _prefs.getString(_keyGroupParticipantToken);
+  String? get activeGroupInviteUrl => _prefs.getString(_keyGroupInviteUrl);
+  String? get activeGroupVendorId => _prefs.getString(_keyGroupVendorId);
+  bool get activeGroupIsHost => _prefs.getBool(_keyGroupIsHost) ?? false;
+
+  Future<void> saveGroupOrderSession({
+    required String groupOrderId,
+    required String participantToken,
+    required bool isHost,
+    String? inviteUrl,
+    String? vendorId,
+  }) async {
+    await _prefs.setString(_keyGroupOrderId, groupOrderId);
+    await _prefs.setString(_keyGroupParticipantToken, participantToken);
+    await _prefs.setBool(_keyGroupIsHost, isHost);
+    if (inviteUrl != null) await _prefs.setString(_keyGroupInviteUrl, inviteUrl);
+    if (vendorId != null) await _prefs.setString(_keyGroupVendorId, vendorId);
+  }
+
+  Future<void> clearGroupOrderSession() async {
+    await _prefs.remove(_keyGroupOrderId);
+    await _prefs.remove(_keyGroupParticipantToken);
+    await _prefs.remove(_keyGroupInviteUrl);
+    await _prefs.remove(_keyGroupVendorId);
+    await _prefs.remove(_keyGroupIsHost);
+  }
   // ── Mutators ──────────────────────────────────────────────────────────
   Future<void> markOnboardingDone() async {
     await _prefs.setBool(_keyOnboardingSeen, true);

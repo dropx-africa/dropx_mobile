@@ -21,6 +21,8 @@ class AppRoute {
   static const payLink = "/pay-link";
   static const featuredFood = "/featured-food";
   static const fastestFood = "/fastest-food";
+  static const featuredRetail = "/featured-retail";
+  static const fastestRetail = "/fastest-retail";
   static const notifications = "/notifications";
   static const walletTopup = "/wallet-topup";
   static const walletTopupCheckout = "/wallet-topup-checkout";
@@ -32,4 +34,6 @@ class AppRoute {
   static const supportTickets = "/support-tickets";
   static const parcel = "/parcel";
   static const parcelTracking = "/parcel-tracking";
+  static const groupOrder = "/group-order";
+  static const joinGroupOrder = "/join-group-order";
 }

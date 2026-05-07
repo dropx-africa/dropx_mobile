@@ -1,7 +1,4 @@
 /// Centralized API endpoint paths.
-///
-/// All endpoint strings live here so they can be updated in one place
-/// when the backend changes.
 library;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -31,7 +28,8 @@ class ApiEndpoints {
   static String vendorById(String id) => '/vendors/$id';
   static String vendorMenu(String vendorId) => '/vendors/$vendorId/menu';
   static String storeCatalog(String vendorId) => '/stores/$vendorId/catalog';
-  static String storeItem(String vendorId, String itemId) => '/stores/$vendorId/items/$itemId';
+  static String storeItem(String vendorId, String itemId) =>
+      '/stores/$vendorId/items/$itemId';
 
   // Orders
   static const String orders = '/orders';
@@ -62,8 +60,7 @@ class ApiEndpoints {
       '/parcels/$id/payments/verify/paystack';
   static String parcelRecipientConfirm(String id) =>
       '/parcels/$id/recipient-confirmation/verify';
-  static String parcelTrackingLive(String id) =>
-      '/parcels/$id/tracking-live';
+  static String parcelTrackingLive(String id) => '/parcels/$id/tracking-live';
 
   // SSE
   static String sseOrder(String id) => '/sse/orders/$id';
@@ -71,8 +68,6 @@ class ApiEndpoints {
 
   // Payments
   static const String initializePayment = '/payments/initialize';
-  // Webhook only — not called from the client.
-  // static const String verifyPayment = '/payments/webhook/paystack';
 
   // Pay Links
   static String payLinkDetails(String token) => '/pay-links/$token';
@@ -84,12 +79,25 @@ class ApiEndpoints {
   static const String cartClear = '/me/cart/clear';
 
   // Location
-  static const String searchLocation = '/locations/search'; // legacy
+  static const String searchLocation = '/locations/search';
 
-  // Group Orders
   static const String groups = '/groups';
   static String groupById(String id) => '/groups/$id';
   static String groupPoll(String groupId) => '/groups/$groupId/poll';
+
+  static const String groupOrders = '/group-orders';
+  static String groupOrderById(String id) => '/group-orders/$id';
+  static String groupOrderItems(String id) => '/group-orders/$id/items';
+  static String groupOrderItem(String id, String itemId) =>
+      '/group-orders/$id/items/$itemId';
+  static String groupOrderLock(String id) => '/group-orders/$id/lock';
+  static String groupOrderEstimate(String id) => '/group-orders/$id/estimate';
+  static String groupOrderCheckout(String id) => '/group-orders/$id/checkout';
+  static String groupOrderEvents(String id) => '/group-orders/$id/events';
+  static String groupOrderInvite(String token) =>
+      '/group-orders/invite/$token';
+  static String groupOrderJoin(String token) =>
+      '/group-orders/invite/$token/join';
 
   // Addresses
   static const String addresses = '/me/addresses';

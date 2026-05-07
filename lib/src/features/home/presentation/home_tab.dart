@@ -49,7 +49,8 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => _height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.primaryOrange,
@@ -112,8 +113,8 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _StickyOrangeHeaderDelegate oldDelegate) =>
       oldDelegate.safeAreaTop != safeAreaTop ||
-      oldDelegate.displayAddress != displayAddress ||
-      oldDelegate.isGuest != isGuest;
+          oldDelegate.displayAddress != displayAddress ||
+          oldDelegate.isGuest != isGuest;
 }
 
 class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
@@ -123,10 +124,10 @@ class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+      BuildContext context,
+      double shrinkOffset,
+      bool overlapsContent,
+      ) {
     return SizedBox.expand(child: child);
   }
 
@@ -143,6 +144,8 @@ class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _HomeTabState extends ConsumerState<HomeTab> {
+  // Default to food. Only Food and Grocery & Retail are shown per launch rules.
+  // Pharmacy is intentionally excluded from the category pills.
   VendorCategory _selectedCategory = VendorCategory.food;
 
   @override
@@ -189,34 +192,28 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
+                    // Food pill
                     _VerticalPill(
                       label: 'Food',
                       icon: Icons.restaurant,
                       isSelected: _selectedCategory == VendorCategory.food,
                       onTap: () => setState(
-                        () => _selectedCategory = VendorCategory.food,
+                            () => _selectedCategory = VendorCategory.food,
                       ),
                     ),
                     const SizedBox(width: 10),
+                    // Grocery & Retail pill — uses VendorCategory.retail
+                    // which sends 'shops' to the API
                     _VerticalPill(
-                      label: 'Pharmacy',
-                      icon: Icons.local_pharmacy,
-                      isSelected:
-                          _selectedCategory == VendorCategory.pharmacy,
-                      onTap: () => setState(
-                        () => _selectedCategory = VendorCategory.pharmacy,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _VerticalPill(
-                      label: 'Retail',
+                      label: 'Grocery & Retail',
                       icon: Icons.shopping_bag_outlined,
                       isSelected: _selectedCategory == VendorCategory.retail,
                       onTap: () => setState(
-                        () => _selectedCategory = VendorCategory.retail,
+                            () => _selectedCategory = VendorCategory.retail,
                       ),
                     ),
                     const SizedBox(width: 10),
+                    // Parcel is a navigation action, not a feed filter
                     _VerticalPill(
                       label: 'Send Parcel',
                       icon: Icons.local_shipping_outlined,
@@ -251,29 +248,30 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       floatingActionButton: isGuest
           ? null
           : Consumer(
-              builder: (context, ref, child) {
-                final cartState = ref.watch(cartProvider);
-                final int itemCount = cartState.totalItemCount;
+        builder: (context, ref, child) {
+          final cartState = ref.watch(cartProvider);
+          final int itemCount = cartState.totalItemCount;
 
-                return FloatingActionButton(
-                  onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
-                  backgroundColor: AppColors.primaryOrange,
-                  child: Badge(
-                    isLabelVisible: itemCount > 0,
-                    label: Text(
-                      itemCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    backgroundColor: AppColors.errorRed,
-                    offset: const Offset(8, -8),
-                    child: const Icon(Icons.shopping_cart, color: Colors.white),
-                  ),
-                );
-              },
+          return FloatingActionButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
+            backgroundColor: AppColors.primaryOrange,
+            child: Badge(
+              isLabelVisible: itemCount > 0,
+              label: Text(
+                itemCount.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: AppColors.errorRed,
+              offset: const Offset(8, -8),
+              child:
+              const Icon(Icons.shopping_cart, color: Colors.white),
             ),
+          );
+        },
+      ),
     );
   }
 }
@@ -298,8 +296,8 @@ class _VerticalPill extends StatelessWidget {
     final Color bg = isAction
         ? AppColors.primaryOrange
         : isSelected
-            ? AppColors.primaryOrange
-            : Colors.grey.shade100;
+        ? AppColors.primaryOrange
+        : Colors.grey.shade100;
 
     final Color fg = (isAction || isSelected) ? Colors.white : Colors.black87;
 
@@ -313,12 +311,12 @@ class _VerticalPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(50),
           boxShadow: isSelected || isAction
               ? [
-                  BoxShadow(
-                    color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.primaryOrange.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ]
               : [],
         ),
         child: Row(

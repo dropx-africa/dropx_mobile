@@ -9,14 +9,12 @@ import 'package:dropx_mobile/src/common_widgets/app_text_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
-import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/core/utils/validators.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/register_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 import 'package:dropx_mobile/src/route/page.dart';
-import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {

@@ -149,13 +149,14 @@ class ApiClient {
 
   /// Opens a Server-Sent Events stream. Yields [SseEvent] objects as they arrive.
   /// The stream ends when the server closes the connection.
-  Stream<SseEvent> sseStream(String path) async* {
+  Stream<SseEvent> sseStream(String path, {Map<String, String>? headers}) async* {
     final uri = _buildUri(path);
     final request = http.Request('GET', uri);
     request.headers.addAll({
       'Accept': 'text/event-stream',
       'Cache-Control': 'no-cache',
       if (_authToken != null) 'Authorization': 'Bearer $_authToken',
+      ...?headers,  // merge extra headers
     });
 
     http.StreamedResponse response;
@@ -205,7 +206,7 @@ class ApiClient {
 
       debugPrint('[API] Request to ${response.request?.url}');
       debugPrint('[API] Response status: ${response.statusCode}');
-      debugPrint('[API] Response body: ${response.body}');
+      debugPrint(wrapWidth: 1024, '[API] Response body: ${response.body}');
 
       if (response.statusCode == 401) {
         if (_refreshToken != null) {

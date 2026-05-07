@@ -127,7 +127,7 @@ class _NotificationSettingsScreenState
                     fontSize: 16,
                   ),
                   value: marketing,
-                  activeColor: AppColors.primaryOrange,
+                  activeThumbColor: AppColors.primaryOrange,
                   onChanged: (val) {
                     setState(() => _optInMarketing = val);
                     ref
@@ -145,7 +145,7 @@ class _NotificationSettingsScreenState
                     fontSize: 16,
                   ),
                   value: showFriends,
-                  activeColor: AppColors.primaryOrange,
+                  activeThumbColor: AppColors.primaryOrange,
                   onChanged: (val) {
                     setState(() => _showFriends = val);
                     ref
@@ -229,7 +229,7 @@ class _NotificationSettingsScreenState
               Switch.adaptive(
                 value: value,
                 onChanged: onChanged,
-                activeColor: AppColors.primaryOrange,
+                activeThumbColor: AppColors.primaryOrange,
               ),
             ],
           ),

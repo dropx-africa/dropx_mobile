@@ -202,8 +202,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       if (mounted) AppToast.showError(context, e.message);
     } catch (e) {
       AppLog.d('[OTP] Resend error: $e');
-      if (mounted)
+      if (mounted) {
         AppToast.showError(context, 'Could not resend OTP. Try again.');
+      }
     } finally {
       if (mounted) setState(() => _isResending = false);
     }

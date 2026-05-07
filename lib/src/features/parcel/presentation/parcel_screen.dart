@@ -410,7 +410,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                               ),
                               Switch(
                                 value: _isUrgent,
-                                activeColor: AppColors.primaryOrange,
+                                activeThumbColor: AppColors.primaryOrange,
                                 onChanged: (v) => setState(() {
                                   _isUrgent = v;
                                   _quote = null;

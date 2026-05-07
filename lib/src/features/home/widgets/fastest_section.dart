@@ -20,7 +20,7 @@ class FastestSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
     final feedParams = FeedParams(
-      vertical: category.name,
+      vertical: category.apiValue,
       lat: session.savedLat,
       lng: session.savedLng,
       radiusKm: 10,
@@ -29,27 +29,31 @@ class FastestSection extends ConsumerWidget {
 
     return feedAsync.when(
       loading: () =>
-          const SizedBox(height: 250, child: Center(child: AppLoading())),
+      const SizedBox(height: 250, child: Center(child: AppLoading())),
       error: (e, st) => const SizedBox.shrink(),
       data: (feedData) {
         final items = feedData.items;
 
         String title;
         switch (category) {
-          case VendorCategory.pharmacy:
-            title = 'Quick Meds';
-            break;
-          case VendorCategory.retail:
-            title = 'Quick Retail';
-            break;
           case VendorCategory.food:
             title = 'Fastest Food';
             break;
-          default:
-            title = 'Fastest Vendors';
+          case VendorCategory.retail:
+            title = 'Quick Stores';
+            break;
+          case VendorCategory.pharmacy:
+            title = 'Quick Meds';
+            break;
+          case VendorCategory.parcel:
+          case VendorCategory.other:
+            title = 'Nearby Vendors';
+            break;
         }
 
         if (items.isEmpty) {
+          // For food we hide the section silently when empty.
+          // For retail we show a coming soon state.
           if (category == VendorCategory.food) {
             return const SizedBox.shrink();
           }
@@ -82,6 +86,8 @@ class FastestSection extends ConsumerWidget {
                     onPressed: () {
                       if (category == VendorCategory.food) {
                         AppNavigator.push(context, AppRoute.fastestFood);
+                      } else if (category == VendorCategory.retail) {
+                        AppNavigator.push(context, AppRoute.fastestRetail);
                       }
                     },
                     child: const Text(
@@ -112,18 +118,24 @@ class FastestSection extends ConsumerWidget {
       },
     );
   }
-
   Widget _buildEmptyState(VendorCategory category) {
-    String message = "No vendors available right now.";
-    if (category == VendorCategory.pharmacy) {
-      message = "No pharmacies found near your location.";
-    } else if (category == VendorCategory.retail) {
-      message = "No retail stores found near you.";
+    String message;
+    switch (category) {
+      case VendorCategory.retail:
+        message = 'No stores near you right now.';
+        break;
+      case VendorCategory.pharmacy:
+        message = 'No pharmacies found near your location.';
+        break;
+      case VendorCategory.food:
+      case VendorCategory.parcel:
+      case VendorCategory.other:
+        message = 'No vendors available right now.';
+        break;
     }
-
     return AppEmptyState(
       icon: Icons.storefront_outlined,
-      title: "Coming Soon",
+      title: 'Coming Soon',
       message: message,
     );
   }

@@ -21,7 +21,10 @@ class RemoteVendorRepository implements VendorRepository {
   }) async {
     final queryParams = <String, String>{};
     if (zoneId != null) queryParams['zone_id'] = zoneId;
-    if (category != null) queryParams['category'] = category.name;
+
+    // Use apiValue so retail sends 'shops', not 'retail'.
+    // food sends 'food', pharmacy sends 'pharmacy', etc.
+    if (category != null) queryParams['category'] = category.apiValue;
 
     final response = await _apiClient.get<VendorsResponse>(
       ApiEndpoints.vendors,
@@ -32,7 +35,10 @@ class RemoteVendorRepository implements VendorRepository {
 
     final vendors = response.data.vendors;
     if (kDebugMode) {
-      print('[VENDOR] Fetched ${vendors.length} vendors (category: ${category?.name ?? 'all'})');
+      print(
+        '[VENDOR] Fetched ${vendors.length} vendors '
+            '(category: ${category?.apiValue ?? 'all'})',
+      );
     }
     return vendors;
   }
@@ -49,12 +55,29 @@ class RemoteVendorRepository implements VendorRepository {
   }
 
   @override
-  Future<StoreCatalogResponse> getStoreCatalog(String vendorId) async {
+  Future<StoreCatalogResponse> getStoreCatalog(
+      String vendorId, {
+        VendorCategory? category,
+      }) async {
+    final queryParams = <String, String>{};
+
+    // For retail stores, pass ?category=shops so the backend returns
+    // the retail catalog. For food, no param is needed.
+    if (category != null) queryParams['category'] = category.apiValue;
+
     final response = await _apiClient.get<StoreCatalogResponse>(
       ApiEndpoints.storeCatalog(vendorId),
+      queryParams: queryParams.isNotEmpty ? queryParams : null,
       fromJson: (json) =>
           StoreCatalogResponse.fromJson(json as Map<String, dynamic>),
     );
+
+    if (kDebugMode) {
+      print(
+        '[VENDOR] Fetched catalog for $vendorId '
+            '(category: ${category?.apiValue ?? 'none'})',
+      );
+    }
 
     return response.data;
   }
@@ -63,7 +86,8 @@ class RemoteVendorRepository implements VendorRepository {
   Future<Vendor> getVendorById(String id) async {
     final response = await _apiClient.get<VendorResponse>(
       ApiEndpoints.vendorById(id),
-      fromJson: (json) => VendorResponse.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) =>
+          VendorResponse.fromJson(json as Map<String, dynamic>),
     );
 
     return response.data.vendor;
@@ -85,9 +109,9 @@ class RemoteVendorRepository implements VendorRepository {
     return vendors
         .where(
           (v) =>
-              v.name.toLowerCase().contains(lowered) ||
-              (v.tags?.any((t) => t.toLowerCase().contains(lowered)) ?? false),
-        )
+      v.name.toLowerCase().contains(lowered) ||
+          (v.tags?.any((t) => t.toLowerCase().contains(lowered)) ?? false),
+    )
         .toList();
   }
 }
