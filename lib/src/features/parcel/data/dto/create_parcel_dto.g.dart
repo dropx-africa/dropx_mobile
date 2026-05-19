@@ -8,7 +8,6 @@ part of 'create_parcel_dto.dart';
 
 Map<String, dynamic> _$CreateParcelDtoToJson(CreateParcelDto instance) =>
     <String, dynamic>{
-      'quote_id': instance.quoteId,
       'parcel_type': instance.parcelType,
       'pickup': instance.pickup.toJson(),
       'dropoff': instance.dropoff.toJson(),

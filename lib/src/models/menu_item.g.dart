@@ -66,6 +66,8 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
   addons: (json['addons'] as List<dynamic>?)
       ?.map((e) => MenuItemAddon.fromJson(e as Map<String, dynamic>))
       .toList(),
+  stockCount: (json['stock_count'] as num?)?.toInt(),
+  stockStatus: json['stock_status'] as String?,
 );
 
 Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
@@ -80,6 +82,8 @@ Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
   'vendor_id': instance.vendorId,
   'vendor_display_name': instance.vendorDisplayName,
   'is_available': instance.isAvailable,
-  'variants': instance.variants?.map((e) => e.toJson()).toList(),
-  'addons': instance.addons?.map((e) => e.toJson()).toList(),
+  'variants': instance.variants,
+  'addons': instance.addons,
+  'stock_count': instance.stockCount,
+  'stock_status': instance.stockStatus,
 };

@@ -65,15 +65,18 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   // ── Location ─────────────────────────────────────────────────────────────
 
   Future<void> _initLocation() async {
-    final granted = await _requestLocationPermission();
-    if (!mounted) return;
-    setState(() {
-      _locationGranted = granted;
-      _locationLoading = false;
-    });
-    if (granted && _mapReady) await _moveToCurrentLocation();
+    try {
+      final granted = await _requestLocationPermission();
+      if (!mounted) return;
+      setState(() {
+        _locationGranted = granted;
+        _locationLoading = false;
+      });
+      if (granted && _mapReady) await _moveToCurrentLocation();
+    } catch (_) {
+      if (mounted) setState(() => _locationLoading = false);
+    }
   }
-
   Future<bool> _requestLocationPermission() async {
     LocationPermission perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {

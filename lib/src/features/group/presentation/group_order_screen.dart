@@ -904,28 +904,14 @@ class _BottomActions extends ConsumerWidget {
       double totalAmount,
       double currentBalance,
       ) async {
-    final topupData = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => TopupBottomSheet(
-        totalAmount: totalAmount,
-        currentBalance: currentBalance,
-      ),
-    );
-
-    if (topupData == null || !context.mounted) return;
-
     final success = await AppNavigator.push<bool>(
       context,
-      AppRoute.walletTopupCheckout,
-      arguments: topupData,
+      AppRoute.walletTopup,
     );
 
-    // if (!mounted) return;
+    if (!context.mounted) return;
 
     if (success == true) {
-      // Refresh wallet balance and retry checkout
       ref.invalidate(walletBalanceProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -933,8 +919,19 @@ class _BottomActions extends ConsumerWidget {
           duration: Duration(seconds: 2),
         ),
       );
-      // Reopen the payment method selection
-      _showCheckoutConfirm(context, ref, await ref.read(groupOrderProvider.notifier).estimate());
+      // Re-run estimate and retry checkout
+      try {
+        final newEstimate = await ref.read(groupOrderProvider.notifier).estimate();
+        if (context.mounted) {
+          _showCheckoutConfirm(context, ref, newEstimate);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to refresh estimate: $e')),
+          );
+        }
+      }
     }
   }
 

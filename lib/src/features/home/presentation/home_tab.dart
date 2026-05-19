@@ -18,6 +18,8 @@ import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
 
+import '../../auth/presentation/sign_up_to_order_sheet.dart';
+
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
 
@@ -214,13 +216,31 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     ),
                     const SizedBox(width: 10),
                     // Parcel is a navigation action, not a feed filter
+                    // _VerticalPill(
+                    //   label: 'Send Parcel',
+                    //   icon: Icons.local_shipping_outlined,
+                    //   isSelected: false,
+                    //   isAction: true,
+                    //   onTap: () =>
+                    //       AppNavigator.push(context, AppRoute.parcel),
+                    // ),
                     _VerticalPill(
                       label: 'Send Parcel',
                       icon: Icons.local_shipping_outlined,
                       isSelected: false,
                       isAction: true,
-                      onTap: () =>
-                          AppNavigator.push(context, AppRoute.parcel),
+                      onTap: () {
+                        if (isGuest) {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (_) => const SignUpToOrderSheet(),
+                          );
+                          return;
+                        }
+                        AppNavigator.push(context, AppRoute.parcel);
+                      },
                     ),
                   ],
                 ),

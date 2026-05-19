@@ -1,7 +1,3 @@
-part 'cart_dto.g.dart';
-
-// ─── GET /me/cart response ────────────────────────────────────────────────
-// All read classes use manual fromJson — no code-gen needed.
 
 class ServerCartResponse {
   final bool ok;

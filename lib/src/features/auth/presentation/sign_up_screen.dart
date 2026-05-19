@@ -33,19 +33,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-
+  String _phoneE164 = '';
   // Email tab fields
   final _emailController = TextEditingController();
 
   // Single phone number for both tabs
   final _phoneController = TextEditingController();
-
+  bool get _hasValidPhone => _phoneE164.isNotEmpty && _phoneE164.startsWith('+');
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      setState(() {});
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
     });
   }
 
@@ -60,23 +62,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
   }
 
   Future<void> _handleSignUp() async {
-    // Validate full name
     if (_fullNameController.text.trim().isEmpty) {
       AppToast.showError(context, 'Full Name is Required');
       return;
     }
 
-    // Validate password
     final passwordError = Validators.password(_passwordController.text);
     if (passwordError != null) {
       AppToast.showError(context, passwordError);
       return;
     }
 
-    // Validate contact info based on tab
     final email = _emailController.text.trim();
     final hasEmail = email.isNotEmpty;
-    final hasPhone = _phoneController.text.length >= 10;
+    final hasPhone = _hasValidPhone;
 
     if (!hasEmail && !hasPhone) {
       AppToast.showError(context, 'Please provide an email or phone number');
@@ -91,33 +90,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
     setState(() => _isLoading = true);
 
     try {
-      final dto = RegisterDto(
-        fullName: _fullNameController.text.trim(),
-        email: hasEmail ? email : null,
-        phoneE164: hasPhone ? _phoneController.text : null,
-        password: _passwordController.text,
-        role: 'customer',
-      );
-
-      AppLog.d('[SignUp] DTO payload: ${dto.toJson()}');
-
-      final authResponse = await ref.read(authRepositoryProvider).register(dto);
-      AppLog.d('[SignUp] Success — userId: ${authResponse.userId}');
-
-      // Request OTP — prefer phone (SMS) when provided, fall back to email.
       final otpDto = OtpRequestDto(
         email: hasEmail ? email : null,
-        phoneE164: hasPhone ? _phoneController.text : null,
+        phoneE164: hasPhone ? _phoneE164 : null,
         purpose: 'REGISTER',
         channel: hasPhone ? 'sms' : 'email',
       );
-      final challenge = await ref
-          .read(authRepositoryProvider)
-          .requestOtp(otpDto);
+
+      AppLog.d('[SignUp] Requesting OTP: ${otpDto.toJson()}');
+
+      final challenge = await ref.read(authRepositoryProvider).requestOtp(otpDto);
 
       AppLog.d('[SignUp] OTP sent — challengeId: ${challenge.otpChallengeId}');
 
-      final sentTo = hasPhone ? _phoneController.text : email;
+      final sentTo = hasPhone ? _phoneE164 : email;
 
       if (mounted) {
         AppToast.showSuccess(
@@ -132,17 +118,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
             'channel': challenge.channel ?? 'email',
             'otpChallengeId': challenge.otpChallengeId,
             'resendAvailableAt': challenge.resendAvailableAt,
+            // Pass these so OTP screen can complete registration on verify
+            'fullName': _fullNameController.text.trim(),
+            'password': _passwordController.text,
+            'purpose': 'REGISTER',
           },
         );
       }
     } on ApiException catch (e) {
       AppLog.e('[SignUp] ApiException', e.message);
-      if (mounted) AppToast.showError(context, e.message);
+      if (mounted) {
+        if (e.statusCode == 500) {
+          AppToast.showError(context, 'Something went wrong on our side. Please try again.');
+        } else {
+          AppToast.showError(context, e.message);
+        }
+      }
     } catch (e) {
       AppLog.e('[SignUp] Unexpected error', e.toString());
-      if (mounted) {
-        AppToast.showError(context, 'Something went wrong. Please try again.');
-      }
+      if (mounted) AppToast.showError(context, 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -239,29 +233,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                 keyboardType: TextInputType.emailAddress,
               )
             : AppTextField(
-                isPhone: true,
-                label: 'Phone Number',
-                hintText: 'Enter your phone number',
-                controller: _phoneController,
-                onPhoneChanged: (phone) {
-                  setState(() {});
-                },
-              ),
+          isPhone: true,
+          label: 'Phone Number',
+          hintText: 'Enter your phone number',
+          controller: _phoneController,
+          onPhoneChanged: (phoneNumber) {
+            setState(() => _phoneE164 = phoneNumber.completeNumber);
+          },
+        ),
         AppSpaces.v16,
-
-        // Phone field (optional in email tab)
-        if (_tabController.index == 0) ...[
-          AppTextField(
-            isPhone: true,
-            label: 'Phone Number (Optional)',
-            hintText: 'Enter your phone number',
-            controller: _phoneController,
-            onPhoneChanged: (phone) {
-              setState(() {});
-            },
-          ),
-          AppSpaces.v16,
-        ],
 
         // Password field (shared)
         AppTextField(

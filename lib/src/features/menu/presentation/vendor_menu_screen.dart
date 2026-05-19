@@ -286,7 +286,7 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                     ),
 
                     // ── Group order banner ────────────────────────────
-                    if (canOrder)
+                    if (canOrder && !isGuest)
                       SliverToBoxAdapter(
                         child: _GroupOrderBanner(
                           vendorId: widget.vendorId,

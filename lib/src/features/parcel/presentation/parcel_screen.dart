@@ -171,7 +171,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       // 1. Create parcel (DRAFT)
       final parcel = await repo.createParcel(
         CreateParcelDto(
-          quoteId: quote.quoteId,
+          // quoteId: quote.quoteId,
           parcelType: _parcelTypeApiMap[_selectedParcelType] ?? 'DOCUMENT',
           pickup: ParcelAddressDto(
             addressLine: _pickupResult!.formattedAddress,

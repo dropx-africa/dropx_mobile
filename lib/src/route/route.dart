@@ -255,7 +255,7 @@ abstract class AppRouter {
         );
 
       case AppRoute.walletTopup:
-        return MaterialPageRoute(
+        return MaterialPageRoute<bool>(
           settings: settings,
           builder: (context) => const WalletTopupScreen(),
         );

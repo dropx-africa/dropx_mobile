@@ -5,6 +5,8 @@ part 'create_order_item_dto.g.dart';
 /// A single item in a create-order request payload.
 @JsonSerializable(createFactory: false)
 class CreateOrderItemDto {
+  @JsonKey(name: 'item_id') // Add this field
+  final String itemId;
   final String name;
   final int qty;
 
@@ -12,6 +14,7 @@ class CreateOrderItemDto {
   final int unitPriceKobo;
 
   const CreateOrderItemDto({
+    required this.itemId,
     required this.name,
     required this.qty,
     required this.unitPriceKobo,

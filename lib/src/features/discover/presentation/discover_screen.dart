@@ -44,7 +44,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     'All',
     'Food',
     'Grocery & Retail',
-    'Parcel',
   ];
 
   VendorCategory? get _activeCategory {
@@ -53,9 +52,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         return VendorCategory.food;
       case 'Grocery & Retail':
         return VendorCategory.retail;
-      case 'Parcel':
-      // Parcel is not a feed vertical — handled by navigation below
-        return null;
       default:
         return null; // 'All' — no vertical filter
     }
@@ -101,10 +97,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 categories: _categories,
                 selected: _selectedCategory,
                 onSelect: (cat) {
-                  if (cat == 'Parcel') {
-                    AppNavigator.push(context, AppRoute.parcel);
-                    return;
-                  }
                   setState(() => _selectedCategory = cat);
                 },
               ),
