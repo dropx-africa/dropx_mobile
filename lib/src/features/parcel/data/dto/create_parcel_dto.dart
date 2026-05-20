@@ -5,9 +5,6 @@ part 'create_parcel_dto.g.dart';
 
 @JsonSerializable(createFactory: false, explicitToJson: true)
 class CreateParcelDto {
-  @JsonKey(name: 'quote_id')
-  final String quoteId;
-
   @JsonKey(name: 'parcel_type')
   final String parcelType;
 
@@ -29,7 +26,6 @@ class CreateParcelDto {
   final bool isUrgent;
 
   const CreateParcelDto({
-    required this.quoteId,
     required this.parcelType,
     required this.pickup,
     required this.dropoff,

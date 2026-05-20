@@ -27,7 +27,8 @@ ParcelDetail _$ParcelDetailFromJson(Map<String, dynamic> json) => ParcelDetail(
   feeBreakdown: json['fee_breakdown'] == null
       ? null
       : ParcelDetailFeeBreakdown.fromJson(
-          json['fee_breakdown'] as Map<String, dynamic>),
+          json['fee_breakdown'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$ParcelDetailToJson(ParcelDetail instance) =>
@@ -44,9 +45,9 @@ Map<String, dynamic> _$ParcelDetailToJson(ParcelDetail instance) =>
 ParcelDetailFeeBreakdown _$ParcelDetailFeeBreakdownFromJson(
   Map<String, dynamic> json,
 ) => ParcelDetailFeeBreakdown(
-  deliveryFeeKobo: json['delivery_fee_kobo'] as int,
-  insuranceFeeKobo: json['insurance_fee_kobo'] as int,
-  totalKobo: json['total_kobo'] as int,
+  deliveryFeeKobo: (json['delivery_fee_kobo'] as num).toInt(),
+  insuranceFeeKobo: (json['insurance_fee_kobo'] as num).toInt(),
+  totalKobo: (json['total_kobo'] as num).toInt(),
 );
 
 Map<String, dynamic> _$ParcelDetailFeeBreakdownToJson(

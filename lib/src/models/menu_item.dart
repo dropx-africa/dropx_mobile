@@ -89,6 +89,18 @@ class MenuItem {
   final List<MenuItemVariant>? variants;
   final List<MenuItemAddon>? addons;
 
+  // ── Retail stock fields ──────────────────────────────────────────────────
+  // stock_count: how many units remain. null means stock is not tracked
+  // (food items). 0 means out of stock. >0 means in stock.
+  @JsonKey(name: 'stock_count')
+  final int? stockCount;
+
+  // stock_status: backend-provided stock state string.
+  // Known values: 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK', null (not tracked)
+  @JsonKey(name: 'stock_status')
+  final String? stockStatus;
+  // ────────────────────────────────────────────────────────────────────────
+
   const MenuItem({
     required this.id,
     required this.name,
@@ -103,7 +115,25 @@ class MenuItem {
     this.isAvailable = true,
     this.variants,
     this.addons,
+    this.stockCount,
+    this.stockStatus,
   });
+
+  /// True when stock is explicitly tracked AND exhausted.
+  /// For food items where stock is not tracked, this is always false.
+  bool get isOutOfStock =>
+      stockCount != null && stockCount! <= 0 ||
+          stockStatus == 'OUT_OF_STOCK';
+
+  /// True when stock is tracked and running low (backend says LOW_STOCK
+  /// or count is between 1 and 5 inclusive).
+  bool get isLowStock =>
+      stockStatus == 'LOW_STOCK' ||
+          (stockCount != null && stockCount! > 0 && stockCount! <= 5);
+
+  /// Whether this item can actually be added to cart.
+  /// Combines isAvailable (vendor-level flag) with stock state.
+  bool get canAddToCart => isAvailable && !isOutOfStock;
 
   factory MenuItem.fromJson(Map<String, dynamic> json) =>
       _$MenuItemFromJson(json);

@@ -171,7 +171,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       // 1. Create parcel (DRAFT)
       final parcel = await repo.createParcel(
         CreateParcelDto(
-          quoteId: quote.quoteId,
+          // quoteId: quote.quoteId,
           parcelType: _parcelTypeApiMap[_selectedParcelType] ?? 'DOCUMENT',
           pickup: ParcelAddressDto(
             addressLine: _pickupResult!.formattedAddress,
@@ -410,7 +410,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                               ),
                               Switch(
                                 value: _isUrgent,
-                                activeColor: AppColors.primaryOrange,
+                                activeThumbColor: AppColors.primaryOrange,
                                 onChanged: (v) => setState(() {
                                   _isUrgent = v;
                                   _quote = null;

@@ -6,12 +6,11 @@ part of 'parcel_quote_response.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-ParcelQuoteResponse _$ParcelQuoteResponseFromJson(
-  Map<String, dynamic> json,
-) => ParcelQuoteResponse(
-  ok: json['ok'] as bool,
-  data: ParcelQuoteData.fromJson(json['data'] as Map<String, dynamic>),
-);
+ParcelQuoteResponse _$ParcelQuoteResponseFromJson(Map<String, dynamic> json) =>
+    ParcelQuoteResponse(
+      ok: json['ok'] as bool,
+      data: ParcelQuoteData.fromJson(json['data'] as Map<String, dynamic>),
+    );
 
 Map<String, dynamic> _$ParcelQuoteResponseToJson(
   ParcelQuoteResponse instance,
@@ -44,10 +43,9 @@ ParcelFeeBreakdown _$ParcelFeeBreakdownFromJson(Map<String, dynamic> json) =>
       totalKobo: (json['total_kobo'] as num).toInt(),
     );
 
-Map<String, dynamic> _$ParcelFeeBreakdownToJson(
-  ParcelFeeBreakdown instance,
-) => <String, dynamic>{
-  'delivery_fee_kobo': instance.deliveryFeeKobo,
-  'insurance_fee_kobo': instance.insuranceFeeKobo,
-  'total_kobo': instance.totalKobo,
-};
+Map<String, dynamic> _$ParcelFeeBreakdownToJson(ParcelFeeBreakdown instance) =>
+    <String, dynamic>{
+      'delivery_fee_kobo': instance.deliveryFeeKobo,
+      'insurance_fee_kobo': instance.insuranceFeeKobo,
+      'total_kobo': instance.totalKobo,
+    };

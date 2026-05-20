@@ -107,7 +107,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
       controller: _scrollController,
       onRefresh: _reload,
       appBar: AppAppBar(
-        title: 'Food Orders',
+        title: 'Orders',
         showBack: false,
         actions: [
        IconButton(

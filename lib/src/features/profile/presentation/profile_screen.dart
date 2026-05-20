@@ -7,15 +7,8 @@ import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/preferences_screen.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/contact_sync_screen.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/social_feed_screen.dart';
-import 'package:dropx_mobile/src/features/profile/presentation/edit_profile_screen.dart';
 import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
-import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 
 class ProfileScreen extends ConsumerWidget {

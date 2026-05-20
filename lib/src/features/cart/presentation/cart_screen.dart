@@ -151,6 +151,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           (s, a) => s + a.price,
         );
         return CreateOrderItemDto(
+          itemId: cartItem.menuItem.id,
           name: cartItem.menuItem.name,
           qty: cartItem.quantity,
           unitPriceKobo: CurrencyUtils.nairaToKobo(
@@ -285,8 +286,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         AppToast.showError(context, 'Failed to place order: ${e.toString()}');
+      }
     }
   }
 
@@ -332,29 +334,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Future<void> _showTopupBottomSheet(double totalAmount, double currentBalance) async {
-    final topupData = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _TopupBottomSheet(
-        totalAmount: totalAmount,
-        currentBalance: currentBalance,
-      ),
-    );
-
-    if (topupData == null || !mounted) return;
-
     final success = await AppNavigator.push<bool>(
       context,
-      AppRoute.walletTopupCheckout,
-      arguments: topupData,
+      AppRoute.walletTopup,
     );
 
     if (!mounted) return;
 
     if (success == true) {
-      final balanceKobo = ref.read(walletBalanceKoboProvider);
+      ref.invalidate(walletBalanceProvider);
+      final walletBalance = await ref.read(walletBalanceProvider.future);
+      final balanceKobo = int.tryParse(walletBalance.availableBalanceKobo) ?? 0;
       final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
+      ref.read(walletBalanceKoboProvider.notifier).state = balanceKobo;
       AppToast.showSuccess(
         context,
         'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
@@ -362,7 +354,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       _showPaymentSheet(totalAmount);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     ref.listen<CartState>(cartProvider, (previous, next) {
@@ -903,27 +894,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     Row(
                       children: [
                         if (vendor.deliveryTime != null) ...[
-                          Icon(
-                            Icons.access_time,
-                            size: 13,
-                            color: Colors.grey.shade500,
-                          ),
+                          Icon(Icons.access_time, size: 13, color: Colors.grey.shade500),
                           const SizedBox(width: 4),
-                          AppText(
-                            vendor.deliveryTime!,
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
+                          AppText(vendor.deliveryTime!, fontSize: 12, color: Colors.grey.shade600),
                           const SizedBox(width: 10),
                         ],
-                        Icon(
-                          Icons.delivery_dining,
-                          size: 13,
-                          color: Colors.grey.shade500,
-                        ),
+                        Icon(Icons.delivery_dining, size: 13, color: Colors.grey.shade500),
                         const SizedBox(width: 4),
                         AppText(
-                          Formatters.formatNaira(vendor.deliveryFeeNaira),
+                          _isLoadingEstimate ? '...' : Formatters.formatNaira(_deliveryFee),
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
@@ -1170,20 +1149,20 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
 
 // ─── Top-up bottom sheet ────────────────────────────────────────────────────
 
-class _TopupBottomSheet extends ConsumerStatefulWidget {
+class TopupBottomSheet extends ConsumerStatefulWidget {
   final double totalAmount;
   final double currentBalance;
 
-  const _TopupBottomSheet({
+  const TopupBottomSheet({
     required this.totalAmount,
     required this.currentBalance,
   });
 
   @override
-  ConsumerState<_TopupBottomSheet> createState() => _TopupBottomSheetState();
+  ConsumerState<TopupBottomSheet> createState() => _TopupBottomSheetState();
 }
 
-class _TopupBottomSheetState extends ConsumerState<_TopupBottomSheet> {
+class _TopupBottomSheetState extends ConsumerState<TopupBottomSheet> {
   final _amountController = TextEditingController();
   bool _isLoading = false;
 

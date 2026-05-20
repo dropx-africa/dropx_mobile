@@ -38,26 +38,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   String? _expandedVendorId;
   String? _expandedVendorName;
 
+  // Launch categories only: Food, Grocery & Retail, Parcel.
+  // Pharmacy is intentionally excluded per launch rules.
   final List<String> _categories = [
     'All',
     'Food',
-    'Pharmacy',
-    'Parcel',
-    'Retail',
+    'Grocery & Retail',
   ];
 
   VendorCategory? get _activeCategory {
     switch (_selectedCategory) {
       case 'Food':
         return VendorCategory.food;
-      case 'Pharmacy':
-        return VendorCategory.pharmacy;
-      case 'Parcel':
-        return null; // Parcel navigates to ParcelScreen, not a feed filter
-      case 'Retail':
+      case 'Grocery & Retail':
         return VendorCategory.retail;
       default:
-        return null;
+        return null; // 'All' — no vertical filter
     }
   }
 
@@ -100,7 +96,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               delegate: _CategoryHeaderDelegate(
                 categories: _categories,
                 selected: _selectedCategory,
-                onSelect: (cat) => setState(() => _selectedCategory = cat),
+                onSelect: (cat) {
+                  setState(() => _selectedCategory = cat);
+                },
               ),
             ),
             ..._buildContent(cartState, isGuest),
@@ -128,35 +126,41 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         ref
             .watch(vendorsProvider(_activeCategory))
             .when(
-              loading: () => const SliverFillRemaining(child: AppLoading()),
-              error: (_, __) => SliverFillRemaining(
-                child: _buildError('Failed to load vendors'),
-              ),
-              data: (vendors) =>
-                  _buildResults(vendors: vendors, cartState: cartState, isGuest: isGuest),
-            ),
+          loading: () => const SliverFillRemaining(child: AppLoading()),
+          error: (_, __) => SliverFillRemaining(
+            child: _buildError('Failed to load vendors'),
+          ),
+          data: (vendors) => _buildResults(
+            vendors: vendors,
+            cartState: cartState,
+            isGuest: isGuest,
+          ),
+        ),
       ];
     }
 
     return [
       ref
           .watch(
-            searchProvider(
-              FeedParams(q: _searchQuery, vertical: _activeCategory?.name),
-            ),
-          )
-          .when(
-            loading: () => const SliverFillRemaining(child: AppLoading()),
-            error: (_, __) => SliverFillRemaining(
-              child: _buildError('Failed to load search results'),
-            ),
-            data: (data) => _buildResults(
-              vendors: data.vendors,
-              items: data.items,
-              cartState: cartState,
-              isGuest: isGuest,
-            ),
+        searchProvider(
+          FeedParams(
+            q: _searchQuery,
+            vertical: _activeCategory?.apiValue,
           ),
+        ),
+      )
+          .when(
+        loading: () => const SliverFillRemaining(child: AppLoading()),
+        error: (_, __) => SliverFillRemaining(
+          child: _buildError('Failed to load search results'),
+        ),
+        data: (data) => _buildResults(
+          vendors: data.vendors,
+          items: data.items,
+          cartState: cartState,
+          isGuest: isGuest,
+        ),
+      ),
     ];
   }
 
@@ -204,14 +208,13 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 childAspectRatio: 0.70,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildVendorCard(vendors[index]),
+                    (context, index) => _buildVendorCard(vendors[index]),
                 childCount: vendors.length,
               ),
             ),
           ),
         ],
         if (items.isNotEmpty) ...[
-          // Header — changes when a vendor is expanded
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -242,17 +245,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               ),
             ),
           ),
-
-          // If vendor expanded → fetch & show all that vendor's items
           if (_expandedVendorId != null)
             _buildExpandedVendorItems(_expandedVendorId!, cartState, isGuest)
           else
-            // Search result items with Add buttons
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => Padding(
+                      (context, index) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildSearchItemCard(
                       items[index],
@@ -270,50 +270,50 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
-  /// Fetches and renders all menu items for the expanded vendor.
   Widget _buildExpandedVendorItems(
-    String vendorId,
-    CartState cartState,
-    bool isGuest,
-  ) {
+      String vendorId,
+      CartState cartState,
+      bool isGuest,
+      ) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 0),
       sliver: ref.watch(menuItemsProvider(vendorId)).when(
-            loading: () => const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: AppLoading()),
-              ),
-            ),
-            error: (_, __) => const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: AppText('Could not load vendor items')),
-              ),
-            ),
-            data: (vendorItems) => SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final item = vendorItems[index];
-                  final quantity = cartState.items[item.id]?.quantity ?? 0;
-                  return MenuItemCard(
-                    item: item,
-                    quantity: quantity,
-                    onAdd: () => _handleAdd(item, isGuest, cartState),
-                    onIncrement: () =>
-                        ref.read(cartProvider.notifier).increment(item.id),
-                    onDecrement: () =>
-                        ref.read(cartProvider.notifier).decrement(item.id),
-                  );
-                },
-                childCount: vendorItems.length,
-              ),
-            ),
+        loading: () => const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: AppLoading()),
           ),
+        ),
+        error: (_, __) => const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: AppText('Could not load vendor items')),
+          ),
+        ),
+        data: (vendorItems) => SliverList(
+          delegate: SliverChildBuilderDelegate(
+                (context, index) {
+              final item = vendorItems[index];
+              final quantity = cartState.items[item.id]?.quantity ?? 0;
+              return MenuItemCard(
+                item: item,
+                quantity: quantity,
+                onAdd: () => _handleAdd(item, isGuest, cartState),
+                onIncrement: () =>
+                    ref.read(cartProvider.notifier).increment(item.id),
+                onDecrement: () =>
+                    ref.read(cartProvider.notifier).decrement(item.id),
+              );
+            },
+            childCount: vendorItems.length,
+          ),
+        ),
+      ),
     );
   }
 
-  Future<void> _handleAdd(MenuItem item, bool isGuest, CartState cartState) async {
+  Future<void> _handleAdd(
+      MenuItem item, bool isGuest, CartState cartState) async {
     if (isGuest) {
       showModalBottomSheet(
         context: context,
@@ -326,15 +326,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
     final vendorId = item.vendorId ?? '';
 
-    // Fetch the full item detail (includes variants & addons) from the
-    // per-item endpoint. Fall back to the catalog item if the call fails.
+    // Always fetch full item detail before showing the add sheet.
+    // This is especially important for retail items which have stock counts,
+    // size/color variants, and availability state that the catalog list
+    // response does not include.
     MenuItem fullItem = item;
     try {
       fullItem = await ref
           .read(vendorRepositoryProvider)
           .getStoreItem(vendorId, item.id);
     } catch (_) {
-      // catalogue item used as fallback — addons may be absent
+      // Catalog item used as fallback — variants/stock may be absent
     }
 
     if (!mounted) return;
@@ -343,18 +345,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       context,
       item: fullItem,
       vendorId: vendorId,
-      vendorName: fullItem.vendorDisplayName ?? item.vendorDisplayName ?? vendorId,
+      vendorName:
+      fullItem.vendorDisplayName ?? item.vendorDisplayName ?? vendorId,
       zoneId: '',
     );
 
-    // After the sheet closes, expand this vendor's items if the cart now
-    // contains something from it.
     if (!mounted) return;
     final updatedCart = ref.read(cartProvider);
     if (updatedCart.vendorId == vendorId || updatedCart.vendorId == null) {
       setState(() {
         _expandedVendorId = vendorId;
-        _expandedVendorName = fullItem.vendorDisplayName ?? item.vendorDisplayName;
+        _expandedVendorName =
+            fullItem.vendorDisplayName ?? item.vendorDisplayName;
       });
     }
   }
@@ -371,10 +373,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
   Widget _buildSearchItemCard(
-    MenuItem item,
-    CartState cartState,
-    bool isGuest,
-  ) {
+      MenuItem item,
+      CartState cartState,
+      bool isGuest,
+      ) {
     final quantity = cartState.items[item.id]?.quantity ?? 0;
 
     return Container(
@@ -394,29 +396,27 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: item.imageUrl != null && item.imageUrl!.isNotEmpty
                 ? AppImage(
-                    item.imageUrl!,
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                  )
+              item.imageUrl!,
+              width: 70,
+              height: 70,
+              fit: BoxFit.cover,
+            )
                 : Container(
-                    width: 70,
-                    height: 70,
-                    color: Colors.grey.shade100,
-                    child: Icon(
-                      Icons.fastfood_outlined,
-                      size: 28,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
+              width: 70,
+              height: 70,
+              color: Colors.grey.shade100,
+              child: Icon(
+                Icons.storefront_outlined,
+                size: 28,
+                color: Colors.grey.shade400,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -481,41 +481,40 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   ),
                 ],
                 const SizedBox(height: 8),
-                // Add / quantity controls
                 Align(
                   alignment: Alignment.centerRight,
                   child: quantity > 0
                       ? _buildQuantityControl(item)
                       : SizedBox(
-                          height: 32,
-                          child: ElevatedButton.icon(
-                            onPressed: () =>
-                                _handleAdd(item, isGuest, cartState),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryOrange,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              elevation: 0,
-                            ),
-                            icon: const Icon(
-                              Icons.add,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                            label: const Text(
-                              'Add',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                    height: 32,
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          _handleAdd(item, isGuest, cartState),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -614,10 +613,10 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
+      BuildContext context,
+      double shrinkOffset,
+      bool overlapsContent,
+      ) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -634,7 +633,8 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
               label: AppText(
                 category,
                 color: isSelected ? Colors.white : AppColors.darkBackground,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                isSelected ? FontWeight.bold : FontWeight.normal,
               ),
               selected: isSelected,
               onSelected: (_) => onSelect(category),

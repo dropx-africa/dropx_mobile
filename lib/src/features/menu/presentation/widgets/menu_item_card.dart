@@ -4,6 +4,12 @@ import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 
+import 'package:flutter/material.dart';
+import 'package:dropx_mobile/src/common_widgets/app_image.dart';
+import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/models/menu_item.dart';
+
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
   final int quantity;
@@ -22,6 +28,9 @@ class MenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use canAddToCart which combines isAvailable + stock state
+    final canAdd = item.canAddToCart;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -42,10 +51,8 @@ class MenuItemCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image – supports network, asset, or fallback
               _buildItemImage(),
               const SizedBox(width: 12),
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,59 +75,107 @@ class MenuItemCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Badges
-                    if (item.badges != null && item.badges!.isNotEmpty)
-                      Wrap(
-                        spacing: 8,
-                        children: item.badges!.map((badge) {
-                          Color bgColor = Colors.purple.shade50;
-                          Color textColor = Colors.purple;
-                          if (badge.contains('ordered')) {
-                            bgColor = Colors.red.shade50;
-                            textColor = Colors.red;
-                          }
 
-                          return Container(
+                    // Badges row — existing food badges + retail stock badges
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        // Existing food badges (popular, chef's pick, etc.)
+                        if (item.badges != null && item.badges!.isNotEmpty)
+                          ...item.badges!.map((badge) {
+                            Color bgColor = Colors.purple.shade50;
+                            Color textColor = Colors.purple;
+                            if (badge.contains('ordered')) {
+                              bgColor = Colors.red.shade50;
+                              textColor = Colors.red;
+                            }
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (badge.contains('ordered'))
+                                    Icon(Icons.local_fire_department,
+                                        size: 10, color: textColor),
+                                  if (badge.contains('ordered'))
+                                    const SizedBox(width: 4),
+                                  if (badge.contains('Chef'))
+                                    Icon(Icons.restaurant_menu,
+                                        size: 10, color: textColor),
+                                  if (badge.contains('Chef'))
+                                    const SizedBox(width: 4),
+                                  Text(
+                                    badge,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+
+                        // Retail: out of stock badge
+                        if (item.isOutOfStock)
+                          Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: bgColor,
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Out of stock',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+
+                        // Retail: low stock warning badge
+                        if (!item.isOutOfStock && item.isLowStock)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (badge.contains('ordered'))
-                                  Icon(
-                                    Icons.local_fire_department,
+                                Icon(Icons.inventory_2_outlined,
                                     size: 10,
-                                    color: textColor,
-                                  ),
-                                if (badge.contains('ordered'))
-                                  const SizedBox(width: 4),
-                                if (badge.contains('Chef'))
-                                  Icon(
-                                    Icons.restaurant_menu,
-                                    size: 10,
-                                    color: textColor,
-                                  ),
-                                if (badge.contains('Chef'))
-                                  const SizedBox(width: 4),
+                                    color: Colors.orange.shade700),
+                                const SizedBox(width: 4),
                                 Text(
-                                  badge,
+                                  item.stockCount != null
+                                      ? 'Only ${item.stockCount} left'
+                                      : 'Low stock',
                                   style: TextStyle(
-                                    color: textColor,
+                                    color: Colors.orange.shade700,
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                      ],
+                    ),
+
                     const SizedBox(height: 6),
                     AppSubText(
                       item.description ?? '',
@@ -128,28 +183,27 @@ class MenuItemCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+
+                    // Prep time — food specific, won't show for retail items
+                    // that don't have this field
                     if (item.prepTime != null) ...[
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(
-                            Icons.timer_outlined,
-                            size: 12,
-                            color: Colors.grey,
-                          ),
+                          const Icon(Icons.timer_outlined,
+                              size: 12, color: Colors.grey),
                           const SizedBox(width: 4),
                           AppSubText(item.prepTime!, fontSize: 11),
                         ],
                       ),
                     ],
-                    // Availability indicator
-                    if (!item.isAvailable) ...[
+
+                    // Unavailable badge (vendor-level flag, distinct from stock)
+                    if (!item.isAvailable && !item.isOutOfStock) ...[
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(4),
@@ -170,86 +224,84 @@ class MenuItemCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Add Button – disabled if item unavailable
+
+          // Add / quantity controls — disabled if out of stock or unavailable
           Align(
             alignment: Alignment.centerRight,
-            child: !item.isAvailable
+            child: !canAdd
                 ? const SizedBox.shrink()
                 : quantity > 0
                 ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: onDecrement,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.remove, size: 16),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          child: Text(
-                            '$quantity',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: onIncrement,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.add, size: 16),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : SizedBox(
-                    height: 32,
-                    child: ElevatedButton.icon(
-                      onPressed: onAdd,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryOrange,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(
-                        Icons.add,
-                        size: 16,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 4, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: onDecrement,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
                         color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
-                      label: const Text(
-                        "Add",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: const Icon(Icons.remove, size: 16),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      '$quantity',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),
+                  InkWell(
+                    onTap: onIncrement,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.add, size: 16),
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : SizedBox(
+              height: 32,
+              child: ElevatedButton.icon(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.add,
+                    size: 16, color: Colors.white),
+                label: const Text(
+                  'Add',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -258,7 +310,6 @@ class MenuItemCard extends StatelessWidget {
 
   Widget _buildItemImage() {
     final url = item.imageUrl;
-
     if (url != null && url.isNotEmpty) {
       return AppImage(
         url,
@@ -267,8 +318,6 @@ class MenuItemCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       );
     }
-
-    // Fallback placeholder - same as feed vendor card
     return Container(
       width: 80,
       height: 80,

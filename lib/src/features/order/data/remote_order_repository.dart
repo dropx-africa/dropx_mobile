@@ -53,9 +53,18 @@ class RemoteOrderRepository implements OrderRepository {
     debugPrint(
       '🔵 [ORDER-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orderById(id)}',
     );
+    // ApiClient._processResponse unwraps json['data'] before calling fromJson,
+    // so fromJson receives the inner order object directly — not the {ok, data} envelope.
     final response = await _apiClient.get<Order>(
       ApiEndpoints.orderById(id),
-      fromJson: (json) => Order.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) {
+        final map = json as Map<String, dynamic>;
+        final orderMap = (map['data'] ?? map['order']) as Map<String, dynamic>?;
+        if (orderMap == null) {
+          throw Exception('Unexpected order response shape: $map');
+        }
+        return Order.fromJson(orderMap);
+      },
     );
     debugPrint(
       '✅ [ORDER-API] GET /orders/$id → orderId=${response.data.orderId}',
@@ -85,8 +94,8 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<InitializePaymentResponse> initializePayment(
-    InitializePaymentDto dto,
-  ) async {
+      InitializePaymentDto dto,
+      ) async {
     final body = dto.toJson();
     debugPrint(
       '🟡 [PAYMENT-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.initializePayment}',
@@ -107,9 +116,9 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<PlaceOrderResponse> placeOrder(
-    String orderId,
-    PlaceOrderDto dto,
-  ) async {
+      String orderId,
+      PlaceOrderDto dto,
+      ) async {
     final body = dto.toJson();
     debugPrint(
       '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.placeOrder(orderId)}',
@@ -128,9 +137,9 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<GeneratePaymentLinkResponse> generatePaymentLink(
-    String orderId,
-    GeneratePaymentLinkDto dto,
-  ) async {
+      String orderId,
+      GeneratePaymentLinkDto dto,
+      ) async {
     final body = dto.toJson();
     debugPrint(
       '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.generatePaymentLink(orderId)}',
@@ -234,9 +243,9 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<CancelOrderResponse> cancelOrder(
-    String orderId,
-    CancelOrderRequest request,
-  ) async {
+      String orderId,
+      CancelOrderRequest request,
+      ) async {
     final body = request.toJson();
     debugPrint(
       '🔴 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderCancel(orderId)}',
@@ -258,9 +267,9 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<DisputeOrderResponse> disputeOrder(
-    String orderId,
-    DisputeOrderRequest request,
-  ) async {
+      String orderId,
+      DisputeOrderRequest request,
+      ) async {
     final body = request.toJson();
     debugPrint(
       '🔴 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderDispute(orderId)}',
@@ -282,9 +291,9 @@ class RemoteOrderRepository implements OrderRepository {
 
   @override
   Future<SubmitReviewResponse> submitReview(
-    String orderId,
-    SubmitReviewRequest request,
-  ) async {
+      String orderId,
+      SubmitReviewRequest request,
+      ) async {
     final body = request.toJson();
     debugPrint(
       '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderReviews(orderId)}',

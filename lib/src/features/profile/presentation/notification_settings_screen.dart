@@ -16,13 +16,11 @@ class NotificationSettingsScreen extends ConsumerStatefulWidget {
 class _NotificationSettingsScreenState
     extends ConsumerState<NotificationSettingsScreen> {
   bool? _pushEnabled;
-  bool _emailEnabled = false;
-  bool _smsEnabled = true;
-
-  bool _orderUpdates = true;
-  bool _promotions = false;
-  bool _systemAlerts = true;
-
+  // bool? _emailEnabled;
+  // bool? _smsEnabled;
+  // bool? _orderUpdates;
+  // bool? _promotions;
+  // bool? _systemAlerts;
   bool? _optInMarketing;
   bool? _showFriends;
 
@@ -30,9 +28,9 @@ class _NotificationSettingsScreenState
   Widget build(BuildContext context) {
     final prefsState = ref.watch(preferencesNotifierProvider);
     final prefs = prefsState.value;
-    final marketing = _optInMarketing ?? prefs?.marketingOptIn ?? false;
-    final showFriends = _showFriends ?? prefs?.showOrdersToFriends ?? false;
-    final pushEnabled = _pushEnabled ?? prefs?.pushEnabled ?? true;
+    final pushEnabled    = _pushEnabled    ?? prefs?.pushEnabled          ?? true;
+    final marketing      = _optInMarketing ?? prefs?.marketingOptIn       ?? false;
+    final showFriends    = _showFriends    ?? prefs?.showOrdersToFriends  ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -62,57 +60,9 @@ class _NotificationSettingsScreenState
                   value: pushEnabled,
                   onChanged: (val) {
                     setState(() => _pushEnabled = val);
-                    ref
-                        .read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(
-                          UpdatePreferencesDto(pushEnabled: val),
-                        );
+                    ref.read(preferencesNotifierProvider.notifier)
+                        .updatePreferences(UpdatePreferencesDto(pushEnabled: val));
                   },
-                  showDivider: true,
-                ),
-                _buildToggleRow(
-                  icon: Icons.email_outlined,
-                  title: "Email Notifications",
-                  subtitle: "Receive updates via email",
-                  value: _emailEnabled,
-                  onChanged: (val) => setState(() => _emailEnabled = val),
-                  showDivider: true,
-                ),
-                _buildToggleRow(
-                  icon: Icons.sms_outlined,
-                  title: "SMS Notifications",
-                  subtitle: "Receive text messages",
-                  value: _smsEnabled,
-                  onChanged: (val) => setState(() => _smsEnabled = val),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader("Categories"),
-            _buildSettingsCard(
-              children: [
-                _buildToggleRow(
-                  icon: Icons.local_shipping_outlined,
-                  title: "Order Updates",
-                  subtitle: "Status changes and driver tracking",
-                  value: _orderUpdates,
-                  onChanged: (val) => setState(() => _orderUpdates = val),
-                  showDivider: true,
-                ),
-                _buildToggleRow(
-                  icon: Icons.local_offer_outlined,
-                  title: "Promotions & Offers",
-                  subtitle: "Discounts and special deals",
-                  value: _promotions,
-                  onChanged: (val) => setState(() => _promotions = val),
-                  showDivider: true,
-                ),
-                _buildToggleRow(
-                  icon: Icons.admin_panel_settings_outlined,
-                  title: "System Alerts",
-                  subtitle: "Security and account notices",
-                  value: _systemAlerts,
-                  onChanged: (val) => setState(() => _systemAlerts = val),
                 ),
               ],
             ),
@@ -127,14 +77,11 @@ class _NotificationSettingsScreenState
                     fontSize: 16,
                   ),
                   value: marketing,
-                  activeColor: AppColors.primaryOrange,
+                  activeThumbColor: AppColors.primaryOrange,
                   onChanged: (val) {
                     setState(() => _optInMarketing = val);
-                    ref
-                        .read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(
-                          UpdatePreferencesDto(marketingOptIn: val),
-                        );
+                    ref.read(preferencesNotifierProvider.notifier)
+                        .updatePreferences(UpdatePreferencesDto(marketingOptIn: val));
                   },
                 ),
                 const Divider(height: 1, indent: 16, color: AppColors.slate100),
@@ -145,14 +92,11 @@ class _NotificationSettingsScreenState
                     fontSize: 16,
                   ),
                   value: showFriends,
-                  activeColor: AppColors.primaryOrange,
+                  activeThumbColor: AppColors.primaryOrange,
                   onChanged: (val) {
                     setState(() => _showFriends = val);
-                    ref
-                        .read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(
-                          UpdatePreferencesDto(showOrdersToFriends: val),
-                        );
+                    ref.read(preferencesNotifierProvider.notifier)
+                        .updatePreferences(UpdatePreferencesDto(showOrdersToFriends: val));
                   },
                 ),
               ],
@@ -162,7 +106,6 @@ class _NotificationSettingsScreenState
       ),
     );
   }
-
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12),
@@ -229,7 +172,7 @@ class _NotificationSettingsScreenState
               Switch.adaptive(
                 value: value,
                 onChanged: onChanged,
-                activeColor: AppColors.primaryOrange,
+                activeThumbColor: AppColors.primaryOrange,
               ),
             ],
           ),

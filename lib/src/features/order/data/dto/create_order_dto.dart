@@ -24,5 +24,10 @@ class CreateOrderDto {
     required this.items,
   });
 
-  Map<String, dynamic> toJson() => _$CreateOrderDtoToJson(this);
+  Map<String, dynamic> toJson() => {
+    'vendor_id': vendorId,
+    'zone_id': zoneId,
+    'delivery_address': deliveryAddress,
+    'items': items.map((i) => i.toJson()).toList(),
+  };
 }

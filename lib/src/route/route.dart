@@ -19,10 +19,13 @@ import 'package:dropx_mobile/src/features/order/presentation/order_success_scree
 import 'package:dropx_mobile/src/features/order/presentation/paystack_checkout_screen.dart';
 import 'package:dropx_mobile/src/features/parcel/presentation/parcel_screen.dart';
 import 'package:dropx_mobile/src/features/parcel/presentation/parcel_tracking_screen.dart';
-import 'package:dropx_mobile/src/features/group/presentation/poll_result_screen.dart';
 import 'package:dropx_mobile/src/features/paylink/presentation/pay_link_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/featured_food_screen.dart';
 import 'package:dropx_mobile/src/features/home/presentation/fastest_food_screen.dart';
+import 'package:dropx_mobile/src/features/home/presentation/featured_retail_screen.dart';
+import 'package:dropx_mobile/src/features/home/presentation/fastest_retail_screen.dart';
+import 'package:dropx_mobile/src/features/group/presentation/group_order_screen.dart';
+import 'package:dropx_mobile/src/features/group/presentation/join_group_order_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notifications_screen.dart';
 import 'package:dropx_mobile/src/features/wallet/presentation/wallet_topup_screen.dart';
 import 'package:dropx_mobile/src/features/wallet/presentation/wallet_topup_checkout_screen.dart';
@@ -32,6 +35,8 @@ import 'package:dropx_mobile/src/features/profile/presentation/social_feed_scree
 import 'package:dropx_mobile/src/features/profile/presentation/preferences_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
+
+import '../models/vendor_category.dart';
 
 abstract class AppRouter {
   AppRouter._();
@@ -105,9 +110,19 @@ abstract class AppRouter {
       case AppRoute.vendorMenu:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         final vendorId = args['vendorId'] as String;
+        final category = args['category'] as VendorCategory?;
+        final groupOrderMode = args['isGroupOrderMode'] as bool? ?? false;
+        final groupOrderId = args['groupOrderId'] as String?;
+        final groupParticipantToken = args['groupParticipantToken'] as String?;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => VendorMenuScreen(vendorId: vendorId),
+          builder: (context) => VendorMenuScreen(
+            vendorId: vendorId,
+            category: category,
+            isGroupOrderMode: groupOrderMode,
+            groupOrderId: groupOrderId,
+            groupParticipantToken: groupParticipantToken,
+          ),
         );
 
       case AppRoute.cart:
@@ -126,7 +141,6 @@ abstract class AppRouter {
 
       case AppRoute.receipt:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
-        // Pass empty map if null, screen handles defaults
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => ReceiptScreen(orderDetails: args),
@@ -146,17 +160,11 @@ abstract class AppRouter {
         );
 
       case AppRoute.genericOrder:
-        // All generic order paths now go to ParcelScreen.
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const ParcelScreen(),
         );
 
-      case AppRoute.pollResult:
-        return MaterialPageRoute(
-          settings: settings,
-          builder: (context) => const PollResultScreen(),
-        );
 
       case AppRoute.parcelTracking:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
@@ -173,7 +181,6 @@ abstract class AppRouter {
         final orderId = args['orderId'] as String?;
         final successRoute = args['successRoute'] as String?;
         final successArgs = args['successArgs'] as Map<String, dynamic>?;
-
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => PaystackCheckoutScreen(
@@ -189,7 +196,6 @@ abstract class AppRouter {
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         final orderId = args['orderId'] as String?;
         final reference = args['reference'] as String?;
-
         return MaterialPageRoute(
           settings: settings,
           builder: (context) =>
@@ -216,6 +222,32 @@ abstract class AppRouter {
           builder: (context) => const FastestFoodScreen(),
         );
 
+      case AppRoute.featuredRetail:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const FeaturedRetailScreen(),
+        );
+
+      case AppRoute.fastestRetail:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const FastestRetailScreen(),
+        );
+
+      case AppRoute.groupOrder:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const GroupOrderScreen(),
+        );
+
+      case AppRoute.joinGroupOrder:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final token = args['token'] as String;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => JoinGroupOrderScreen(inviteToken: token),
+        );
+
       case AppRoute.notifications:
         return MaterialPageRoute(
           settings: settings,
@@ -223,7 +255,7 @@ abstract class AppRouter {
         );
 
       case AppRoute.walletTopup:
-        return MaterialPageRoute(
+        return MaterialPageRoute<bool>(
           settings: settings,
           builder: (context) => const WalletTopupScreen(),
         );
@@ -278,7 +310,6 @@ abstract class AppRouter {
           builder: (context) => const SupportTicketsScreen(),
         );
 
-      // Default Route (e.g., Onboarding)
       default:
         return MaterialPageRoute(
           settings: settings,
