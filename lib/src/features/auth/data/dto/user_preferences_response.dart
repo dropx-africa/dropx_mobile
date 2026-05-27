@@ -13,10 +13,30 @@ class UserPreferencesResponse {
   @JsonKey(name: 'push_enabled')
   final bool pushEnabled;
 
+  @JsonKey(name: 'email_enabled')
+  final bool emailEnabled;
+
+  @JsonKey(name: 'sms_enabled')
+  final bool smsEnabled;
+
+  @JsonKey(name: 'order_updates_enabled')
+  final bool orderUpdatesEnabled;
+
+  @JsonKey(name: 'promotions_enabled')
+  final bool promotionsEnabled;
+
+  @JsonKey(name: 'system_alerts_enabled')
+  final bool systemAlertsEnabled;
+
   const UserPreferencesResponse({
     required this.marketingOptIn,
     required this.showOrdersToFriends,
     required this.pushEnabled,
+    required this.emailEnabled,
+    required this.smsEnabled,
+    required this.orderUpdatesEnabled,
+    required this.promotionsEnabled,
+    required this.systemAlertsEnabled,
   });
 
   factory UserPreferencesResponse.fromJson(Map<String, dynamic> json) {

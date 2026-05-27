@@ -7,13 +7,13 @@ class UserProfileResponse {
   @JsonKey(name: 'user_id')
   final String userId;
 
-  final String email;
+  final String? email;
 
   @JsonKey(name: 'full_name')
-  final String fullName;
+  final String? fullName;
 
   @JsonKey(name: 'phone_e164')
-  final String phone;
+  final String? phone;
 
   @JsonKey(name: 'avatar_url')
   final String? avatarUrl;
@@ -26,9 +26,9 @@ class UserProfileResponse {
 
   const UserProfileResponse({
     required this.userId,
-    required this.email,
-    required this.fullName,
-    required this.phone,
+    this.email,
+    this.fullName,
+    this.phone,
     this.avatarUrl,
     this.createdAt,
     this.updatedAt,

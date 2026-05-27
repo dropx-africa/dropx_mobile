@@ -102,9 +102,15 @@ class _NotificationTile extends ConsumerWidget {
                 .read(notificationRepositoryProvider)
                 .readNotification(notification.id);
             ref.invalidate(notificationsFutureProvider);
-          } catch (e) {
-            // Error silencing for UI
-          }
+          } catch (_) {}
+        }
+        final deepLink = notification.deepLink;
+        if (deepLink != null && deepLink.isNotEmpty && context.mounted) {
+          Navigator.pushNamed(
+            context,
+            deepLink,
+            arguments: notification.meta,
+          );
         }
       },
       child: Container(

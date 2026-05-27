@@ -160,8 +160,9 @@ class CartNotifier extends StateNotifier<CartState> {
         items: items,
         vendorId: data.vendor!.vendorId,
         vendorName: data.vendor!.displayName,
+        zoneId: data.vendor!.zoneId,
       );
-      debugPrint('✅ [CART] Restored ${items.length} items from server');
+      debugPrint('✅ [CART] Restored ${items.length} items from server (zoneId=${data.vendor!.zoneId})');
     } catch (e) {
       debugPrint('ℹ️ [CART] Server cart empty or unavailable: $e');
     }
@@ -354,10 +355,21 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void reorder(Order order) {
     if (order.items == null || order.items!.isEmpty) return;
+    debugPrint('[REORDER] orderId=${order.orderId} vendorId=${order.vendorId} zoneId=${order.zoneId} itemCount=${order.items!.length}');
+    for (final i in order.items!) {
+      debugPrint('[REORDER]   item: name="${i.name}" item_id=${i.itemId} qty=${i.qty} priceKobo=${i.unitPriceKobo}');
+    }
     final newItems = <String, CartItem>{};
     for (final orderItem in order.items!) {
+      final realId = orderItem.itemId;
+      // Skip items without a real catalog ID — sending the name as item_id
+      // causes QUOTE_UNAVAILABLE from the backend.
+      if (realId == null || realId.isEmpty) {
+        debugPrint('[REORDER] ⚠️ skipping "${orderItem.name}" — item_id is null/empty');
+        continue;
+      }
       final menuItem = MenuItem(
-        id: orderItem.name,
+        id: realId,
         vendorId: order.vendorId ?? '',
         name: orderItem.name,
         priceKobo: orderItem.unitPriceKobo,
@@ -367,6 +379,7 @@ class CartNotifier extends StateNotifier<CartState> {
         quantity: orderItem.qty,
       );
     }
+    if (newItems.isEmpty) return;
     state = CartState(
       items: newItems,
       vendorId: order.vendorId,

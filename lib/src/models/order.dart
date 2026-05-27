@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:dropx_mobile/src/models/cost_breakdown.dart';
 import 'package:dropx_mobile/src/models/order_item.dart';
 
 part 'order.g.dart';
@@ -37,6 +38,9 @@ class Order {
 
   final List<OrderItem>? items;
 
+  @JsonKey(name: 'cost_breakdown')
+  final CostBreakdown? costBreakdown;
+
   const Order({
     required this.orderId,
     this.customerUserId,
@@ -49,6 +53,7 @@ class Order {
     this.createdAt,
     this.updatedAt,
     this.items,
+    this.costBreakdown,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);

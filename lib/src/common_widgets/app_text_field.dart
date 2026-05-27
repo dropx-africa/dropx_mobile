@@ -16,6 +16,7 @@ class AppTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final Widget? suffixIcon;
   final Widget? prefixIcon;
+  final bool readOnly;
 
   const AppTextField({
     super.key,
@@ -30,6 +31,7 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.suffixIcon,
     this.prefixIcon,
+    this.readOnly = false,
   });
 
   @override
@@ -43,6 +45,8 @@ class AppTextField extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: AppColors.darkBackground),
     );
+
+    final disabledFillColor = readOnly ? const Color(0xFFEEF0F3) : const Color(0xFFF8FAFC);
 
     if (isPhone) {
       return Column(
@@ -60,24 +64,22 @@ class AppTextField extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           IntlPhoneField(
-            controller:
-                controller, // Note: IntlPhoneField usually manages its own text, but controller can be used for initial value sometimes or reading text.
-            // However, usually onChanged returns full object.
+            controller: controller,
+            readOnly: readOnly,
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: disabledFillColor,
               border: border,
               enabledBorder: border,
-              focusedBorder: focusedBorder,
+              focusedBorder: readOnly ? border : focusedBorder,
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
+                horizontal: 16,
                 vertical: 16,
               ),
-              prefixIcon: const Icon(
-                Icons.phone_android,
-                color: AppColors.slate400,
-              ),
               hintText: hintText,
+              suffixIcon: readOnly
+                  ? const Icon(Icons.lock_outline, size: 18, color: AppColors.slate400)
+                  : null,
             ),
             initialCountryCode: 'NG',
             disableLengthCheck: true,
@@ -88,7 +90,7 @@ class AppTextField extends StatelessWidget {
             dropdownIconPosition: IconPosition.trailing,
             flagsButtonPadding: const EdgeInsets.only(left: 10),
             showCountryFlag: true,
-            onChanged: onPhoneChanged,
+            onChanged: readOnly ? null : onPhoneChanged,
           ),
         ],
       );
@@ -113,19 +115,22 @@ class AppTextField extends StatelessWidget {
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
-          onChanged: onChanged,
+          onChanged: readOnly ? null : onChanged,
+          readOnly: readOnly,
           decoration: InputDecoration(
             filled: true,
-            fillColor: const Color(0xFFF8FAFC),
+            fillColor: disabledFillColor,
             border: border,
             enabledBorder: border,
-            focusedBorder: focusedBorder,
+            focusedBorder: readOnly ? border : focusedBorder,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 20,
               vertical: 16,
             ),
             hintText: hintText,
-            suffixIcon: suffixIcon,
+            suffixIcon: readOnly
+                ? const Icon(Icons.lock_outline, size: 18, color: AppColors.slate400)
+                : suffixIcon,
             prefixIcon: prefixIcon,
           ),
         ),

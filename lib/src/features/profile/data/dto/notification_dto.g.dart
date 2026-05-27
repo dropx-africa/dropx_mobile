@@ -14,6 +14,7 @@ NotificationItem _$NotificationItemFromJson(Map<String, dynamic> json) =>
       body: json['body'] as String,
       read: json['read'] as bool,
       createdAt: DateTime.parse(json['created_at'] as String),
+      deepLink: json['deep_link'] as String?,
       meta: json['meta'] as Map<String, dynamic>?,
     );
 
@@ -25,6 +26,7 @@ Map<String, dynamic> _$NotificationItemToJson(NotificationItem instance) =>
       'body': instance.body,
       'read': instance.read,
       'created_at': instance.createdAt.toIso8601String(),
+      'deep_link': instance.deepLink,
       'meta': instance.meta,
     };
 

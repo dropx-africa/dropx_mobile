@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/services/session_service.dart';
+import 'package:dropx_mobile/src/core/services/push_token_service.dart';
+import 'package:dropx_mobile/src/features/auth/data/push_token_repository.dart';
+import 'package:dropx_mobile/src/features/auth/data/remote_push_token_repository.dart';
 import 'package:dropx_mobile/src/features/location/data/places_service.dart';
 import 'package:dropx_mobile/src/features/location/data/location_repository.dart';
 import 'package:dropx_mobile/src/features/location/data/remote_location_repository.dart';
@@ -66,4 +69,14 @@ final locationRepositoryProvider = Provider<LocationRepository>((ref) {
 /// Provides the AddressRepository for saving / fetching user addresses.
 final addressRepositoryProvider = Provider<AddressRepository>((ref) {
   return RemoteAddressRepository(ref.watch(apiClientProvider));
+});
+
+/// Provides the PushTokenRepository for registering/revoking FCM tokens.
+final pushTokenRepositoryProvider = Provider<PushTokenRepository>((ref) {
+  return RemotePushTokenRepository(ref.watch(apiClientProvider));
+});
+
+/// Provides the PushTokenService — single instance shared across the app.
+final pushTokenServiceProvider = Provider<PushTokenService>((ref) {
+  return PushTokenService(ref.watch(pushTokenRepositoryProvider));
 });

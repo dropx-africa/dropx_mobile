@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dropx_mobile/src/common_widgets/app_google_map.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/cost_breakdown_widget.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
@@ -493,7 +494,7 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
                   ],
 
                   // Fee breakdown
-                  if (p.feeBreakdown != null) ...[
+                  if (p.costBreakdown != null || p.feeBreakdown != null) ...[
                     _buildFeeSection(p),
                     const SizedBox(height: 16),
                   ],
@@ -579,6 +580,7 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
   }
 
   Widget _buildFeeSection(ParcelDetail p) {
+    final fb = p.feeBreakdown;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -589,36 +591,23 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppText(
-            'Fee Summary',
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
+          const AppText('Fee Summary', fontWeight: FontWeight.bold, fontSize: 13),
           const SizedBox(height: 10),
-          _feeRow(
-            'Delivery Fee',
-            CurrencyUtils.koboToNaira(p.feeBreakdown!.deliveryFeeKobo),
-          ),
-          _feeRow(
-            'Insurance Fee',
-            CurrencyUtils.koboToNaira(p.feeBreakdown!.insuranceFeeKobo),
-          ),
-          Divider(height: 14, color: Colors.grey.shade300),
-          _feeRow(
-            'Total',
-            CurrencyUtils.koboToNaira(p.feeBreakdown!.totalKobo),
-            bold: true,
-            valueColor: AppColors.primaryOrange,
+          CostBreakdownWidget(
+            costBreakdown: p.costBreakdown,
+            fallbackRows: fb != null
+                ? [
+                    costRow('Delivery Fee', Formatters.formatNaira(CurrencyUtils.koboToNaira(fb.deliveryFeeKobo))),
+                    costRow('Insurance Fee', Formatters.formatNaira(CurrencyUtils.koboToNaira(fb.insuranceFeeKobo))),
+                    costRow('Total', Formatters.formatNaira(CurrencyUtils.koboToNaira(fb.totalKobo)), isTotal: true),
+                  ]
+                : [],
           ),
           if (p.paymentMethod != null) ...[
             Divider(height: 12, color: Colors.grey.shade200),
             Row(
               children: [
-                Icon(
-                  Icons.wallet_outlined,
-                  size: 14,
-                  color: Colors.grey.shade500,
-                ),
+                Icon(Icons.wallet_outlined, size: 14, color: Colors.grey.shade500),
                 const SizedBox(width: 6),
                 AppText(
                   _formatPaymentMethod(p.paymentMethod!),
@@ -754,32 +743,6 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
             backgroundColor: AppColors.primaryOrange,
           ),
           child: const AppText('Retry', color: Colors.white),
-        ),
-      ],
-    ),
-  );
-
-  Widget _feeRow(
-    String label,
-    double value, {
-    bool bold = false,
-    Color? valueColor,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        AppText(
-          label,
-          fontSize: 13,
-          color: Colors.grey.shade700,
-          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-        ),
-        AppText(
-          Formatters.formatNaira(value),
-          fontSize: 13,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-          color: valueColor ?? Colors.black87,
         ),
       ],
     ),

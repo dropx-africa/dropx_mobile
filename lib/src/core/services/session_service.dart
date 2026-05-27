@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 
@@ -22,6 +23,7 @@ class SessionService {
   static const _keyEmail = 'email';
   static const _keyFullName = 'full_name';
   static const _keyPhone = 'phone';
+  static const _keyLoginMethod = 'login_method';
   static const _keySavedLat = 'saved_lat';
   static const _keySavedLng = 'saved_lng';
   static const _keySavedCity = 'saved_city';
@@ -43,6 +45,7 @@ class SessionService {
   String get email => _prefs.getString(_keyEmail) ?? '';
   String get fullName => _prefs.getString(_keyFullName) ?? '';
   String get phone => _prefs.getString(_keyPhone) ?? '';
+  String get loginMethod => _prefs.getString(_keyLoginMethod) ?? '';
 // ── Group Order Session ───────────────────────────────────────────────
   static const _keyGroupOrderId = 'active_group_order_id';
   static const _keyGroupParticipantToken = 'active_group_participant_token';
@@ -95,6 +98,7 @@ class SessionService {
     String? email,
     String? fullName,
     String? phone,
+    String? loginMethod,
   }) async {
     if (accessToken != null && accessToken.isNotEmpty) {
       await _prefs.setString(_keyAuthToken, accessToken);
@@ -114,6 +118,14 @@ class SessionService {
     if (phone != null && phone.isNotEmpty) {
       await _prefs.setString(_keyPhone, phone);
     }
+    if (loginMethod != null && loginMethod.isNotEmpty) {
+      await _prefs.setString(_keyLoginMethod, loginMethod);
+    }
+    debugPrint('[SessionService] saveAuthSession → '
+        'fullName="${_prefs.getString(_keyFullName)}" '
+        'phone="${_prefs.getString(_keyPhone)}" '
+        'email="${_prefs.getString(_keyEmail)}" '
+        'loginMethod="${_prefs.getString(_keyLoginMethod)}"');
     await saveLogin();
   }
 

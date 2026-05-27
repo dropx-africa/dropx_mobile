@@ -18,19 +18,33 @@ class PlacesService {
   /// Search for addresses using Google Places Autocomplete.
   /// Returns a list of [GeocodeResult] with coordinates resolved via
   /// the Place Details API.
-  Future<List<GeocodeResult>> autocomplete(String query) async {
+  ///
+  /// Pass [locationBias] + [radiusMeters] to bias results toward a location.
+  Future<List<GeocodeResult>> autocomplete(
+    String query, {
+    LatLng? locationBias,
+    int radiusMeters = 50000,
+  }) async {
     if (query.trim().isEmpty) return [];
+
+    final params = <String, String>{
+      'input': query,
+      'key': _apiKey,
+      'components': 'country:ng',
+      'language': 'en',
+    };
+
+    if (locationBias != null) {
+      params['location'] =
+          '${locationBias.latitude},${locationBias.longitude}';
+      params['radius'] = '$radiusMeters';
+    }
 
     // 1. Get autocomplete predictions
     final uri = Uri.https(
       'maps.googleapis.com',
       '/maps/api/place/autocomplete/json',
-      {
-        'input': query,
-        'key': _apiKey,
-        'components': 'country:ng',
-        'language': 'en',
-      },
+      params,
     );
 
     debugPrint('[PlacesService] autocomplete query: "$query"');

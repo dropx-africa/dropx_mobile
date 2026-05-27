@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/cost_breakdown_widget.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/models/order.dart';
 import 'package:dropx_mobile/src/models/order_item.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
@@ -243,8 +245,6 @@ class _ReceiptSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currencyFormat = NumberFormat.currency(symbol: '₦', decimalDigits: 0);
-    final totalNaira =
-        CurrencyUtils.koboToNaira(int.tryParse(order.totalAmountKobo) ?? 0);
 
     final displayDate = order.createdAt != null
         ? DateFormat('d MMM yyyy, h:mm a')
@@ -252,6 +252,16 @@ class _ReceiptSheet extends StatelessWidget {
         : '—';
 
     final items = order.items ?? [];
+
+    final subtotalKobo = items.fold<int>(
+      0,
+      (sum, item) => sum + item.qty * item.unitPriceKobo,
+    );
+    final totalKobo = int.tryParse(order.totalAmountKobo) ?? subtotalKobo;
+    final feesKobo = (totalKobo - subtotalKobo).clamp(0, totalKobo);
+    final subtotal = CurrencyUtils.koboToNaira(subtotalKobo);
+    final fees = CurrencyUtils.koboToNaira(feesKobo);
+    final total = CurrencyUtils.koboToNaira(totalKobo);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -361,21 +371,13 @@ class _ReceiptSheet extends StatelessWidget {
                   Divider(color: Colors.grey.shade200),
                   const SizedBox(height: 12),
 
-                  // Total
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const AppText(
-                        'Total Paid',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      AppText(
-                        currencyFormat.format(totalNaira),
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryOrange,
-                      ),
+                  // Bill breakdown
+                  CostBreakdownWidget(
+                    costBreakdown: order.costBreakdown,
+                    fallbackRows: [
+                      costRow('Subtotal', Formatters.formatNaira(subtotal)),
+                      costRow('Delivery & Service Fees', Formatters.formatNaira(fees)),
+                      costRow('Total Paid', Formatters.formatNaira(total), isTotal: true),
                     ],
                   ),
 

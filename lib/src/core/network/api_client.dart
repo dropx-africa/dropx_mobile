@@ -133,16 +133,21 @@ class ApiClient {
     }, fromJson);
   }
 
-  /// DELETE request.
+  /// DELETE request. Pass [data] to include a JSON body (e.g. token revocation).
   Future<ApiResponse<bool>> delete(
     String path, {
+    dynamic data,
     Map<String, String>? headers,
   }) async {
     return _executeWithRefresh(() async {
       final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
       return await _client
-          .delete(uri, headers: requestHeaders)
+          .delete(
+            uri,
+            headers: requestHeaders,
+            body: data != null ? jsonEncode(data) : null,
+          )
           .timeout(_timeout);
     }, (_) => true);
   }

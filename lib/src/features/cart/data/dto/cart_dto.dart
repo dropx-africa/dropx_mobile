@@ -34,16 +34,19 @@ class ServerCartData {
 class ServerCartVendorInfo {
   final String vendorId;
   final String displayName;
+  final String? zoneId;
 
   const ServerCartVendorInfo({
     required this.vendorId,
     required this.displayName,
+    this.zoneId,
   });
 
   factory ServerCartVendorInfo.fromJson(Map<String, dynamic> json) =>
       ServerCartVendorInfo(
         vendorId: json['vendor_id'] as String,
         displayName: json['display_name'] as String? ?? '',
+        zoneId: json['zone_id'] as String?,
       );
 }
 

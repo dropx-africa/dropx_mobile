@@ -21,7 +21,14 @@ class CancelOrderData {
   final String orderId;
   final String state;
 
-  const CancelOrderData({required this.orderId, required this.state});
+  @JsonKey(name: 'wallet_refunded')
+  final bool? walletRefunded;
+
+  const CancelOrderData({
+    required this.orderId,
+    required this.state,
+    this.walletRefunded,
+  });
 
   factory CancelOrderData.fromJson(Map<String, dynamic> json) =>
       _$CancelOrderDataFromJson(json);

@@ -9,9 +9,9 @@ part of 'user_profile_response.dart';
 UserProfileResponse _$UserProfileResponseFromJson(Map<String, dynamic> json) =>
     UserProfileResponse(
       userId: json['user_id'] as String,
-      email: json['email'] as String,
-      fullName: json['full_name'] as String,
-      phone: json['phone_e164'] as String,
+      email: json['email'] as String?,
+      fullName: json['full_name'] as String?,
+      phone: json['phone_e164'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       createdAt: json['created_at'] == null
           ? null

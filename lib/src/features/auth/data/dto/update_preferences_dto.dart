@@ -13,10 +13,30 @@ class UpdatePreferencesDto {
   @JsonKey(name: 'push_enabled')
   final bool? pushEnabled;
 
+  @JsonKey(name: 'email_enabled')
+  final bool? emailEnabled;
+
+  @JsonKey(name: 'sms_enabled')
+  final bool? smsEnabled;
+
+  @JsonKey(name: 'order_updates_enabled')
+  final bool? orderUpdatesEnabled;
+
+  @JsonKey(name: 'promotions_enabled')
+  final bool? promotionsEnabled;
+
+  @JsonKey(name: 'system_alerts_enabled')
+  final bool? systemAlertsEnabled;
+
   const UpdatePreferencesDto({
     this.marketingOptIn,
     this.showOrdersToFriends,
     this.pushEnabled,
+    this.emailEnabled,
+    this.smsEnabled,
+    this.orderUpdatesEnabled,
+    this.promotionsEnabled,
+    this.systemAlertsEnabled,
   });
 
   Map<String, dynamic> toJson() => _$UpdatePreferencesDtoToJson(this);

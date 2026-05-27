@@ -30,6 +30,11 @@ EstimateOrderData _$EstimateOrderDataFromJson(Map<String, dynamic> json) =>
       currency: json['currency'] as String,
       expiresAt: json['expires_at'] as String,
       unavailableItems: json['unavailable_items'] as List<dynamic>?,
+      costBreakdown: json['cost_breakdown'] == null
+          ? null
+          : CostBreakdown.fromJson(
+              json['cost_breakdown'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$EstimateOrderDataToJson(EstimateOrderData instance) =>
@@ -45,4 +50,5 @@ Map<String, dynamic> _$EstimateOrderDataToJson(EstimateOrderData instance) =>
       'currency': instance.currency,
       'expires_at': instance.expiresAt,
       'unavailable_items': instance.unavailableItems,
+      'cost_breakdown': instance.costBreakdown?.toJson(),
     };

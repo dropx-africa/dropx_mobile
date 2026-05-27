@@ -1,0 +1,86 @@
+{
+  "project_info": {
+    "project_number": "124424875458",
+    "project_id": "dropx-6abd9",
+    "storage_bucket": "dropx-6abd9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124424875458:android:a815582b125e372391fa5b",
+        "android_client_info": {
+          "package_name": "com.dropx.agent"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6Nrljv-ZqP8x2MRcCctgYdLCGVPlDZzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124424875458:android:e671beea077fe84091fa5b",
+        "android_client_info": {
+          "package_name": "com.dropx.business"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6Nrljv-ZqP8x2MRcCctgYdLCGVPlDZzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124424875458:android:9e41bf947b1a3b5991fa5b",
+        "android_client_info": {
+          "package_name": "com.dropx.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6Nrljv-ZqP8x2MRcCctgYdLCGVPlDZzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124424875458:android:dd84c9b29e9f82b991fa5b",
+        "android_client_info": {
+          "package_name": "com.dropx.dropx_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6Nrljv-ZqP8x2MRcCctgYdLCGVPlDZzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

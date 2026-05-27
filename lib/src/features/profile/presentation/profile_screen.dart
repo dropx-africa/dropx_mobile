@@ -19,8 +19,11 @@ class ProfileScreen extends ConsumerWidget {
     final profileState = ref.watch(profileNotifierProvider);
     final userProfile = profileState.value?.profile;
 
-    final displayName = userProfile?.fullName ?? 'User';
-    final displayPhone = userProfile?.phone ?? '—';
+    final displayName = userProfile?.fullName ??
+        userProfile?.email ??
+        userProfile?.phone ??
+        'DropX customer';
+    final displayPhone = userProfile?.phone ?? userProfile?.email ?? '';
 
     return AppScaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -178,7 +181,7 @@ class ProfileScreen extends ConsumerWidget {
         _buildProfileOption(
           icon: Icons.info_outline_rounded,
           title: "About DropX",
-          onTap: () {},
+          onTap: () => AppNavigator.push(context, AppRoute.about),
         ),
         const SizedBox(height: 32),
 
@@ -254,6 +257,7 @@ class ProfileScreen extends ConsumerWidget {
                 }
               }
 
+              await ref.read(pushTokenServiceProvider).revokeCurrentToken();
               await session.clearSession();
               ApiClient().clearAuthToken();
               if (context.mounted) {
@@ -339,8 +343,9 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   String _getInitials(String name) {
-    if (name.isEmpty || name == 'User') return 'U';
-    final parts = name.trim().split(RegExp(r'\s+'));
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == 'DropX customer') return 'D';
+    final parts = trimmed.split(RegExp(r'\s+'));
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     } else if (parts[0].length >= 2) {

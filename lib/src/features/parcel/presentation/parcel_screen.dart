@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/common_widgets/cost_breakdown_widget.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
@@ -565,8 +566,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
 
   Widget _buildQuoteCard(ParcelQuoteData q) {
     final delivery = CurrencyUtils.koboToNaira(q.feeBreakdown.deliveryFeeKobo);
-    final insurance =
-        CurrencyUtils.koboToNaira(q.feeBreakdown.insuranceFeeKobo);
+    final insurance = CurrencyUtils.koboToNaira(q.feeBreakdown.insuranceFeeKobo);
     final total = CurrencyUtils.koboToNaira(q.feeBreakdown.totalKobo);
 
     return Container(
@@ -590,23 +590,13 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
             _quoteRow('Distance', '${q.distanceKm!.toStringAsFixed(1)} km'),
           if (q.etaMinutes != null)
             _quoteRow('ETA', '${q.etaMinutes} mins'),
-          _quoteRow('Delivery Fee', Formatters.formatNaira(delivery)),
-          _quoteRow('Insurance Fee', Formatters.formatNaira(insurance)),
-          const Divider(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const AppText(
-                'Total',
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-              AppText(
-                Formatters.formatNaira(total),
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: AppColors.primaryOrange,
-              ),
+          const SizedBox(height: 4),
+          CostBreakdownWidget(
+            costBreakdown: q.costBreakdown,
+            fallbackRows: [
+              costRow('Delivery Fee', Formatters.formatNaira(delivery)),
+              costRow('Insurance Fee', Formatters.formatNaira(insurance)),
+              costRow('Total', Formatters.formatNaira(total), isTotal: true),
             ],
           ),
         ],

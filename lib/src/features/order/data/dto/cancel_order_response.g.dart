@@ -20,7 +20,12 @@ CancelOrderData _$CancelOrderDataFromJson(Map<String, dynamic> json) =>
     CancelOrderData(
       orderId: json['order_id'] as String,
       state: json['state'] as String,
+      walletRefunded: json['wallet_refunded'] as bool?,
     );
 
 Map<String, dynamic> _$CancelOrderDataToJson(CancelOrderData instance) =>
-    <String, dynamic>{'order_id': instance.orderId, 'state': instance.state};
+    <String, dynamic>{
+      'order_id': instance.orderId,
+      'state': instance.state,
+      'wallet_refunded': instance.walletRefunded,
+    };

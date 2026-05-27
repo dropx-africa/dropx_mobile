@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/cost_breakdown_widget.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/wallet/providers/wallet_providers.dart';
@@ -17,6 +18,7 @@ import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.
 import 'package:dropx_mobile/src/features/order/data/dto/place_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_response.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
@@ -25,6 +27,7 @@ import 'package:dropx_mobile/src/features/location/data/address_models.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
+import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -34,10 +37,32 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  bool _isLoadingEstimate = false;
+  bool _isLoadingEstimate = true;
+  bool _estimateFailed = false;
   String _selectedPaymentMethod = 'PAYSTACK';
-  double _deliveryFee = 0.0;
-  double _serviceFee = 0.0;
+  EstimateOrderData? _estimateData;
+
+  double get _deliveryFee {
+    if (_estimateData == null) return 0.0;
+    final cb = _estimateData!.costBreakdown;
+    if (cb != null) return CurrencyUtils.koboToNaira(cb.deliveryFeeKobo);
+    return CurrencyUtils.koboToNaira(int.tryParse(_estimateData!.deliveryFeeKobo) ?? 0);
+  }
+
+  double get _serviceFee {
+    if (_estimateData == null) return 0.0;
+    final cb = _estimateData!.costBreakdown;
+    if (cb != null) return CurrencyUtils.koboToNaira(cb.serviceFeeKobo + cb.taxKobo);
+    return CurrencyUtils.koboToNaira(int.tryParse(_estimateData!.serviceFeeKobo) ?? 0);
+  }
+
+  double _totalFromEstimate(double subtotal) {
+    if (_estimateData == null) return subtotal;
+    final cb = _estimateData!.costBreakdown;
+    if (cb != null && cb.totalKobo > 0) return CurrencyUtils.koboToNaira(cb.totalKobo);
+    final t = int.tryParse(_estimateData!.totalKobo) ?? 0;
+    return t > 0 ? CurrencyUtils.koboToNaira(t) : subtotal;
+  }
 
   @override
   void initState() {
@@ -54,13 +79,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         cartState.zoneId == null ||
         cartState.items.isEmpty) {
       setState(() {
-        _deliveryFee = 0.0;
-        _serviceFee = 0.0;
+        _estimateData = null;
+        _isLoadingEstimate = false;
       });
       return;
     }
 
-    setState(() => _isLoadingEstimate = true);
+    setState(() {
+      _isLoadingEstimate = true;
+      _estimateFailed = false;
+    });
 
     try {
       final session = ref.read(sessionServiceProvider);
@@ -110,17 +138,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final response = await orderRepo.estimateOrder(dto);
 
       if (mounted) {
-        setState(() {
-          _deliveryFee = CurrencyUtils.koboToNaira(
-            int.parse(response.data.deliveryFeeKobo),
-          );
-          _serviceFee = CurrencyUtils.koboToNaira(
-            int.parse(response.data.serviceFeeKobo),
-          );
-        });
+        setState(() => _estimateData = response.data);
       }
     } catch (e) {
-      if (mounted) debugPrint('❌ [CART] _loadEstimate FAILED: $e');
+      if (mounted) {
+        debugPrint('❌ [CART] _loadEstimate FAILED: $e');
+        setState(() => _estimateFailed = true);
+      }
     } finally {
       if (mounted) setState(() => _isLoadingEstimate = false);
     }
@@ -130,6 +154,58 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartState = ref.read(cartProvider);
     final session = ref.read(sessionServiceProvider);
     final orderRepo = ref.read(orderRepositoryProvider);
+
+    // Profile completeness guard — block before touching the API
+    if (session.isLoggedIn) {
+      final profile = ref.read(profileNotifierProvider).value?.profile;
+      final missing = <String>[];
+      if (profile?.fullName?.isEmpty ?? true) missing.add('Full name');
+      if (profile?.phone?.isEmpty ?? true) missing.add('Phone number');
+      if (missing.isNotEmpty) {
+        if (!mounted) return;
+        var goToProfile = false;
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Profile incomplete'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Please add the following before placing an order:'),
+                const SizedBox(height: 8),
+                ...missing.map((f) => Text(
+                      '• $f',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    )),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  goToProfile = true;
+                  Navigator.pop(ctx);
+                },
+                child: Text(
+                  'Complete Profile',
+                  style: TextStyle(
+                    color: AppColors.primaryOrange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (goToProfile) Navigator.pushNamed(context, AppRoute.editProfile);
+        return;
+      }
+    }
 
     final vendorId = cartState.vendorId;
     final zoneId = cartState.zoneId;
@@ -347,6 +423,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final balanceKobo = int.tryParse(walletBalance.availableBalanceKobo) ?? 0;
       final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
       ref.read(walletBalanceKoboProvider.notifier).state = balanceKobo;
+      if (!mounted) return;
       AppToast.showSuccess(
         context,
         'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
@@ -402,7 +479,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     // final double displayDeliveryFee =
     //     _deliveryFee > 0 ? _deliveryFee : vendorDeliveryFee;
-    final totalAmount = totalPrice + _deliveryFee + _serviceFee;
+    final totalAmount = _totalFromEstimate(totalPrice);
 
     return AppScaffold(
       appBar: SliverAppBar(
@@ -567,41 +644,49 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
               child: Column(
                 children: [
-                  _buildBillRow("Subtotal", Formatters.formatNaira(totalPrice)),
-                  const SizedBox(height: 12),
-                  _buildBillRow(
-                    "Delivery Fee",
-                    _isLoadingEstimate
-                        ? '...'
-                        : Formatters.formatNaira(_deliveryFee),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildBillRow(
-                    "Service Fee",
-                    _isLoadingEstimate
-                        ? '...'
-                        : Formatters.formatNaira(_serviceFee),
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(color: Colors.grey, thickness: 0.5),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const AppText(
-                        "Total",
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                  if (_isLoadingEstimate)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: LinearProgressIndicator(
+                        color: AppColors.primaryOrange,
+                        backgroundColor: Colors.white12,
                       ),
-                      AppText(
-                        _isLoadingEstimate
-                            ? '...'
-                            : Formatters.formatNaira(totalAmount),
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    ),
+                  if (_estimateFailed && !_isLoadingEstimate)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              color: Colors.orangeAccent, size: 16),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: AppText(
+                              'Could not load fees',
+                              color: Colors.orangeAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _loadEstimate,
+                            child: const AppText(
+                              'Retry',
+                              color: AppColors.primaryOrange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                  CostBreakdownWidget(
+                    costBreakdown: _estimateData?.costBreakdown,
+                    onDark: true,
+                    fallbackRows: [
+                      costRow('Subtotal', Formatters.formatNaira(totalPrice)),
+                      costRow('Delivery Fee', _isLoadingEstimate ? '...' : Formatters.formatNaira(_deliveryFee)),
+                      costRow('Service Fee', _isLoadingEstimate ? '...' : Formatters.formatNaira(_serviceFee)),
+                      costRow('Total', _isLoadingEstimate ? '...' : Formatters.formatNaira(totalAmount), isTotal: true),
                     ],
                   ),
                   const SizedBox(height: 32),
@@ -609,7 +694,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: (_isLoadingEstimate || !vendorIsOpen)
+                      onPressed: (_isLoadingEstimate || _estimateFailed || !vendorIsOpen)
                           ? null
                           : () {
                               if (!session.isLoggedIn) {
@@ -917,21 +1002,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       },
     );
   }
-
-  Widget _buildBillRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        AppText(label, color: Colors.grey.shade400, fontSize: 14),
-        AppText(
-          value,
-          color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-        ),
-      ],
-    );
-  }
 }
 
 // ─── Payment bottom sheet ────────────────────────────────────────────────────
@@ -1154,6 +1224,7 @@ class TopupBottomSheet extends ConsumerStatefulWidget {
   final double currentBalance;
 
   const TopupBottomSheet({
+    super.key,
     required this.totalAmount,
     required this.currentBalance,
   });

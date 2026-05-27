@@ -21,7 +21,8 @@ class ManualLocationScreen extends ConsumerStatefulWidget {
       _ManualLocationScreenState();
 }
 
-class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
+class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _addressController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
@@ -50,16 +51,25 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initLocation();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _addressController.dispose();
     _searchFocusNode.dispose();
     _debounce?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_locationGranted) {
+      _recheckPermissionOnResume();
+    }
   }
 
   // ── Location ─────────────────────────────────────────────────────────────
@@ -76,6 +86,20 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen> {
     } catch (_) {
       if (mounted) setState(() => _locationLoading = false);
     }
+  }
+
+  Future<void> _recheckPermissionOnResume() async {
+    final perm = await Geolocator.checkPermission();
+    if (!mounted) return;
+    final granted =
+        perm == LocationPermission.always || perm == LocationPermission.whileInUse;
+    if (!granted) return;
+    setState(() {
+      _locationGranted = true;
+      _locationLoading = true;
+    });
+    await _moveToCurrentLocation();
+    if (mounted) setState(() => _locationLoading = false);
   }
   Future<bool> _requestLocationPermission() async {
     LocationPermission perm = await Geolocator.checkPermission();

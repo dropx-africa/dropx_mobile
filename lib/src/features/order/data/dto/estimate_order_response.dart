@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:dropx_mobile/src/models/cost_breakdown.dart';
 
 part 'estimate_order_response.g.dart';
 
@@ -49,6 +50,9 @@ class EstimateOrderData {
   @JsonKey(name: 'unavailable_items')
   final List<dynamic>? unavailableItems;
 
+  @JsonKey(name: 'cost_breakdown')
+  final CostBreakdown? costBreakdown;
+
   const EstimateOrderData({
     required this.quoteId,
     required this.pricingSignature,
@@ -61,6 +65,7 @@ class EstimateOrderData {
     required this.currency,
     required this.expiresAt,
     this.unavailableItems,
+    this.costBreakdown,
   });
 
   factory EstimateOrderData.fromJson(Map<String, dynamic> json) =>

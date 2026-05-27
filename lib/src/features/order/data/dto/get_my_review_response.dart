@@ -13,10 +13,24 @@ class ReviewData {
   @JsonKey(name: 'rating_overall')
   final int ratingOverall;
 
+  final String? comment;
+
+  final List<String>? tags;
+
+  @JsonKey(name: 'review_target')
+  final String? reviewTarget;
+
+  @JsonKey(name: 'created_at')
+  final DateTime? createdAt;
+
   const ReviewData({
     required this.reviewId,
     required this.orderId,
     required this.ratingOverall,
+    this.comment,
+    this.tags,
+    this.reviewTarget,
+    this.createdAt,
   });
 
   factory ReviewData.fromJson(Map<String, dynamic> json) =>

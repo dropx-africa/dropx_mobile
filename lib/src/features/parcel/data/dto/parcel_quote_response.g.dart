@@ -25,6 +25,11 @@ ParcelQuoteData _$ParcelQuoteDataFromJson(Map<String, dynamic> json) =>
       feeBreakdown: ParcelFeeBreakdown.fromJson(
         json['fee_breakdown'] as Map<String, dynamic>,
       ),
+      costBreakdown: json['cost_breakdown'] == null
+          ? null
+          : CostBreakdown.fromJson(
+              json['cost_breakdown'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$ParcelQuoteDataToJson(ParcelQuoteData instance) =>
@@ -34,6 +39,7 @@ Map<String, dynamic> _$ParcelQuoteDataToJson(ParcelQuoteData instance) =>
       'distance_km': instance.distanceKm,
       'eta_minutes': instance.etaMinutes,
       'fee_breakdown': instance.feeBreakdown.toJson(),
+      'cost_breakdown': instance.costBreakdown?.toJson(),
     };
 
 ParcelFeeBreakdown _$ParcelFeeBreakdownFromJson(Map<String, dynamic> json) =>

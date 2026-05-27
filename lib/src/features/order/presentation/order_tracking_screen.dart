@@ -17,10 +17,14 @@ import 'package:dropx_mobile/src/features/order/data/dto/cancel_reason_code.dart
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_order_request.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/dispute_reason_code.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/core/services/app_firebase_service.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:dropx_mobile/src/core/utils/cloudinary_upload.dart';
@@ -56,6 +60,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String _status = 'Order Placed';
   Color _statusColor = Colors.grey;
 
+  // The last state string passed to _applyState — used as the authoritative
+  // source for action visibility so it stays in sync even when _liveData is null.
+  String _rawState = 'PLACED';
+
   // Whether we are still waiting for the very first data fetch
   bool _isLoading = false;
 
@@ -71,6 +79,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   GoogleMapController? _mapController;
   StreamSubscription<SseEvent>? _sseSub;
 
+  // Tracks which state we last fired a local notification for, to avoid duplicates on SSE reconnect.
+  String? _notifiedState;
+
+  // Existing review for this order (null = not yet reviewed / not yet fetched).
+  ReviewData? _existingReview;
+  // True once we've attempted to fetch the review at least once.
+  bool _reviewChecked = false;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +98,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
     _fetchLiveTracking();
     _subscribeToSse();
+    // Fetch any existing review immediately — covers tapping into an already-
+    // delivered order from order history where no SSE state_change will fire.
+    _fetchMyReview();
   }
 
   void _subscribeToSse() {
@@ -106,7 +125,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   void _onSseEvent(SseEvent event) {
     debugPrint('📡 [SSE] type=${event.type} data=${event.data}');
     if (!mounted) return;
-    if (event.type == 'heartbeat' || event.data.isEmpty) return;
+    if (event.data.isEmpty) return;
+
+    // Heartbeat — use as a silent poll to catch any missed state_change events.
+    if (event.type == 'heartbeat') {
+      _fetchLiveTrackingSilent();
+      return;
+    }
 
     // Accept state_change events
     if (event.type != 'state_change') return;
@@ -122,6 +147,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       // Apply the state immediately from the SSE payload
       // Don't try to parse a full OrderTrackingLiveData from this minimal payload
       setState(() => _applyState(newState));
+      _maybeNotify(newState);
 
       // Then fetch full tracking data to get rider info, ETA, location etc.
       _fetchLiveTrackingSilent();
@@ -130,6 +156,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           newState == 'PICKED_UP' ||
           newState == 'ARRIVED_DROPOFF') {
         _fetchDeliveryOtp();
+      }
+
+      if (newState == 'DELIVERED' || newState == 'COMPLETED') {
+        _fetchMyReview();
       }
     } catch (e) {
       debugPrint('📡 [SSE] parse error: $e');
@@ -159,6 +189,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             state == 'ARRIVED_DROPOFF') {
           _fetchDeliveryOtp();
         }
+        if (state == 'DELIVERED' || state == 'COMPLETED') {
+          _fetchMyReview();
+        }
       }
     } catch (e) {
       if (e is ApiException && (e.statusCode == 409 || e.statusCode == 503)) {
@@ -170,6 +203,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             _applyState(stateFromError);
             _locationIsStale = e.statusCode == 503;
           });
+          if (stateFromError == 'DELIVERED' || stateFromError == 'COMPLETED') {
+            _fetchMyReview();
+          }
         }
       }
       // Silent — no spinner, no snackbar
@@ -253,13 +289,63 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
+  Future<void> _fetchMyReview() async {
+    if (widget.orderId == null || _reviewChecked) return;
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final data = await repo.getMyReview(widget.orderId!);
+      if (mounted) {
+        setState(() {
+          _existingReview = data?.review;
+          _reviewChecked = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _reviewChecked = true);
+    }
+  }
+
   /// The best available OTP string — from the dedicated endpoint, or from
   /// live tracking data. Returns null when no OTP is available yet.
   String? get _resolvedOtp =>
       _deliveryOtpData?.deliveryOtp ?? _liveData?.deliveryOtp;
 
+  void _maybeNotify(String newState) {
+    if (newState == _notifiedState) return;
+    _notifiedState = newState;
+
+    String? title;
+    String? body;
+
+    switch (newState) {
+      case 'ACCEPTED':
+        title = 'Rider Assigned';
+        body = 'A rider has been assigned and is heading to pick up your order.';
+      case 'PICKED_UP':
+      case 'IN_TRANSIT':
+        title = 'Order On the Way';
+        body = 'Your order has been picked up and is heading to you!';
+      case 'ARRIVED_DROPOFF':
+        title = 'Rider Arrived';
+        body = 'Your rider has arrived at your location.';
+      case 'DELIVERED':
+        title = 'Order Delivered';
+        body = 'Your order has been delivered successfully.';
+    }
+
+    if (title != null) {
+      IAppFirebaseService.instance.showLocalNotification(
+        title: title,
+        body: body!,
+        aggregateType: newState == 'DELIVERED' ? 'order_complete' : 'order',
+        aggregateId: widget.orderId ?? '',
+      );
+    }
+  }
+
   /// Map API state string → local stage + labels.
   void _applyState(String state) {
+    _rawState = state;
     switch (state) {
       case 'PAYMENT_PENDING':
         _orderStage = 0;
@@ -397,8 +483,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   // ─── Cancel / Dispute state helpers ─────────────────────────────────────
 
-  /// The current authoritative state string.
-  String get _currentState => _liveData?.state ?? 'PLACED';
+  /// The current authoritative state string — always in sync with _applyState.
+  String get _currentState => _rawState;
 
   bool get _canCancel => _cancelAllowedStates.contains(_currentState);
 
@@ -542,9 +628,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       child: IconButton(
         icon: const Icon(Icons.arrow_back),
         color: Colors.black,
-        onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil(
+        onPressed: () => AppNavigator.pushAndRemoveAll(
+          context,
           AppRoute.dashboard,
-          (route) => false,
           arguments: {'initialTab': 2},
         ),
       ),
@@ -695,8 +781,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   _buildProgressBar(context),
                   const SizedBox(height: 24),
 
-                  _buildRiderInfo(),
-                  const SizedBox(height: 24),
+                  // Hide rider info once delivered — show receipt/review instead.
+                  if (_orderStage < 3) ...[
+                    _buildRiderInfo(),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Stage-based primary actions
                   if (_orderStage < 2) ...{
@@ -705,14 +794,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     // IN_TRANSIT / PICKED_UP / ARRIVED_DROPOFF — show delivery OTP
                     if (_resolvedOtp != null) _buildDeliveryOtpCard(),
                   } else if (_orderStage >= 3) ...{
-                    // Completed / Delivered actions
+                    // Delivered / Completed — show review banner if already reviewed
+                    if (_existingReview != null)
+                      _buildReviewedBanner(_existingReview!),
+                    if (_existingReview != null) const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
                           child: SizedBox(
                             height: 50,
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pushNamed(
+                              onPressed: () => AppNavigator.push(
                                 context,
                                 AppRoute.receipt,
                                 arguments: {'orderId': widget.orderId},
@@ -738,16 +830,24 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           child: SizedBox(
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: () => _showReviewSheet(context),
+                              onPressed: _existingReview != null
+                                  ? null
+                                  : () => _showReviewSheet(context),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryOrange,
+                                backgroundColor: _existingReview != null
+                                    ? Colors.grey.shade300
+                                    : AppColors.primaryOrange,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const AppText(
-                                'Leave a Review',
-                                color: Colors.white,
+                              child: AppText(
+                                _existingReview != null
+                                    ? 'Reviewed ✓'
+                                    : 'Leave a Review',
+                                color: _existingReview != null
+                                    ? Colors.black54
+                                    : Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
                               ),
@@ -981,7 +1081,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pop(sheetCtx),
+                              onPressed: () => AppNavigator.pop(sheetCtx),
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
                                 shape: RoundedRectangleBorder(
@@ -1001,7 +1101,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () async {
-                                Navigator.pop(sheetCtx);
+                                AppNavigator.pop(sheetCtx);
                                 await _submitCancel(
                                   selectedReason,
                                   noteController.text.trim(),
@@ -1041,7 +1141,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
     try {
       final repo = ref.read(orderRepositoryProvider);
-      await repo.cancelOrder(
+      final result = await repo.cancelOrder(
         widget.orderId!,
         CancelOrderRequest(
           reasonCode: reason.toApiString(),
@@ -1049,19 +1149,241 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       );
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRoute.dashboard,
-          (route) => false,
-        );
+        final walletRefunded = result.data.walletRefunded ?? false;
+        await _showCancelSuccessSheet(walletRefunded: walletRefunded);
+        if (mounted) {
+          AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
+        }
       }
     } catch (e) {
       debugPrint('Cancel failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to cancel order: $e')));
+      if (!mounted) return;
+
+      String? errorCode;
+      if (e is ApiException) {
+        final body = e.data as Map<String, dynamic>?;
+        final err = body?['error'] as Map<String, dynamic>?;
+        errorCode = err?['code'] as String?;
+      }
+
+      if (errorCode == 'WINDOW_EXPIRED') {
+        _showWindowExpiredSheet();
+      } else {
+        AppToast.showError(context, 'Failed to cancel order: $e');
       }
     }
+  }
+
+  Future<void> _showCancelSuccessSheet({required bool walletRefunded}) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.check_circle_outline,
+                      color: Colors.green.shade600, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: AppText(
+                    'Order Cancelled',
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            AppText(
+              walletRefunded
+                  ? 'Your order has been cancelled. Your payment will be credited to your DropX wallet shortly.'
+                  : 'Your order has been cancelled successfully.',
+              fontSize: 14,
+              color: AppColors.slate500,
+              height: 1.55,
+            ),
+            if (walletRefunded) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.account_balance_wallet_outlined,
+                        color: Colors.green.shade700, size: 18),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: AppText(
+                        'Refund will appear in your wallet within a few minutes.',
+                        fontSize: 13,
+                        color: AppColors.slate500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => AppNavigator.pop(sheetCtx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const AppText(
+                  'Done',
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWindowExpiredSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.timer_off_outlined,
+                      color: Colors.orange.shade700, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: AppText(
+                    'Cancellation Window Closed',
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const AppText(
+              'The cancellation window has closed because this order is already being processed. '
+              'You can still track the order or contact support if you need help.',
+              fontSize: 14,
+              color: AppColors.slate500,
+              height: 1.55,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => AppNavigator.pop(sheetCtx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const AppText(
+                  'Track Order',
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  AppNavigator.pop(sheetCtx);
+                  AppNavigator.push(context, AppRoute.supportTickets);
+                },
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.grey.shade300),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const AppText(
+                  'Contact Support',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ─── Dispute bottom sheet ────────────────────────────────────────────────
@@ -1182,7 +1504,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             ? null
                             : () async {
                                 final picker = ImagePicker();
-                                final messenger = ScaffoldMessenger.of(context);
                                 final pickedFile = await picker.pickImage(
                                   source: ImageSource.camera,
                                 );
@@ -1199,22 +1520,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                       capturedEvidenceUrl = url;
                                     }
                                   });
-                                  if (url != null) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Evidence uploaded successfully.',
-                                        ),
-                                      ),
-                                    );
-                                  } else {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Failed to upload evidence.',
-                                        ),
-                                      ),
-                                    );
+                                  if (context.mounted) {
+                                    if (url != null) {
+                                      AppToast.showSuccess(context, 'Evidence uploaded successfully.');
+                                    } else {
+                                      AppToast.showError(context, 'Failed to upload evidence.');
+                                    }
                                   }
                                 }
                               },
@@ -1269,7 +1580,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pop(sheetCtx),
+                              onPressed: () => AppNavigator.pop(sheetCtx),
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey.shade300),
                                 shape: RoundedRectangleBorder(
@@ -1291,7 +1602,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                               onPressed: isUploading
                                   ? null
                                   : () async {
-                                      Navigator.pop(sheetCtx);
+                                      AppNavigator.pop(sheetCtx);
                                       List<String>? urls;
                                       if (capturedEvidenceUrl != null) {
                                         urls = [capturedEvidenceUrl!];
@@ -1340,9 +1651,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }) async {
     if (widget.orderId == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dispute submitted (simulated).')),
-        );
+        AppToast.showSuccess(context, 'Dispute submitted (simulated).');
       }
       return;
     }
@@ -1358,17 +1667,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       );
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRoute.dashboard,
-          (route) => false,
-        );
+        AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
       }
     } catch (e) {
       debugPrint('Dispute failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to submit dispute: $e')));
+        AppToast.showError(context, 'Failed to submit dispute: $e');
       }
     }
   }
@@ -1511,7 +1815,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () async {
-                            Navigator.pop(sheetCtx);
+                            AppNavigator.pop(sheetCtx);
                             await _submitReview(
                               rating,
                               commentController.text.trim(),
@@ -1550,18 +1854,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   ) async {
     if (widget.orderId == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Review submitted (simulated): $rating stars.'),
-          ),
-        );
+        AppToast.showSuccess(context, 'Review submitted (simulated): $rating stars.');
       }
       return;
     }
 
     try {
       final repo = ref.read(orderRepositoryProvider);
-      await repo.submitReview(
+      final response = await repo.submitReview(
         widget.orderId!,
         SubmitReviewRequest(
           ratingOverall: rating,
@@ -1571,21 +1871,26 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thanks for your review!')),
-        );
+        setState(() {
+          _existingReview = ReviewData(
+            reviewId: response.data.reviewId,
+            orderId: widget.orderId ?? '',
+            ratingOverall: rating,
+            comment: comment.isNotEmpty ? comment : null,
+            tags: tags.isNotEmpty ? tags : null,
+          );
+          _reviewChecked = true;
+        });
+        AppToast.showSuccess(context, 'Thanks for your review!');
       }
     } catch (e) {
       debugPrint('Review submission failed: $e');
       if (mounted) {
-        String errorMessage = 'Failed to submit review: $e';
-        if (e.toString().contains('409') ||
-            e.toString().contains('already exists')) {
-          errorMessage = 'Review already submitted for this order.';
-        }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMessage)));
+        final errorMessage = (e.toString().contains('409') ||
+                e.toString().contains('already exists'))
+            ? 'Review already submitted for this order.'
+            : 'Failed to submit review: $e';
+        AppToast.showError(context, errorMessage);
       }
     }
   }
@@ -1687,6 +1992,49 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
+  // ─── Reviewed banner ─────────────────────────────────────────────────────
+
+  Widget _buildReviewedBanner(ReviewData review) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: List.generate(5, (i) => Icon(
+                    i < review.ratingOverall ? Icons.star : Icons.star_border,
+                    size: 16,
+                    color: Colors.amber.shade600,
+                  )),
+                ),
+                if (review.comment != null && review.comment!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  AppText(
+                    review.comment!,
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Rider info ───────────────────────────────────────────────────────────
 
   Widget _buildRiderInfo() {
@@ -1761,20 +2109,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           ),
           if (hasRider) ...[
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              radius: 18,
-              child: Icon(
-                Icons.message_outlined,
-                size: 18,
-                color: Colors.black87,
+            // CircleAvatar(
+            //   backgroundColor: Colors.white,
+            //   radius: 18,
+            //   child: Icon(
+            //     Icons.message_outlined,
+            //     size: 18,
+            //     color: Colors.black87,
+            //   ),
+            // ),
+            // const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                final phone = rider.phoneE164;
+                if (phone != null && phone.isNotEmpty) {
+                  launchUrl(Uri(scheme: 'tel', path: phone));
+                } else {
+                  AppToast.showError(context, 'Rider phone number not available.');
+                }
+              },
+              child: const CircleAvatar(
+                backgroundColor: Colors.black,
+                radius: 18,
+                child: Icon(Icons.call, size: 18, color: Colors.white),
               ),
-            ),
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: Colors.black,
-              radius: 18,
-              child: Icon(Icons.call, size: 18, color: Colors.white),
             ),
           ],
         ],

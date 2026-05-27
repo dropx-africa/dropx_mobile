@@ -18,6 +18,10 @@ class OrderItem {
   @JsonKey(name: 'order_id')
   final String orderId;
 
+  /// The real catalog item ID — must be sent back to the backend on reorder.
+  @JsonKey(name: 'item_id')
+  final String? itemId;
+
   final String name;
   @JsonKey(fromJson: _parseInt)
   final int qty;
@@ -31,6 +35,7 @@ class OrderItem {
   const OrderItem({
     required this.orderItemId,
     required this.orderId,
+    this.itemId,
     required this.name,
     required this.qty,
     required this.unitPriceKobo,

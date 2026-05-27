@@ -83,6 +83,54 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     ref.invalidate(ordersProvider);
   }
 
+  Future<void> _confirmReorder(Order order) async {
+    final address = order.deliveryAddress ?? '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm delivery address'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your order will be delivered to:',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            if (address.isNotEmpty)
+              Text(
+                address,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              )
+            else
+              const Text(
+                'No address saved for this order.',
+                style: TextStyle(color: Colors.grey),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Confirm',
+              style: TextStyle(color: AppColors.primaryOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    ref.read(cartProvider.notifier).reorder(order);
+    AppNavigator.push(context, AppRoute.cart);
+  }
+
   Future<void> _loadMore() async {
     if (_isLoadingMore || _nextCursor == null) return;
     setState(() => _isLoadingMore = true);
@@ -210,8 +258,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   onReorder: () {
                     final order = _orders[index];
                     if (order.items != null && order.items!.isNotEmpty) {
-                      ref.read(cartProvider.notifier).reorder(order);
-                      AppNavigator.push(context, AppRoute.cart);
+                      _confirmReorder(order);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(

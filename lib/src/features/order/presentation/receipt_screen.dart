@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/cost_breakdown_widget.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
 import 'package:dropx_mobile/src/common_widgets/app_spacers.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -131,30 +132,12 @@ class ReceiptScreen extends ConsumerWidget {
                 ],
 
                 // Bill breakdown
-                _buildBillRow("Subtotal", Formatters.formatNaira(subtotal)),
-                AppSpaces.v12,
-                _buildBillRow(
-                  "Delivery & Service Fees",
-                  Formatters.formatNaira(fees),
-                ),
-                AppSpaces.v24,
-                const Divider(),
-                AppSpaces.v16,
-
-                // Total
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const AppText(
-                      "Total Paid",
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                    AppText(
-                      Formatters.formatNaira(total),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
+                CostBreakdownWidget(
+                  costBreakdown: order.costBreakdown,
+                  fallbackRows: [
+                    costRow('Subtotal', Formatters.formatNaira(subtotal)),
+                    costRow('Delivery & Service Fees', Formatters.formatNaira(fees)),
+                    costRow('Total Paid', Formatters.formatNaira(total), isTotal: true),
                   ],
                 ),
               ],
@@ -196,16 +179,6 @@ class ReceiptScreen extends ConsumerWidget {
           fontWeight: FontWeight.w600,
           fontSize: 14,
         ),
-      ],
-    );
-  }
-
-  Widget _buildBillRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        AppText(label, color: Colors.grey.shade600),
-        AppText(value, fontWeight: FontWeight.bold),
       ],
     );
   }

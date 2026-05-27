@@ -152,6 +152,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           refreshToken: response.refreshToken,
           userId: response.userId,
           email: widget.channel == 'email' ? widget.sentTo : null,
+          loginMethod: widget.channel == 'email' ? 'email' : 'phone',
         );
 
         if (mounted) {

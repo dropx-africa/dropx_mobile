@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:dropx_mobile/src/models/cost_breakdown.dart';
 
 part 'parcel_detail_response.g.dart';
 
@@ -37,6 +38,9 @@ class ParcelDetail {
   @JsonKey(name: 'fee_breakdown')
   final ParcelDetailFeeBreakdown? feeBreakdown;
 
+  @JsonKey(name: 'cost_breakdown')
+  final CostBreakdown? costBreakdown;
+
   const ParcelDetail({
     required this.parcelId,
     required this.state,
@@ -45,6 +49,7 @@ class ParcelDetail {
     this.paymentMethod,
     this.paymentRequired = false,
     this.feeBreakdown,
+    this.costBreakdown,
   });
 
   factory ParcelDetail.fromJson(Map<String, dynamic> json) =>

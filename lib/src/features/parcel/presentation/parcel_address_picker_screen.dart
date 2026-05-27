@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
 
@@ -23,6 +24,18 @@ class ParcelAddressPickerScreen extends ConsumerStatefulWidget {
 class _ParcelAddressPickerScreenState
     extends ConsumerState<ParcelAddressPickerScreen> {
   static const LatLng _lagosDefault = LatLng(6.5244, 3.3792);
+
+  // Lagos State geographic bounds (generous — covers Badagry to Epe).
+  static const double _lagosMinLat = 6.35;
+  static const double _lagosMaxLat = 6.72;
+  static const double _lagosMinLng = 2.68;
+  static const double _lagosMaxLng = 3.82;
+
+  bool _isInLagos(double lat, double lng) =>
+      lat >= _lagosMinLat &&
+      lat <= _lagosMaxLat &&
+      lng >= _lagosMinLng &&
+      lng <= _lagosMaxLng;
 
   final _searchCtrl = TextEditingController();
   final _focusNode = FocusNode();
@@ -62,8 +75,11 @@ class _ParcelAddressPickerScreenState
       _selected = null;
     });
     _debounce = Timer(const Duration(milliseconds: 400), () async {
-      final results =
-          await ref.read(placesServiceProvider).autocomplete(query);
+      final results = await ref.read(placesServiceProvider).autocomplete(
+        query,
+        locationBias: _lagosDefault,
+        radiusMeters: 60000,
+      );
       if (!mounted) return;
       setState(() {
         _suggestions = results;
@@ -74,6 +90,21 @@ class _ParcelAddressPickerScreenState
   }
 
   void _onResultSelected(GeocodeResult result) {
+    if (!_isInLagos(result.lat, result.lng)) {
+      setState(() {
+        _suggestions = [];
+        _showDropdown = false;
+        _isSearching = false;
+        _selected = null;
+      });
+      _searchCtrl.clear();
+      AppToast.showError(
+        context,
+        'Only Lagos State addresses are supported for parcel delivery.',
+      );
+      return;
+    }
+
     _searchCtrl.text = result.formattedAddress;
     _focusNode.unfocus();
     final loc = LatLng(result.lat, result.lng);

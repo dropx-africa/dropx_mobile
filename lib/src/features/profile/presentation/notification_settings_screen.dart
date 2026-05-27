@@ -16,21 +16,31 @@ class NotificationSettingsScreen extends ConsumerStatefulWidget {
 class _NotificationSettingsScreenState
     extends ConsumerState<NotificationSettingsScreen> {
   bool? _pushEnabled;
-  // bool? _emailEnabled;
-  // bool? _smsEnabled;
-  // bool? _orderUpdates;
-  // bool? _promotions;
-  // bool? _systemAlerts;
+  bool? _emailEnabled;
+  bool? _smsEnabled;
+  bool? _orderUpdates;
+  bool? _promotions;
+  bool? _systemAlerts;
   bool? _optInMarketing;
   bool? _showFriends;
+
+  void _update(UpdatePreferencesDto dto) {
+    ref.read(preferencesNotifierProvider.notifier).updatePreferences(dto);
+  }
 
   @override
   Widget build(BuildContext context) {
     final prefsState = ref.watch(preferencesNotifierProvider);
     final prefs = prefsState.value;
-    final pushEnabled    = _pushEnabled    ?? prefs?.pushEnabled          ?? true;
-    final marketing      = _optInMarketing ?? prefs?.marketingOptIn       ?? false;
-    final showFriends    = _showFriends    ?? prefs?.showOrdersToFriends  ?? false;
+
+    final pushEnabled   = _pushEnabled   ?? prefs?.pushEnabled          ?? true;
+    final emailEnabled  = _emailEnabled  ?? prefs?.emailEnabled         ?? true;
+    final smsEnabled    = _smsEnabled    ?? prefs?.smsEnabled           ?? true;
+    final orderUpdates  = _orderUpdates  ?? prefs?.orderUpdatesEnabled  ?? true;
+    final promotions    = _promotions    ?? prefs?.promotionsEnabled     ?? false;
+    final systemAlerts  = _systemAlerts  ?? prefs?.systemAlertsEnabled  ?? true;
+    final marketing     = _optInMarketing ?? prefs?.marketingOptIn      ?? false;
+    final showFriends   = _showFriends   ?? prefs?.showOrdersToFriends  ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -45,67 +55,121 @@ class _NotificationSettingsScreenState
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionHeader("Channels"),
-            _buildSettingsCard(
-              children: [
-                _buildToggleRow(
-                  icon: Icons.notifications_active_outlined,
-                  title: "Push Notifications",
-                  subtitle: "Receive alerts on your device",
-                  value: pushEnabled,
-                  onChanged: (val) {
-                    setState(() => _pushEnabled = val);
-                    ref.read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(UpdatePreferencesDto(pushEnabled: val));
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _buildSectionHeader("Account & Privacy"),
-            _buildSettingsCard(
-              children: [
-                SwitchListTile(
-                  title: const AppText(
-                    "Marketing Opt-in",
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+      body: prefsState.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader("Channels"),
+                  _buildSettingsCard(
+                    children: [
+                      _buildToggleRow(
+                        icon: Icons.notifications_active_outlined,
+                        title: "Push Notifications",
+                        subtitle: "Receive alerts on your device",
+                        value: pushEnabled,
+                        showDivider: true,
+                        onChanged: (val) {
+                          setState(() => _pushEnabled = val);
+                          _update(UpdatePreferencesDto(pushEnabled: val));
+                        },
+                      ),
+                      _buildToggleRow(
+                        icon: Icons.email_outlined,
+                        title: "Email Notifications",
+                        subtitle: "Receive updates via email",
+                        value: emailEnabled,
+                        showDivider: true,
+                        onChanged: (val) {
+                          setState(() => _emailEnabled = val);
+                          _update(UpdatePreferencesDto(emailEnabled: val));
+                        },
+                      ),
+                      _buildToggleRow(
+                        icon: Icons.sms_outlined,
+                        title: "SMS Notifications",
+                        subtitle: "Receive text message alerts",
+                        value: smsEnabled,
+                        onChanged: (val) {
+                          setState(() => _smsEnabled = val);
+                          _update(UpdatePreferencesDto(smsEnabled: val));
+                        },
+                      ),
+                    ],
                   ),
-                  value: marketing,
-                  activeThumbColor: AppColors.primaryOrange,
-                  onChanged: (val) {
-                    setState(() => _optInMarketing = val);
-                    ref.read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(UpdatePreferencesDto(marketingOptIn: val));
-                  },
-                ),
-                const Divider(height: 1, indent: 16, color: AppColors.slate100),
-                SwitchListTile(
-                  title: const AppText(
-                    "Share Orders with Friends",
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                  const SizedBox(height: 24),
+                  _buildSectionHeader("Alert Types"),
+                  _buildSettingsCard(
+                    children: [
+                      _buildToggleRow(
+                        icon: Icons.local_shipping_outlined,
+                        title: "Order Updates",
+                        subtitle: "Status changes, delivery alerts",
+                        value: orderUpdates,
+                        showDivider: true,
+                        onChanged: (val) {
+                          setState(() => _orderUpdates = val);
+                          _update(UpdatePreferencesDto(orderUpdatesEnabled: val));
+                        },
+                      ),
+                      _buildToggleRow(
+                        icon: Icons.local_offer_outlined,
+                        title: "Promotions",
+                        subtitle: "Deals, discounts, and offers",
+                        value: promotions,
+                        showDivider: true,
+                        onChanged: (val) {
+                          setState(() => _promotions = val);
+                          _update(UpdatePreferencesDto(promotionsEnabled: val));
+                        },
+                      ),
+                      _buildToggleRow(
+                        icon: Icons.warning_amber_outlined,
+                        title: "System Alerts",
+                        subtitle: "Service notices and important updates",
+                        value: systemAlerts,
+                        onChanged: (val) {
+                          setState(() => _systemAlerts = val);
+                          _update(UpdatePreferencesDto(systemAlertsEnabled: val));
+                        },
+                      ),
+                    ],
                   ),
-                  value: showFriends,
-                  activeThumbColor: AppColors.primaryOrange,
-                  onChanged: (val) {
-                    setState(() => _showFriends = val);
-                    ref.read(preferencesNotifierProvider.notifier)
-                        .updatePreferences(UpdatePreferencesDto(showOrdersToFriends: val));
-                  },
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  _buildSectionHeader("Account & Privacy"),
+                  _buildSettingsCard(
+                    children: [
+                      _buildToggleRow(
+                        icon: Icons.campaign_outlined,
+                        title: "Marketing Opt-in",
+                        subtitle: "Personalised offers from DropX",
+                        value: marketing,
+                        showDivider: true,
+                        onChanged: (val) {
+                          setState(() => _optInMarketing = val);
+                          _update(UpdatePreferencesDto(marketingOptIn: val));
+                        },
+                      ),
+                      _buildToggleRow(
+                        icon: Icons.group_outlined,
+                        title: "Share Orders with Friends",
+                        subtitle: "Let friends see what you're ordering",
+                        value: showFriends,
+                        onChanged: (val) {
+                          setState(() => _showFriends = val);
+                          _update(UpdatePreferencesDto(showOrdersToFriends: val));
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
     );
   }
+
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12),

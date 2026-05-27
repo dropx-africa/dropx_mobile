@@ -17,6 +17,7 @@ import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
+import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
 
 import '../../auth/presentation/sign_up_to_order_sheet.dart';
 
@@ -156,6 +157,12 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final bool isGuest = session.isGuest;
     final String displayAddress = session.savedAddress;
 
+    final profileAsync = ref.watch(profileNotifierProvider);
+    final profile = profileAsync.value?.profile;
+    final bool showProfileBanner = !isGuest &&
+        profileAsync.hasValue &&
+        ((profile?.fullName?.isEmpty ?? true) || (profile?.phone?.isEmpty ?? true));
+
     final safeAreaTop = MediaQuery.of(context).padding.top;
 
     return AppScaffold(
@@ -248,6 +255,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           ),
         ),
+        if (showProfileBanner)
+          SliverToBoxAdapter(
+            child: _buildProfileBanner(context, profile),
+          ),
         SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,6 +302,59 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildProfileBanner(BuildContext context, dynamic profile) {
+    final missing = <String>[];
+    if (profile?.fullName?.isEmpty ?? true) missing.add('full name');
+    if (profile?.phone?.isEmpty ?? true) missing.add('phone number');
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade700, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppText(
+                  'Complete your profile',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                AppText(
+                  'Add your ${missing.join(' & ')} to place orders.',
+                  fontSize: 12,
+                  color: Colors.grey.shade700,
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, AppRoute.editProfile),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: AppText(
+              'Update',
+              color: Colors.amber.shade800,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

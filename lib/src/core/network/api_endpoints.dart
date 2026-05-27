@@ -102,6 +102,9 @@ class ApiEndpoints {
   // Addresses
   static const String addresses = '/me/addresses';
 
+  // Push tokens
+  static const String pushTokens = '/me/push-tokens';
+
   // Notifications
   static const String notifications = '/me/notifications';
   static const String notificationsReadAll = '/me/notifications/read-all';

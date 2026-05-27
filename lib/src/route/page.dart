@@ -36,4 +36,5 @@ class AppRoute {
   static const parcelTracking = "/parcel-tracking";
   static const groupOrder = "/group-order";
   static const joinGroupOrder = "/join-group-order";
+  static const about = "/about";
 }

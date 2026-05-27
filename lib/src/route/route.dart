@@ -35,6 +35,7 @@ import 'package:dropx_mobile/src/features/profile/presentation/social_feed_scree
 import 'package:dropx_mobile/src/features/profile/presentation/preferences_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/about_screen.dart';
 
 import '../models/vendor_category.dart';
 
@@ -308,6 +309,12 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const SupportTicketsScreen(),
+        );
+
+      case AppRoute.about:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const AboutScreen(),
         );
 
       default:
