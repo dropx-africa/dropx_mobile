@@ -1,4 +1,6 @@
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
+import 'package:dropx_mobile/src/core/models/client_config.dart';
+import 'package:dropx_mobile/src/core/providers/client_config_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -108,31 +110,42 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
 
-        const SizedBox(height: 32),
-        const AppText(
-          "CONNECT",
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-          color: AppColors.slate500,
-        ),
-        const SizedBox(height: 12),
-        _buildProfileOption(
-          icon: Icons.groups_rounded,
-          title: "Connect with Friends",
-          subtitle: "Sync contacts & invite",
-          onTap: () {
-            AppNavigator.push(context, AppRoute.contactSync);
-          },
-        ),
-        _buildProfileOption(
-          icon: Icons.dynamic_feed_rounded,
-          title: "Social Feed",
-          subtitle: "See what friends are ordering",
-          onTap: () {
-            AppNavigator.push(context, AppRoute.socialFeed);
-          },
-        ),
+        // CONNECT section — only shown when at least one social feature is enabled.
+        Builder(builder: (context) {
+          final config = ref.watch(clientConfigProvider).valueOrNull ??
+              ClientConfig.defaults;
+          final showContactSync = config.contactSyncEnabled;
+          final showSocialFeed = config.socialFeedEnabled;
+          if (!showContactSync && !showSocialFeed) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+              const AppText(
+                "CONNECT",
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+                color: AppColors.slate500,
+              ),
+              const SizedBox(height: 12),
+              if (showContactSync)
+                _buildProfileOption(
+                  icon: Icons.groups_rounded,
+                  title: "Connect with Friends",
+                  subtitle: "Sync contacts & invite",
+                  onTap: () => AppNavigator.push(context, AppRoute.contactSync),
+                ),
+              if (showSocialFeed)
+                _buildProfileOption(
+                  icon: Icons.dynamic_feed_rounded,
+                  title: "Social Feed",
+                  subtitle: "See what friends are ordering",
+                  onTap: () => AppNavigator.push(context, AppRoute.socialFeed),
+                ),
+            ],
+          );
+        }),
 
         const SizedBox(height: 24),
         const AppText(

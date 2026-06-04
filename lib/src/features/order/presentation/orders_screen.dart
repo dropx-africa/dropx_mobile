@@ -25,6 +25,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   String? _nextCursor;
   bool _isLoading = true;
   bool _isLoadingMore = false;
+  bool _isReordering = false;
   String? _error;
 
   @override
@@ -127,8 +128,34 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     );
 
     if (confirmed != true || !mounted) return;
-    ref.read(cartProvider.notifier).reorder(order);
-    AppNavigator.push(context, AppRoute.cart);
+
+    // Fetch the full order detail so item_id is always populated.
+    // The list endpoint may return items without item_id, which causes
+    // the reorder method to skip all items and leave the cart empty.
+    setState(() => _isReordering = true);
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final fullOrder = await repo.getOrderById(order.orderId);
+      if (!mounted) return;
+      ref.read(cartProvider.notifier).reorder(fullOrder);
+      if (ref.read(cartProvider).totalItemCount == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not load items for this order. Please add them manually.'),
+          ),
+        );
+        return;
+      }
+      AppNavigator.push(context, AppRoute.cart);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load order details: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isReordering = false);
+    }
   }
 
   Future<void> _loadMore() async {
@@ -169,6 +196,13 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         ],
       ),
       slivers: [
+        if (_isReordering)
+          const SliverToBoxAdapter(
+            child: LinearProgressIndicator(
+              color: AppColors.primaryOrange,
+              backgroundColor: Colors.transparent,
+            ),
+          ),
         if (_isLoading)
           const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),

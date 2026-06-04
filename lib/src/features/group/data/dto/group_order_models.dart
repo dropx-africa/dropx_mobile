@@ -14,7 +14,8 @@ class GroupOrderParticipant {
     return GroupOrderParticipant(
       participantId: json['participant_id'] as String? ?? '',
       displayName: json['display_name'] as String? ?? 'Guest',
-      isHost: json['is_host'] as bool? ?? false,
+      // API uses role:'HOST' not is_host:true
+      isHost: json['role'] == 'HOST' || json['is_host'] == true,
     );
   }
 }
@@ -63,6 +64,74 @@ class GroupOrderItem {
   }
 }
 
+// ── Group Discount ───────────────────────────────────────────────────────────
+
+class GroupDiscountTier {
+  final String key;
+  final String label;
+  final int peopleWithItems;
+  final int discountBps;
+
+  double get discountPercent => discountBps / 100;
+
+  const GroupDiscountTier({
+    required this.key,
+    required this.label,
+    required this.peopleWithItems,
+    required this.discountBps,
+  });
+
+  factory GroupDiscountTier.fromJson(Map<String, dynamic> json) {
+    return GroupDiscountTier(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      peopleWithItems: (json['people_with_items'] as num?)?.toInt() ?? 0,
+      discountBps: (json['discount_bps'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class GroupDiscount {
+  final bool enabled;
+  final bool eligible;
+  final int progressPercent;
+  final int peopleNeeded;
+  final int peopleWithItems;
+  final String message;
+  final GroupDiscountTier? nextTier;
+  final GroupDiscountTier? currentTier;
+
+  const GroupDiscount({
+    required this.enabled,
+    required this.eligible,
+    required this.progressPercent,
+    required this.peopleNeeded,
+    required this.peopleWithItems,
+    required this.message,
+    this.nextTier,
+    this.currentTier,
+  });
+
+  factory GroupDiscount.fromJson(Map<String, dynamic> json) {
+    final nextTierJson = json['next_tier'] as Map<String, dynamic>?;
+    final currentTierJson = json['current_tier'] as Map<String, dynamic>?;
+    return GroupDiscount(
+      enabled: json['enabled'] == true,
+      eligible: json['eligible'] == true,
+      progressPercent: (json['progress_percent'] as num?)?.toInt() ?? 0,
+      peopleNeeded: (json['people_needed'] as num?)?.toInt() ?? 0,
+      peopleWithItems: (json['people_with_items'] as num?)?.toInt() ?? 0,
+      message: json['message'] as String? ?? '',
+      nextTier: nextTierJson != null
+          ? GroupDiscountTier.fromJson(nextTierJson)
+          : null,
+      currentTier: currentTierJson != null
+          ? GroupDiscountTier.fromJson(currentTierJson)
+          : null,
+    );
+  }
+}
+
 // ── Group Order Room ─────────────────────────────────────────────────────────
 
 class GroupOrder {
@@ -75,10 +144,14 @@ class GroupOrder {
   final double totalKobo;
   final String? inviteToken;
   final String? inviteUrl;
+  final GroupDiscount? groupDiscount;
 
   double get total => totalKobo / 100;
   bool get isOpen => status == 'OPEN';
   bool get isLocked => status == 'LOCKED';
+  bool get isExpired => status == 'EXPIRED';
+  bool get isCancelled => status == 'CANCELLED';
+  bool get isTerminal => isExpired || isCancelled || status == 'CHECKED_OUT';
 
   int get itemCount => items.fold(0, (sum, i) => sum + i.quantity);
 
@@ -92,9 +165,11 @@ class GroupOrder {
     required this.totalKobo,
     this.inviteToken,
     this.inviteUrl,
+    this.groupDiscount,
   });
 
   factory GroupOrder.fromJson(Map<String, dynamic> json) {
+    final gdJson = json['group_discount'] as Map<String, dynamic>?;
     return GroupOrder(
       groupOrderId: json['group_order_id'] as String? ?? '',
       vendorId: json['vendor_id'] as String? ?? '',
@@ -110,6 +185,7 @@ class GroupOrder {
       totalKobo: (json['subtotal_kobo'] as num?)?.toDouble() ?? 0,
       inviteToken: json['invite_token'] as String?,
       inviteUrl: json['invite_url'] as String?,
+      groupDiscount: gdJson != null ? GroupDiscount.fromJson(gdJson) : null,
     );
   }
 }

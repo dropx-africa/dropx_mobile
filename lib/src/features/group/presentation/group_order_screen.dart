@@ -53,7 +53,7 @@ class GroupOrderScreen extends ConsumerWidget {
           ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigator.pop(context),
           ),
           actions: [
             IconButton(
@@ -164,6 +164,50 @@ class _RoomBody extends ConsumerWidget {
 
                 const SizedBox(height: 16),
 
+                // ── Terminal state banner (expired / cancelled) ───────────
+                if (room.isTerminal)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: room.isExpired
+                          ? Colors.grey.shade100
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: room.isExpired
+                            ? Colors.grey.shade300
+                            : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          room.isExpired
+                              ? Icons.timer_off_outlined
+                              : Icons.cancel_outlined,
+                          size: 18,
+                          color: room.isExpired
+                              ? Colors.grey.shade600
+                              : Colors.red,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: AppText(
+                            room.isExpired
+                                ? 'This group order has expired. Start a new one from the same vendor.'
+                                : 'This group order was cancelled.',
+                            fontSize: 13,
+                            color: room.isExpired
+                                ? Colors.grey.shade700
+                                : Colors.red.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // ── Invite banner (shown when room is open) ───────────────
                 if (room.isOpen && session.inviteUrl != null)
                   _InviteBanner(inviteUrl: session.inviteUrl!),
@@ -244,14 +288,17 @@ class _RoomBody extends ConsumerWidget {
                             size: 40, color: AppColors.slate200),
                         const SizedBox(height: 12),
                         const AppText(
-                          'No one has added items yet.',
+                          'No items added yet',
                           fontWeight: FontWeight.w600,
+                          fontSize: 15,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         AppText(
-                          'Share the invite or add your first line.',
+                          'People have joined the group but no one has added items yet. '
+                          'Each person must tap "Add from ${room.vendorName.isNotEmpty ? room.vendorName : 'vendor'}" to pick their own items.',
                           color: AppColors.slate400,
                           fontSize: 13,
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -502,10 +549,17 @@ class _StatusBadge extends StatelessWidget {
         color = Colors.orange;
         label = 'LOCKED';
         break;
+      case 'EXPIRED':
+        color = Colors.grey.shade600;
+        label = 'EXPIRED';
+        break;
       case 'CHECKED_OUT':
+        color = Colors.blue;
+        label = 'CHECKED OUT';
+        break;
       case 'CANCELLED':
         color = Colors.red;
-        label = status.replaceAll('_', ' ');
+        label = 'CANCELLED';
         break;
       default:
         color = AppColors.secondaryGreen;
@@ -556,6 +610,58 @@ class _BottomActions extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ── Expired / cancelled — start fresh ────────────────────────
+          if (room.isTerminal) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Clear the stale session so the host lands on the vendor
+                  // page ready to create a brand-new group order.
+                  ref.read(groupOrderSessionProvider.notifier).state = null;
+                  AppNavigator.pushAndRemoveAll(
+                    context,
+                    AppRoute.vendorMenu,
+                    arguments: {'vendorId': room.vendorId},
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryOrange,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                icon: const Icon(Icons.refresh, color: Colors.white, size: 18),
+                label: const AppText(
+                  'Start New Group Order',
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                onPressed: () => AppNavigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.grey.shade300),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: AppText(
+                  'Go Back',
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+
           // Add items button — available to everyone while room is open
           if (room.isOpen)
             SizedBox(
@@ -597,39 +703,79 @@ class _BottomActions extends ConsumerWidget {
           if (room.isOpen) const SizedBox(height: 10),
 
           // Lock and checkout — host only
-          if (isHost)
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: room.items.isEmpty
-                    ? null
-                    : () => _onLockOrCheckout(context, ref),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: room.items.isEmpty
-                      ? AppColors.slate200
-                      : AppColors.darkBackground,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+          if (isHost) ...[
+            Builder(builder: (context) {
+              final hasEnoughPeople = room.participants.length >= 4;
+              final canLock = room.items.isNotEmpty && hasEnoughPeople;
+              final peopleNeeded = 4 - room.participants.length;
+
+              return Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: canLock
+                          ? () => _onLockOrCheckout(context, ref)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: canLock
+                            ? AppColors.darkBackground
+                            : AppColors.slate200,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      icon: Icon(
+                        room.isLocked ? Icons.shopping_bag_outlined : Icons.lock,
+                        color: canLock ? Colors.white : AppColors.slate400,
+                        size: 18,
+                      ),
+                      label: AppText(
+                        room.isLocked
+                            ? 'Review and checkout'
+                            : 'Lock group and review checkout',
+                        color: canLock ? Colors.white : AppColors.slate400,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                icon: Icon(
-                  room.isLocked ? Icons.shopping_bag_outlined : Icons.lock,
-                  color: room.items.isEmpty
-                      ? AppColors.slate400
-                      : Colors.white,
-                  size: 18,
-                ),
-                label: AppText(
-                  room.isLocked
-                      ? 'Review and checkout'
-                      : 'Lock group and review checkout',
-                  color: room.items.isEmpty ? AppColors.slate400 : Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+                  if (!hasEnoughPeople) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.group_add_outlined,
+                            size: 14, color: AppColors.slate400),
+                        const SizedBox(width: 6),
+                        AppText(
+                          'Invite $peopleNeeded more ${peopleNeeded == 1 ? 'person' : 'people'} to lock the group (min. 4)',
+                          fontSize: 12,
+                          color: AppColors.slate400,
+                        ),
+                      ],
+                    ),
+                  ] else if (room.items.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.shopping_basket_outlined,
+                            size: 14, color: AppColors.slate400),
+                        const SizedBox(width: 6),
+                        const AppText(
+                          'Add items to lock the group',
+                          fontSize: 12,
+                          color: AppColors.slate400,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+            }),
+          ],
 
           // Non-host waiting state when locked
           if (!isHost && room.isLocked)
@@ -743,7 +889,7 @@ class _BottomActions extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigator.pop(context),
             child: const AppText('OK', color: AppColors.primaryOrange),
           ),
         ],
@@ -756,9 +902,6 @@ class _BottomActions extends ConsumerWidget {
       WidgetRef ref,
       GroupOrderEstimate estimate,
       ) async {
-    final sessionService = ref.read(sessionServiceProvider);
-    final isAuthenticated = sessionService.isLoggedIn;
-
     // Show payment method selection first
     final paymentMethod = await _showPaymentMethodSheet(context, ref, estimate.total);
     if (paymentMethod == null || !context.mounted) return;
@@ -781,13 +924,13 @@ class _BottomActions extends ConsumerWidget {
     );
 
     try {
-      // Create the order
+      // Create the order — loading dialog stays up until each handler navigates.
       final result = await ref.read(groupOrderProvider.notifier).checkout();
 
       if (!context.mounted) return;
-      Navigator.pop(context); // Close loading dialog
 
-      // Route based on payment method (matching regular cart flow)
+      // Each handler is responsible for closing the loading dialog just before
+      // it navigates, so the group order screen is never briefly visible.
       if (paymentMethod == 'WALLET') {
         await _handleWalletPayment(context, ref, result);
       } else if (paymentMethod == 'PAYSTACK') {
@@ -797,7 +940,7 @@ class _BottomActions extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog if error
+        AppNavigator.pop(context); // Close loading dialog on error
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Checkout failed: $e')),
         );
@@ -816,22 +959,21 @@ class _BottomActions extends ConsumerWidget {
       final balanceKobo = int.tryParse(walletBalance.availableBalanceKobo) ?? 0;
       final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
 
-      print('💰 Wallet balance: ₦$balanceNaira');
-      print('💰 Order total: ₦$totalAmount');
+      debugPrint('💰 [GroupOrder] Wallet balance: ₦$balanceNaira, order total: ₦$totalAmount');
 
       if (balanceNaira < totalAmount) {
-        // Insufficient balance - show top-up dialog
+        if (!context.mounted) return false;
         final shouldTopup = await _showInsufficientBalanceDialog(context, totalAmount, balanceNaira);
         if (shouldTopup && context.mounted) {
           await _showTopupBottomSheet(context, ref, totalAmount, balanceNaira);
-          return false; // Don't proceed with checkout yet - top-up flow will handle it
+          return false;
         }
         return false;
       }
 
       return true;
     } catch (e) {
-      print('❌ Error checking wallet balance: $e');
+      debugPrint('❌ [GroupOrder] Error checking wallet balance: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unable to check wallet balance')),
@@ -883,11 +1025,11 @@ class _BottomActions extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => AppNavigator.pop(context, false),
             child: const AppText('Cancel', color: AppColors.slate400),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => AppNavigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryOrange,
             ),
@@ -955,11 +1097,12 @@ class _BottomActions extends ConsumerWidget {
       await ref.read(sessionServiceProvider).clearGroupOrderSession();
       ref.read(groupOrderSessionProvider.notifier).state = null;
 
-      // Navigate to order success screen (same as regular cart)
+      if (!context.mounted) return;
+      AppNavigator.pop(context); // close loading dialog
       Navigator.pushNamedAndRemoveUntil(
         context,
         AppRoute.orderSuccess,
-            (route) => false,
+        (route) => false,
       );
     } catch (e) {
       if (context.mounted) {
@@ -995,7 +1138,8 @@ class _BottomActions extends ConsumerWidget {
       await ref.read(sessionServiceProvider).clearGroupOrderSession();
       ref.read(groupOrderSessionProvider.notifier).state = null;
 
-      // Navigate to Paystack checkout screen (same as regular cart)
+      if (!context.mounted) return;
+      AppNavigator.pop(context); // close loading dialog
       AppNavigator.push(
         context,
         AppRoute.paystackCheckout,
@@ -1042,6 +1186,8 @@ class _BottomActions extends ConsumerWidget {
       await ref.read(sessionServiceProvider).clearGroupOrderSession();
       ref.read(groupOrderSessionProvider.notifier).state = null;
 
+      if (!context.mounted) return;
+      AppNavigator.pop(context); // close loading dialog
       // Show payment link dialog (same as regular cart)
       await showDialog(
         context: context,
@@ -1092,7 +1238,7 @@ class _BottomActions extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 // Navigate to dashboard after generating link (same as regular cart)
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -1158,7 +1304,7 @@ class _BottomActions extends ConsumerWidget {
                 return null;
               },
               onConfirm: () {
-                Navigator.pop(modalContext, true);
+                AppNavigator.pop(modalContext, true);
               },
             );
           },
@@ -1247,7 +1393,7 @@ class _GroupPaymentBottomSheetState extends State<_GroupPaymentBottomSheet> {
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, _selectedPaymentMethod),
+              onPressed: () => AppNavigator.pop(context, _selectedPaymentMethod),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryOrange,
                 shape: RoundedRectangleBorder(

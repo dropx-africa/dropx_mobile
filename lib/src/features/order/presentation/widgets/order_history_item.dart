@@ -45,7 +45,7 @@ class OrderHistoryItem extends StatelessWidget {
     );
 
     final itemsSummary = order.items != null && order.items!.isNotEmpty
-        ? order.items!.map((i) => '${i.qty}x ${i.name}').join(', ')
+        ? order.items!.map((i) => '${i.qty}x ${i.name ?? ''}').join(', ')
         : 'No items';
 
     final displayDate = order.createdAt != null
@@ -459,7 +459,7 @@ class _ReceiptSheet extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: AppText(item.name, fontSize: 14),
+            child: AppText(item.name ?? '', fontSize: 14),
           ),
           AppText(
             fmt.format(lineTotal),

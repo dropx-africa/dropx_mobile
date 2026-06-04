@@ -10,11 +10,11 @@ NotificationItem _$NotificationItemFromJson(Map<String, dynamic> json) =>
     NotificationItem(
       id: json['id'] as String,
       type: json['type'] as String,
+      category: json['category'] as String?,
       title: json['title'] as String,
       body: json['body'] as String,
       read: json['read'] as bool,
       createdAt: DateTime.parse(json['created_at'] as String),
-      deepLink: json['deep_link'] as String?,
       meta: json['meta'] as Map<String, dynamic>?,
     );
 
@@ -22,11 +22,11 @@ Map<String, dynamic> _$NotificationItemToJson(NotificationItem instance) =>
     <String, dynamic>{
       'id': instance.id,
       'type': instance.type,
+      'category': instance.category,
       'title': instance.title,
       'body': instance.body,
       'read': instance.read,
       'created_at': instance.createdAt.toIso8601String(),
-      'deep_link': instance.deepLink,
       'meta': instance.meta,
     };
 

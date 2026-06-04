@@ -5,6 +5,7 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/profile/providers/notification_providers.dart';
 import 'package:dropx_mobile/src/features/profile/data/dto/notification_dto.dart';
 import 'package:intl/intl.dart';
+import 'package:dropx_mobile/src/route/page.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -104,14 +105,8 @@ class _NotificationTile extends ConsumerWidget {
             ref.invalidate(notificationsFutureProvider);
           } catch (_) {}
         }
-        final deepLink = notification.deepLink;
-        if (deepLink != null && deepLink.isNotEmpty && context.mounted) {
-          Navigator.pushNamed(
-            context,
-            deepLink,
-            arguments: notification.meta,
-          );
-        }
+        if (!context.mounted) return;
+        _navigateForNotification(context, notification);
       },
       child: Container(
         color: isUnread
@@ -176,17 +171,49 @@ class _NotificationTile extends ConsumerWidget {
     );
   }
 
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'ORDER_UPDATE':
-      case 'ORDER_DELIVERED':
-        return Icons.local_shipping_rounded;
-      case 'PROMOTION':
-        return Icons.local_offer_rounded;
-      case 'SYSTEM_ALERT':
-        return Icons.warning_rounded;
-      default:
-        return Icons.notifications_rounded;
+  /// Routes to the correct screen based on meta.aggregate_type/aggregate_id.
+  /// Falls back to doing nothing when routing metadata is absent.
+  void _navigateForNotification(BuildContext context, NotificationItem n) {
+    final meta = n.meta;
+    if (meta == null) return;
+
+    final aggregateType = '${meta['aggregate_type'] ?? ''}'.trim();
+    final aggregateId = '${meta['aggregate_id'] ?? ''}'.trim();
+
+    if (aggregateId.isEmpty) return;
+
+    switch (aggregateType) {
+      case 'order':
+      case 'order_complete':
+        Navigator.pushNamed(
+          context,
+          AppRoute.orderTracking,
+          arguments: {'orderId': aggregateId},
+        );
+      case 'parcel':
+        Navigator.pushNamed(
+          context,
+          AppRoute.parcelTracking,
+          arguments: {'parcelId': aggregateId},
+        );
     }
+  }
+
+  /// Maps the notification category (preferred) or type prefix to an icon.
+  IconData _getIconForType(String type) {
+    // category is more stable than the full event-key type string.
+    final cat = notification.category ?? '';
+    if (cat == 'ORDER_UPDATE') return Icons.local_shipping_rounded;
+    if (cat == 'PARCEL_UPDATE') return Icons.inventory_2_outlined;
+    if (cat == 'PROMOTION') return Icons.local_offer_rounded;
+    if (cat == 'SYSTEM_ALERT') return Icons.warning_rounded;
+    if (cat == 'WALLET' || cat == 'PAYMENT') return Icons.account_balance_wallet_outlined;
+
+    // Fallback: match on type prefix for apps that don't set category.
+    if (type.startsWith('customer.order')) return Icons.local_shipping_rounded;
+    if (type.startsWith('customer.parcel')) return Icons.inventory_2_outlined;
+    if (type.startsWith('customer.wallet')) return Icons.account_balance_wallet_outlined;
+
+    return Icons.notifications_rounded;
   }
 }

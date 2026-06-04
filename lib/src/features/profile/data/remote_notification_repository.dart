@@ -23,6 +23,7 @@ class RemoteNotificationRepository implements NotificationRepository {
   Future<ReadAllNotificationsData> readAllNotifications() async {
     final response = await _apiClient.patch<ReadAllNotificationsData>(
       ApiEndpoints.notificationsReadAll,
+      data: const <String, dynamic>{},
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           ReadAllNotificationsData.fromJson(json as Map<String, dynamic>),
@@ -34,6 +35,7 @@ class RemoteNotificationRepository implements NotificationRepository {
   Future<ReadNotificationData> readNotification(String id) async {
     final response = await _apiClient.patch<ReadNotificationData>(
       ApiEndpoints.notificationRead(id),
+      data: const <String, dynamic>{},
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           ReadNotificationData.fromJson(json as Map<String, dynamic>),

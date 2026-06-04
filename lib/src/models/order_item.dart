@@ -16,13 +16,13 @@ class OrderItem {
   final String orderItemId;
 
   @JsonKey(name: 'order_id')
-  final String orderId;
+  final String? orderId;
 
   /// The real catalog item ID — must be sent back to the backend on reorder.
   @JsonKey(name: 'item_id')
   final String? itemId;
 
-  final String name;
+  final String? name;
   @JsonKey(fromJson: _parseInt)
   final int qty;
 
@@ -30,16 +30,16 @@ class OrderItem {
   final int unitPriceKobo;
 
   @JsonKey(name: 'created_at')
-  final String createdAt;
+  final String? createdAt;
 
   const OrderItem({
     required this.orderItemId,
-    required this.orderId,
+    this.orderId,
     this.itemId,
-    required this.name,
+    this.name,
     required this.qty,
     required this.unitPriceKobo,
-    required this.createdAt,
+    this.createdAt,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) =>

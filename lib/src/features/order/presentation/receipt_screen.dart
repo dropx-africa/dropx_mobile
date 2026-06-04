@@ -169,7 +169,7 @@ class ReceiptScreen extends ConsumerWidget {
       children: [
         Expanded(
           child: AppText(
-            "${item.name} × ${item.qty}",
+            "${item.name ?? ''} × ${item.qty}",
             color: Colors.grey.shade700,
             fontSize: 14,
           ),

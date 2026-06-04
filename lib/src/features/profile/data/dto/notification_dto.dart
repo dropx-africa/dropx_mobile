@@ -6,6 +6,7 @@ part 'notification_dto.g.dart';
 class NotificationItem {
   final String id;
   final String type;
+  final String? category;
   final String title;
   final String body;
   final bool read;
@@ -13,19 +14,16 @@ class NotificationItem {
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
 
-  @JsonKey(name: 'deep_link')
-  final String? deepLink;
-
   final Map<String, dynamic>? meta;
 
   const NotificationItem({
     required this.id,
     required this.type,
+    this.category,
     required this.title,
     required this.body,
     required this.read,
     required this.createdAt,
-    this.deepLink,
     this.meta,
   });
 

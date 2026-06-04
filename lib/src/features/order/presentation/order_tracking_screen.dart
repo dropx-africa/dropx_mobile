@@ -792,11 +792,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       child: IconButton(
         icon: const Icon(Icons.arrow_back),
         color: Colors.black,
-        onPressed: () => AppNavigator.pushAndRemoveAll(
-          context,
-          AppRoute.dashboard,
-          arguments: {'initialTab': 2},
-        ),
+        onPressed: () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            AppNavigator.pushAndRemoveAll(
+              context,
+              AppRoute.dashboard,
+              arguments: {'initialTab': 2},
+            );
+          }
+        },
       ),
     );
   }

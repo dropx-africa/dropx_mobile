@@ -306,13 +306,31 @@ abstract class AppRouter {
       case AppRoute.contactSync:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const ContactSyncScreen(),
+          builder: (context) => Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(clientConfigProvider).valueOrNull ??
+                  ClientConfig.defaults;
+              if (!config.contactSyncEnabled) {
+                return const FeatureUnavailableScreen();
+              }
+              return const ContactSyncScreen();
+            },
+          ),
         );
 
       case AppRoute.socialFeed:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const SocialFeedScreen(),
+          builder: (context) => Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(clientConfigProvider).valueOrNull ??
+                  ClientConfig.defaults;
+              if (!config.socialFeedEnabled) {
+                return const FeatureUnavailableScreen();
+              }
+              return const SocialFeedScreen();
+            },
+          ),
         );
 
       case AppRoute.preferences:
