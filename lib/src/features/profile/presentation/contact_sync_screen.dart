@@ -284,30 +284,7 @@ class _ContactSyncScreenState extends ConsumerState<ContactSyncScreen> {
             textAlign: TextAlign.center,
             height: 1.55,
           ),
-          const SizedBox(height: 12),
-          // Privacy note
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.green.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lock_outline, size: 16, color: Colors.green.shade700),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: AppText(
-                    'Phone numbers are hashed on-device. DropX only stores the hash, never the number.',
-                    fontSize: 12,
-                    color: Colors.green.shade700,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
+     
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
