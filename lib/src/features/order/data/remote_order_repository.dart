@@ -189,18 +189,16 @@ class RemoteOrderRepository implements OrderRepository {
   @override
   Future<OrderTrackingLiveResponse> trackOrderLive(String orderId) async {
     debugPrint(
-      '🔵 [TRACKING-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orderTrackingLive(orderId)}',
+      '🔵 [TRACKING-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orderLiveSummary(orderId)}',
     );
-    // ApiClient already unwraps json['data'], so we parse the inner
-    // OrderTrackingLiveData directly.
     final response = await _apiClient.get<OrderTrackingLiveData>(
-      ApiEndpoints.orderTrackingLive(orderId),
+      ApiEndpoints.orderLiveSummary(orderId),
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           OrderTrackingLiveData.fromJson(json as Map<String, dynamic>),
     );
     final data = response.data;
-    debugPrint('✅ [TRACKING-API] GET /orders/$orderId/tracking-live →');
+    debugPrint('✅ [TRACKING-API] GET /orders/$orderId/live-summary →');
     debugPrint('   state=${data.state}, eta_minutes=${data.etaMinutes}');
     debugPrint('   rider=${data.rider?.name ?? "none"}');
     debugPrint(

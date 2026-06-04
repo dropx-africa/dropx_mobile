@@ -39,6 +39,7 @@ class ApiEndpoints {
   static String generatePaymentLink(String id) => '/orders/$id/payment-link';
   static const String orderTracking = '/orders/tracking';
   static String orderTrackingLive(String id) => '/orders/$id/tracking-live';
+  static String orderLiveSummary(String id) => '/orders/$id/live-summary';
   static String orderTimeline(String id) => '/orders/$id/timeline';
   static String orderCancel(String id) => '/orders/$id/cancel';
   static String orderDispute(String id) => '/orders/$id/dispute';
@@ -124,6 +125,10 @@ class ApiEndpoints {
   static const String socialContactsSync = '/social/contacts/sync';
   static const String socialFeed = '/social/feed';
   static const String socialPreferences = '/social/preferences';
+
+  // Integration / runtime config
+  static const String clientConfig = '/integration/client-config';
+  static const String clientPolicy = '/integration/client-policy';
 
   // Home Feed
   static const String homeFeed = '/home/feed';

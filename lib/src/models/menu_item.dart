@@ -90,15 +90,23 @@ class MenuItem {
   final List<MenuItemAddon>? addons;
 
   // ── Retail stock fields ──────────────────────────────────────────────────
-  // stock_count: how many units remain. null means stock is not tracked
-  // (food items). 0 means out of stock. >0 means in stock.
-  @JsonKey(name: 'stock_count')
+  // Parsed from `stock_quantity` (new API) or `stock_count` (old API).
+  // null means stock is not tracked (food items).
+  @JsonKey(name: 'stock_quantity')
   final int? stockCount;
 
-  // stock_status: backend-provided stock state string.
+  // Backend-provided stock state string.
   // Known values: 'IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK', null (not tracked)
   @JsonKey(name: 'stock_status')
   final String? stockStatus;
+
+  // Backend-computed flag: true when stock is below low_stock_threshold.
+  @JsonKey(name: 'low_stock_alert')
+  final bool? lowStockAlert;
+
+  // Threshold below which the backend considers stock "low".
+  @JsonKey(name: 'low_stock_threshold')
+  final int? lowStockThreshold;
   // ────────────────────────────────────────────────────────────────────────
 
   const MenuItem({
@@ -117,22 +125,24 @@ class MenuItem {
     this.addons,
     this.stockCount,
     this.stockStatus,
+    this.lowStockAlert,
+    this.lowStockThreshold,
   });
 
   /// True when stock is explicitly tracked AND exhausted.
-  /// For food items where stock is not tracked, this is always false.
   bool get isOutOfStock =>
-      stockCount != null && stockCount! <= 0 ||
-          stockStatus == 'OUT_OF_STOCK';
+      stockStatus == 'OUT_OF_STOCK' ||
+      (stockCount != null && stockCount! <= 0);
 
-  /// True when stock is tracked and running low (backend says LOW_STOCK
-  /// or count is between 1 and 5 inclusive).
+  /// True when the backend flags low stock OR the count is tracked and low.
   bool get isLowStock =>
+      lowStockAlert == true ||
       stockStatus == 'LOW_STOCK' ||
-          (stockCount != null && stockCount! > 0 && stockCount! <= 5);
+      (stockCount != null &&
+          stockCount! > 0 &&
+          stockCount! <= (lowStockThreshold ?? 5));
 
   /// Whether this item can actually be added to cart.
-  /// Combines isAvailable (vendor-level flag) with stock state.
   bool get canAddToCart => isAvailable && !isOutOfStock;
 
   factory MenuItem.fromJson(Map<String, dynamic> json) =>

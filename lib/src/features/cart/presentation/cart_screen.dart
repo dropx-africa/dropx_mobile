@@ -28,6 +28,7 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
 import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -251,6 +252,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           orderId,
           PlaceOrderDto(paymentMethod: 'WALLET'),
         );
+        AppNotifications.orderPlaced(orderId);
         if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,

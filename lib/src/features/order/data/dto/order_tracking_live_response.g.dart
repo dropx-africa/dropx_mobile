@@ -19,26 +19,40 @@ Map<String, dynamic> _$OrderTrackingLiveResponseToJson(
 
 OrderTrackingLiveData _$OrderTrackingLiveDataFromJson(
   Map<String, dynamic> json,
-) => OrderTrackingLiveData(
-  orderId: json['order_id'] as String,
-  state: json['state'] as String,
-  rider: json['rider'] == null
-      ? null
-      : OrderTrackingRider.fromJson(json['rider'] as Map<String, dynamic>),
-  etaMinutes: (json['eta_minutes'] as num?)?.toInt(),
-  deliveryOtp: json['delivery_otp'] as String?,
-  location: json['location'] == null
-      ? null
-      : OrderTrackingLocation.fromJson(
-          json['location'] as Map<String, dynamic>,
-        ),
-  timeline: json['timeline'] as List<dynamic>?,
-  staleAfterSeconds: (json['stale_after_seconds'] as num?)?.toInt(),
-  isStale: json['is_stale'] as bool?,
-  source: json['source'] as String?,
-  accuracyM: json['accuracy_m'] as num?,
-  lastEventSeq: (json['last_event_seq'] as num?)?.toInt(),
-);
+) {
+  // live-summary nests telemetry inside a 'tracking' sub-object.
+  // Fall back to the root so the old /tracking-live shape still works.
+  final t = json['tracking'] as Map<String, dynamic>? ?? json;
+
+  // delivery_otp is a plain String on /tracking-live but an object on
+  // live-summary. Extract safely either way.
+  final rawOtp = json['delivery_otp'];
+  final String? deliveryOtp = rawOtp is String
+      ? rawOtp
+      : (rawOtp is Map) ? rawOtp['otp'] as String? : null;
+
+  // location lives at the root on /tracking-live, inside 'tracking' on live-summary.
+  final rawLoc = t['location'] ?? json['location'];
+
+  return OrderTrackingLiveData(
+    orderId: json['order_id'] as String,
+    state: json['state'] as String,
+    rider: json['rider'] == null
+        ? null
+        : OrderTrackingRider.fromJson(json['rider'] as Map<String, dynamic>),
+    etaMinutes: (json['eta_minutes'] as num?)?.toInt(),
+    deliveryOtp: deliveryOtp,
+    location: rawLoc == null
+        ? null
+        : OrderTrackingLocation.fromJson(rawLoc as Map<String, dynamic>),
+    timeline: json['timeline'] as List<dynamic>?,
+    staleAfterSeconds: (t['stale_after_seconds'] as num?)?.toInt(),
+    isStale: t['is_stale'] as bool?,
+    source: t['source'] as String?,
+    accuracyM: t['accuracy_m'] as num?,
+    lastEventSeq: (json['last_event_seq'] as num?)?.toInt(),
+  );
+}
 
 Map<String, dynamic> _$OrderTrackingLiveDataToJson(
   OrderTrackingLiveData instance,

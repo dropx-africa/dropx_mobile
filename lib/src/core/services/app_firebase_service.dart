@@ -33,6 +33,16 @@ import 'package:dropx_mobile/src/utils/app_log.dart';
       );
     case 'customer.parcel.recipient_confirmation':
       return (title: 'Parcel Confirmation', body: 'Please confirm receipt of your parcel.');
+    case 'customer.parcel.placed':
+      return (title: 'Parcel Booked', body: 'Your parcel has been booked successfully.');
+    case 'customer.parcel.assigned':
+      return (title: 'Rider Assigned', body: 'A rider has been assigned to your parcel.');
+    case 'customer.parcel.picked_up':
+      return (title: 'Parcel Picked Up', body: 'Your parcel has been picked up and is on the way.');
+    case 'customer.parcel.in_transit':
+      return (title: 'Parcel On the Way', body: 'Your parcel is heading to the recipient.');
+    case 'customer.parcel.delivered':
+      return (title: 'Parcel Delivered', body: 'Your parcel has been delivered successfully!');
     default:
       return null;
   }
@@ -324,8 +334,8 @@ class AppFirebaseService implements IAppFirebaseService {
       );
       return;
     }
-    if (eventKey == 'customer.parcel.recipient_confirmation' && aggregateId.isNotEmpty) {
-      AppLog.d('[Push] routing → parcelTracking ($aggregateId) via event_key');
+    if (eventKey.startsWith('customer.parcel.') && aggregateId.isNotEmpty) {
+      AppLog.d('[Push] routing → parcelTracking ($aggregateId) via event_key "$eventKey"');
       navigator.pushNamed(AppRoute.parcelTracking, arguments: {'parcelId': aggregateId});
       return;
     }
@@ -369,16 +379,20 @@ class AppFirebaseService implements IAppFirebaseService {
     String? aggregateType,
     String? aggregateId,
   }) async {
-    AppLog.d('[Push] showLocalNotification — title:"$title"');
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      _notificationDetails,
-      payload: aggregateType != null
-          ? '{"data":{"aggregate_type":"$aggregateType","aggregate_id":"${aggregateId ?? ''}"}}'
-          : null,
-    );
-    AppLog.d('[Push] showLocalNotification fired');
+    AppLog.d('🔔 [Push] showLocalNotification ENTER — title:"$title" type=$aggregateType id=$aggregateId');
+    try {
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        _notificationDetails,
+        payload: aggregateType != null
+            ? '{"data":{"aggregate_type":"$aggregateType","aggregate_id":"${aggregateId ?? ''}"}}'
+            : null,
+      );
+      AppLog.d('🔔 [Push] showLocalNotification SUCCESS — title:"$title"');
+    } catch (e, st) {
+      dev.log('🔴 [Push] showLocalNotification FAILED: $e\n$st', name: 'AppFirebaseService', error: e, stackTrace: st);
+    }
   }
 }

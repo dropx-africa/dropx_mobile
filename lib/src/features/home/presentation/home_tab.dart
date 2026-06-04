@@ -18,6 +18,7 @@ import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/home/providers/home_feed_providers.dart';
 import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
+import 'package:dropx_mobile/src/features/profile/providers/notification_providers.dart';
 
 import '../../auth/presentation/sign_up_to_order_sheet.dart';
 
@@ -32,6 +33,7 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double safeAreaTop;
   final String displayAddress;
   final bool isGuest;
+  final int unreadCount;
   final VoidCallback onLocationTap;
   final VoidCallback onNotificationTap;
 
@@ -39,6 +41,7 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.safeAreaTop,
     required this.displayAddress,
     required this.isGuest,
+    required this.unreadCount,
     required this.onLocationTap,
     required this.onNotificationTap,
   });
@@ -99,9 +102,22 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
               ),
               if (!isGuest)
                 IconButton(
-                  icon: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Colors.white,
+                  icon: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    backgroundColor: Colors.red,
+                    offset: const Offset(6, -6),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                    ),
                   ),
                   onPressed: onNotificationTap,
                 ),
@@ -116,8 +132,9 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _StickyOrangeHeaderDelegate oldDelegate) =>
       oldDelegate.safeAreaTop != safeAreaTop ||
-          oldDelegate.displayAddress != displayAddress ||
-          oldDelegate.isGuest != isGuest;
+      oldDelegate.displayAddress != displayAddress ||
+      oldDelegate.isGuest != isGuest ||
+      oldDelegate.unreadCount != unreadCount;
 }
 
 class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
@@ -163,6 +180,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         profileAsync.hasValue &&
         ((profile?.fullName?.isEmpty ?? true) || (profile?.phone?.isEmpty ?? true));
 
+    final unreadCount = ref.watch(notificationsFutureProvider)
+        .valueOrNull?.unreadCount ?? 0;
+
     final safeAreaTop = MediaQuery.of(context).padding.top;
 
     return AppScaffold(
@@ -179,14 +199,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             safeAreaTop: safeAreaTop,
             displayAddress: displayAddress,
             isGuest: isGuest,
+            unreadCount: unreadCount,
             onLocationTap: () => AppNavigator.push(
               context,
               AppRoute.manualLocation,
             ),
-            onNotificationTap: () => AppNavigator.push(
-              context,
-              AppRoute.notifications,
-            ),
+            onNotificationTap: () async {
+              await AppNavigator.push(context, AppRoute.notifications);
+              // Refresh badge after returning from the notifications screen.
+              ref.invalidate(notificationsFutureProvider);
+            },
           ),
         ),
         SliverPersistentHeader(

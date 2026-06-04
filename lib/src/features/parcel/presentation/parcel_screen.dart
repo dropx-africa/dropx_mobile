@@ -18,6 +18,7 @@ import 'package:dropx_mobile/src/features/parcel/providers/parcel_providers.dart
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 
 const _parcelTypeApiMap = {
   'Document': 'DOCUMENT',
@@ -297,6 +298,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
           parcel.parcelId,
           PlaceParcelDto(paymentMethod: _paymentMethod),
         );
+        AppNotifications.parcelPlaced(parcel.parcelId);
         if (!mounted) return;
         AppNavigator.pushAndRemoveAll(
           context,

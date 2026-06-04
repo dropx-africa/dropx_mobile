@@ -66,8 +66,11 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
   addons: (json['addons'] as List<dynamic>?)
       ?.map((e) => MenuItemAddon.fromJson(e as Map<String, dynamic>))
       .toList(),
-  stockCount: (json['stock_count'] as num?)?.toInt(),
+  // Accept `stock_quantity` (current API) with `stock_count` as fallback.
+  stockCount: ((json['stock_quantity'] ?? json['stock_count']) as num?)?.toInt(),
   stockStatus: json['stock_status'] as String?,
+  lowStockAlert: json['low_stock_alert'] as bool?,
+  lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
@@ -84,6 +87,8 @@ Map<String, dynamic> _$MenuItemToJson(MenuItem instance) => <String, dynamic>{
   'is_available': instance.isAvailable,
   'variants': instance.variants,
   'addons': instance.addons,
-  'stock_count': instance.stockCount,
+  'stock_quantity': instance.stockCount,
   'stock_status': instance.stockStatus,
+  'low_stock_alert': instance.lowStockAlert,
+  'low_stock_threshold': instance.lowStockThreshold,
 };

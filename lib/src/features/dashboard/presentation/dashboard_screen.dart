@@ -1,4 +1,7 @@
+import 'package:dropx_mobile/src/core/models/client_config.dart';
+import 'package:dropx_mobile/src/core/providers/client_config_provider.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/common_widgets/maintenance_screen.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,11 +30,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
   late int _currentIndex = widget.initialTab;
 
-  // Tracks which tabs have been visited (and therefore built) at least once.
-  // Only the initial tab is marked as visited on startup.
   late final Set<int> _visited = {widget.initialTab};
 
-  // null = not yet checked; true = granted; false = denied/not determined
+  // null = not yet checked; true = granted; false = denied
   bool? _notificationsGranted;
 
   @override
@@ -39,12 +40,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Kick off client config fetch as soon as the dashboard mounts.
+      ref.read(clientConfigProvider);
+
       final session = ref.read(sessionServiceProvider);
       if (!session.isLoggedIn) return;
       final granted = await ref.read(pushTokenServiceProvider).initialize();
       if (mounted) setState(() => _notificationsGranted = granted);
-      // Only PATCH when the stored push_enabled value differs — avoids
-      // a redundant round-trip on every app launch.
       final currentPrefs = ref.read(preferencesNotifierProvider).valueOrNull;
       if (currentPrefs?.pushEnabled != granted) {
         try {
@@ -64,11 +66,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     super.dispose();
   }
 
-  // Re-check after user returns from the system Settings screen.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _notificationsGranted == false) {
-      _recheckNotificationPermission();
+    if (state == AppLifecycleState.resumed) {
+      // Re-check notification permission in case user toggled it in Settings.
+      if (_notificationsGranted == false) _recheckNotificationPermission();
+      // Re-fetch config so maintenance mode resolves when backend comes back.
+      ref.read(clientConfigProvider.notifier).refresh();
     }
   }
 
@@ -90,12 +94,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   void _onTabTapped(int index) {
     final isGuest = ref.read(sessionServiceProvider).isGuest;
-
     if (isGuest && (index == 2 || index == 3 || index == 4)) {
       _showSignUpSheet();
       return;
     }
-
     setState(() {
       _visited.add(index);
       _currentIndex = index;
@@ -113,7 +115,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final showBanner = _notificationsGranted == false;
+    final configAsync = ref.watch(clientConfigProvider);
+    final config = configAsync.valueOrNull ?? ClientConfig.defaults;
+
+    // Full maintenance — replace the entire dashboard with the maintenance page.
+    if (config.isFullMaintenance) {
+      return const MaintenanceScreen();
+    }
+
+    final showNotifBanner = _notificationsGranted == false;
+    final showDegradedBanner = config.isDegraded || config.isReadOnly;
 
     return PopScope(
       canPop: false,
@@ -123,7 +134,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       child: Scaffold(
         body: Column(
           children: [
-            if (showBanner) _buildNotificationBanner(),
+            if (showDegradedBanner) _buildDegradedBanner(config),
+            if (showNotifBanner) _buildNotificationBanner(),
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
@@ -153,6 +165,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               label: 'Wallet',
             ),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDegradedBanner(ClientConfig config) {
+    final isReadOnly = config.isReadOnly;
+    return SafeArea(
+      bottom: false,
+      child: Container(
+        width: double.infinity,
+        color: isReadOnly ? Colors.orange.shade700 : Colors.amber.shade700,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              isReadOnly ? Icons.edit_off_outlined : Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: AppText(
+                isReadOnly
+                    ? 'Some features are temporarily unavailable. Browsing only.'
+                    : 'Some services are experiencing issues. We\'re working on it.',
+                fontSize: 12,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
       ),

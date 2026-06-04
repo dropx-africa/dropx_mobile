@@ -22,8 +22,9 @@ import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
-import 'package:dropx_mobile/src/core/services/app_firebase_service.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
+import 'package:dropx_mobile/src/utils/direction_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -86,6 +87,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   ReviewData? _existingReview;
   // True once we've attempted to fetch the review at least once.
   bool _reviewChecked = false;
+
+  // Route polyline drawn from rider → customer delivery address.
+  Set<Polyline> _polylines = {};
+  bool _routeLoading = false;
+  // Last rider LatLng for which we fetched a route — avoids redundant API calls.
+  LatLng? _lastRouteOrigin;
 
   @override
   void initState() {
@@ -183,6 +190,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             );
           }
         });
+        _maybeRefreshRoute();
         final state = _liveData?.state ?? '';
         if (state == 'IN_TRANSIT' ||
             state == 'PICKED_UP' ||
@@ -230,6 +238,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             );
           }
         });
+        _maybeRefreshRoute();
         // Fetch OTP from dedicated endpoint when rider is in transit or arrived
         final state = _liveData?.state ?? '';
         if (state == 'IN_TRANSIT' ||
@@ -305,42 +314,101 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
+  // ─── Route / directions ─────────────────────────────────────────────────
+
+  /// Call after any update that may have changed the rider's position.
+  /// Skips re-fetching if the rider hasn't moved more than ~30 m.
+  void _maybeRefreshRoute() {
+    if (_liveData?.location == null) return;
+    if (_orderStage >= 3) {
+      // Delivered/completed — remove the route line.
+      if (_polylines.isNotEmpty) setState(() => _polylines = {});
+      return;
+    }
+
+    final riderLatLng = LatLng(
+      _liveData!.location!.lat,
+      _liveData!.location!.lng,
+    );
+
+    if (_lastRouteOrigin != null) {
+      final dlat = (riderLatLng.latitude - _lastRouteOrigin!.latitude).abs();
+      final dlng = (riderLatLng.longitude - _lastRouteOrigin!.longitude).abs();
+      // ~0.0003° ≈ 33 m — skip if rider hasn't moved meaningfully
+      if (dlat < 0.0003 && dlng < 0.0003) return;
+    }
+
+    final session = ref.read(sessionServiceProvider);
+    final userLatLng = LatLng(session.savedLat, session.savedLng);
+    _fetchRoutePolyline(riderLatLng: riderLatLng, userLatLng: userLatLng);
+  }
+
+  Future<void> _fetchRoutePolyline({
+    required LatLng riderLatLng,
+    required LatLng userLatLng,
+  }) async {
+    _lastRouteOrigin = riderLatLng;
+    if (mounted) setState(() => _routeLoading = true);
+    try {
+      final routePoints = await DirectionsHelper.getRoutePoints(
+        origin: riderLatLng,
+        destination: userLatLng,
+      );
+      if (!mounted) return;
+      setState(() {
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId('delivery_route'),
+            points: routePoints.isNotEmpty
+                ? routePoints
+                : [riderLatLng, userLatLng],
+            color: AppColors.primaryOrange,
+            width: 5,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ),
+        };
+      });
+      _fitCamera([riderLatLng, userLatLng]);
+    } catch (e) {
+      debugPrint('❌ [TRACKING] Route build failed: $e');
+    } finally {
+      if (mounted) setState(() => _routeLoading = false);
+    }
+  }
+
+  void _fitCamera(List<LatLng> points) {
+    if (_mapController == null || points.length < 2) return;
+    final lats = points.map((p) => p.latitude);
+    final lngs = points.map((p) => p.longitude);
+    const pad = 0.008;
+    final bounds = LatLngBounds(
+      southwest: LatLng(
+        lats.reduce((a, b) => a < b ? a : b) - pad,
+        lngs.reduce((a, b) => a < b ? a : b) - pad,
+      ),
+      northeast: LatLng(
+        lats.reduce((a, b) => a > b ? a : b) + pad,
+        lngs.reduce((a, b) => a > b ? a : b) + pad,
+      ),
+    );
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 72));
+  }
+
   /// The best available OTP string — from the dedicated endpoint, or from
   /// live tracking data. Returns null when no OTP is available yet.
   String? get _resolvedOtp =>
       _deliveryOtpData?.deliveryOtp ?? _liveData?.deliveryOtp;
 
   void _maybeNotify(String newState) {
-    if (newState == _notifiedState) return;
+    debugPrint('🔔 [Tracking] _maybeNotify — newState=$newState _notifiedState=$_notifiedState');
+    if (newState == _notifiedState) {
+      debugPrint('🔔 [Tracking] _maybeNotify — skipped (already notified for $newState)');
+      return;
+    }
     _notifiedState = newState;
-
-    String? title;
-    String? body;
-
-    switch (newState) {
-      case 'ACCEPTED':
-        title = 'Rider Assigned';
-        body = 'A rider has been assigned and is heading to pick up your order.';
-      case 'PICKED_UP':
-      case 'IN_TRANSIT':
-        title = 'Order On the Way';
-        body = 'Your order has been picked up and is heading to you!';
-      case 'ARRIVED_DROPOFF':
-        title = 'Rider Arrived';
-        body = 'Your rider has arrived at your location.';
-      case 'DELIVERED':
-        title = 'Order Delivered';
-        body = 'Your order has been delivered successfully.';
-    }
-
-    if (title != null) {
-      IAppFirebaseService.instance.showLocalNotification(
-        title: title,
-        body: body!,
-        aggregateType: newState == 'DELIVERED' ? 'order_complete' : 'order',
-        aggregateId: widget.orderId ?? '',
-      );
-    }
+    AppNotifications.orderStateChanged(newState, widget.orderId ?? '');
   }
 
   /// Map API state string → local stage + labels.
@@ -530,13 +598,19 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   ) {
     return Stack(
       children: [
+        // Full-screen map with route polyline
         SizedBox(
           width: double.infinity,
           height: double.infinity,
           child: AppGoogleMap(
             initialTarget: riderLatLng,
             zoom: 16,
-            onMapCreated: (c) => _mapController = c,
+            onMapCreated: (c) {
+              _mapController = c;
+              // Trigger route draw now that the controller is ready
+              _maybeRefreshRoute();
+            },
+            polylines: _polylines,
             markers: {
               Marker(
                 markerId: const MarkerId('user_location'),
@@ -565,6 +639,42 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             },
           ),
         ),
+
+        // "Calculating route…" pill
+        if (_routeLoading)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Calculating route…',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
         Positioned(
           top: 50,
           left: 16,
@@ -575,11 +685,65 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           right: 16,
           child: _buildRefreshButton(),
         ),
+
+        // Map FABs — re-center on rider + fit both points
+        Positioned(
+          right: 16,
+          bottom: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMapFab(
+                icon: Icons.my_location,
+                tooltip: 'Centre on rider',
+                onTap: () {
+                  _mapController?.animateCamera(
+                    CameraUpdate.newCameraPosition(
+                      CameraPosition(target: riderLatLng, zoom: 16),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildMapFab(
+                icon: Icons.fit_screen,
+                tooltip: 'Fit route',
+                onTap: () => _fitCamera([riderLatLng, userLatLng]),
+              ),
+            ],
+          ),
+        ),
+
         Align(
           alignment: Alignment.bottomCenter,
           child: _buildStatusSheet(context),
         ),
       ],
+    );
+  }
+
+  Widget _buildMapFab({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: const [
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Icon(icon, color: Colors.black87, size: 20),
+        ),
+      ),
     );
   }
 

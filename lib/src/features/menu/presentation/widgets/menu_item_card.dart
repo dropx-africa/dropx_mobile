@@ -161,7 +161,7 @@ class MenuItemCard extends StatelessWidget {
                                     color: Colors.orange.shade700),
                                 const SizedBox(width: 4),
                                 Text(
-                                  item.stockCount != null
+                                  (item.stockCount != null && item.stockCount! > 0)
                                       ? 'Only ${item.stockCount} left'
                                       : 'Low stock',
                                   style: TextStyle(

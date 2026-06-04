@@ -128,7 +128,7 @@ class ApiClient {
       final uri = _buildUri(path);
       final requestHeaders = {..._headers, ...?headers};
       return await _client
-          .patch(uri, headers: requestHeaders, body: jsonEncode(data))
+          .patch(uri, headers: requestHeaders, body: data != null ? jsonEncode(data) : null)
           .timeout(_timeout);
     }, fromJson);
   }

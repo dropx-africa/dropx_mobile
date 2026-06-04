@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 
 /// Loads the Paystack authorization URL in a WebView.
@@ -72,6 +73,15 @@ class _PaystackCheckoutScreenState extends State<PaystackCheckoutScreen> {
 
   void _onPaymentComplete() {
     final route = widget.successRoute ?? AppRoute.orderSuccess;
+
+    if (widget.orderId != null) {
+      if (route == AppRoute.parcelTracking) {
+        AppNotifications.parcelPlaced(widget.orderId!);
+      } else {
+        AppNotifications.orderPlaced(widget.orderId!);
+      }
+    }
+
     final args = widget.successArgs ??
         {'orderId': widget.orderId, 'reference': widget.reference};
 

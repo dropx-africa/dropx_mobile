@@ -18,6 +18,7 @@ import 'package:dropx_mobile/src/features/parcel/providers/parcel_providers.dart
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 
 const _stateOrder = [
   'PENDING_PAYMENT',
@@ -58,6 +59,7 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
   bool _locationIsStale = false;
   GoogleMapController? _mapController;
   StreamSubscription<SseEvent>? _sseSub;
+  String? _notifiedState;
 
   @override
   void initState() {
@@ -97,7 +99,15 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
   }
 
   void _onSseEvent(SseEvent event) {
-    if (!mounted || event.type != 'parcel.state') return;
+    if (!mounted) return;
+
+    // Heartbeat — silently re-fetch to catch any missed state updates.
+    if (event.type == 'heartbeat') {
+      _fetchLive();
+      return;
+    }
+
+    if (event.type != 'parcel.state') return;
     try {
       final json = jsonDecode(event.data) as Map<String, dynamic>;
       final updated = ParcelTrackingLiveData.fromJson(json);
@@ -112,7 +122,14 @@ class _ParcelTrackingScreenState extends ConsumerState<ParcelTrackingScreen> {
           ),
         );
       }
+      _maybeNotify(updated.state);
     } catch (_) {}
+  }
+
+  void _maybeNotify(String state) {
+    if (state == _notifiedState) return;
+    _notifiedState = state;
+    AppNotifications.parcelStateChanged(state, widget.parcelId);
   }
 
   Future<void> _fetchAll() async {

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dropx_mobile/src/common_widgets/feature_unavailable_screen.dart';
+import 'package:dropx_mobile/src/core/models/client_config.dart';
+import 'package:dropx_mobile/src/core/providers/client_config_provider.dart';
 
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/onboarding/presentation/onboarding_screen.dart';
@@ -238,7 +242,16 @@ abstract class AppRouter {
       case AppRoute.groupOrder:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const GroupOrderScreen(),
+          builder: (context) => Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(clientConfigProvider).valueOrNull ??
+                  ClientConfig.defaults;
+              if (!config.groupOrdersEnabled) {
+                return const FeatureUnavailableScreen();
+              }
+              return const GroupOrderScreen();
+            },
+          ),
         );
 
       case AppRoute.joinGroupOrder:
@@ -246,7 +259,16 @@ abstract class AppRouter {
         final token = args['token'] as String;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => JoinGroupOrderScreen(inviteToken: token),
+          builder: (context) => Consumer(
+            builder: (context, ref, _) {
+              final config = ref.watch(clientConfigProvider).valueOrNull ??
+                  ClientConfig.defaults;
+              if (!config.groupOrdersEnabled) {
+                return const FeatureUnavailableScreen();
+              }
+              return JoinGroupOrderScreen(inviteToken: token);
+            },
+          ),
         );
 
       case AppRoute.notifications:
@@ -320,7 +342,7 @@ abstract class AppRouter {
       default:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const OnboardingScreen(),
+          builder: (context) => const FeatureUnavailableScreen(),
         );
     }
   }
