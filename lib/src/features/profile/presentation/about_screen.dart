@@ -6,7 +6,6 @@ import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -35,12 +34,6 @@ class _AboutScreenState extends State<AboutScreen> {
     }
   }
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,14 +165,14 @@ class _AboutScreenState extends State<AboutScreen> {
               children: [
                 _buildLinkRow(
                   icon: Icons.privacy_tip_outlined,
-                  label: 'Privacy Policy',
-                  onTap: () => _openUrl('https://dropx.africa/privacy'),
+                  label: 'Privacy Notice',
+                  onTap: () => AppNavigator.push(context, AppRoute.privacy),
                 ),
                 const Divider(height: 1, indent: 16, color: AppColors.slate100),
                 _buildLinkRow(
                   icon: Icons.description_outlined,
-                  label: 'Terms of Service',
-                  onTap: () => _openUrl('https://dropx.africa/terms'),
+                  label: 'Terms of Use',
+                  onTap: () => AppNavigator.push(context, AppRoute.terms),
                 ),
                 const Divider(height: 1, indent: 16, color: AppColors.slate100),
                 _buildLinkRow(

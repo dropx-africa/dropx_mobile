@@ -40,6 +40,8 @@ import 'package:dropx_mobile/src/features/profile/presentation/preferences_scree
 import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/about_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/privacy_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/terms_screen.dart';
 
 import '../models/vendor_category.dart';
 
@@ -355,6 +357,18 @@ abstract class AppRouter {
         return MaterialPageRoute(
           settings: settings,
           builder: (context) => const AboutScreen(),
+        );
+
+      case AppRoute.privacy:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const PrivacyScreen(),
+        );
+
+      case AppRoute.terms:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const TermsScreen(),
         );
 
       default:

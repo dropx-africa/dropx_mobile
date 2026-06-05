@@ -37,4 +37,6 @@ class AppRoute {
   static const groupOrder = "/group-order";
   static const joinGroupOrder = "/join-group-order";
   static const about = "/about";
+  static const privacy = "/privacy";
+  static const terms = "/terms";
 }
