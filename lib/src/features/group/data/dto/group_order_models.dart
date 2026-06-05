@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/models/cost_breakdown.dart';
 
 class GroupOrderParticipant {
   final String participantId;
@@ -266,6 +267,8 @@ class GroupOrderInvitePreview {
 
 class GroupOrderEstimate {
   final double subtotalKobo;
+  final double discountKobo;
+  final double grossTotalKobo;
   final double deliveryFeeKobo;
   final double serviceFeeKobo;
   final double totalKobo;
@@ -277,14 +280,21 @@ class GroupOrderEstimate {
   final bool canCheckout;
   final String? serviceTier;
   final String? currency;
+  final CostBreakdown? costBreakdown;
+  final GroupDiscount? groupDiscount;
 
   double get subtotal => subtotalKobo / 100;
+  double get discount => discountKobo / 100;
+  double get grossTotal => grossTotalKobo / 100;
   double get deliveryFee => deliveryFeeKobo / 100;
   double get serviceFee => serviceFeeKobo / 100;
   double get total => totalKobo / 100;
+  bool get hasDiscount => discountKobo > 0;
 
   const GroupOrderEstimate({
     required this.subtotalKobo,
+    this.discountKobo = 0,
+    this.grossTotalKobo = 0,
     required this.deliveryFeeKobo,
     required this.serviceFeeKobo,
     required this.totalKobo,
@@ -296,6 +306,8 @@ class GroupOrderEstimate {
     required this.canCheckout,
     this.serviceTier,
     this.currency,
+    this.costBreakdown,
+    this.groupDiscount,
   });
 
   factory GroupOrderEstimate.fromJson(Map<String, dynamic> json) {
@@ -306,13 +318,17 @@ class GroupOrderEstimate {
       return 0;
     }
 
-    // Parse priced items
     final pricedItemsList = (json['priced_items'] as List<dynamic>? ?? [])
         .map((item) => PricedItem.fromJson(item as Map<String, dynamic>))
         .toList();
 
+    final cbJson = json['cost_breakdown'] as Map<String, dynamic>?;
+    final gdJson = json['group_discount'] as Map<String, dynamic>?;
+
     return GroupOrderEstimate(
       subtotalKobo: parseKobo(json['subtotal_kobo']),
+      discountKobo: parseKobo(json['discount_kobo']),
+      grossTotalKobo: parseKobo(json['gross_total_kobo']),
       deliveryFeeKobo: parseKobo(json['delivery_fee_kobo']),
       serviceFeeKobo: parseKobo(json['service_fee_kobo'] ?? 0),
       totalKobo: parseKobo(json['total_kobo']),
@@ -326,6 +342,8 @@ class GroupOrderEstimate {
       canCheckout: json['can_checkout'] as bool? ?? false,
       serviceTier: json['service_tier'] as String?,
       currency: json['currency'] as String?,
+      costBreakdown: cbJson != null ? CostBreakdown.fromJson(cbJson) : null,
+      groupDiscount: gdJson != null ? GroupDiscount.fromJson(gdJson) : null,
     );
   }
 }

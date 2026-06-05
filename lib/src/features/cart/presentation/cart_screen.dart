@@ -1132,7 +1132,9 @@ class _PaymentBottomSheetState extends State<_PaymentBottomSheet> {
                       ),
                     )
                   : AppText(
-                      'Confirm & Pay ${Formatters.formatNaira(widget.totalAmount)}',
+                      _selected == 'GENERATE_LINK'
+                          ? 'Get Payment Link'
+                          : 'Confirm & Pay ${Formatters.formatNaira(widget.totalAmount)}',
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,

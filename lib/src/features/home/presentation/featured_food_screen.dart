@@ -147,14 +147,12 @@ class _FeaturedFoodScreenState extends ConsumerState<FeaturedFoodScreen> {
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.75,
+                        mainAxisExtent: 240,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
                       ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => FeedVendorCard(
-                      item: _items[index],
-                    ),
+                    (context, index) => FeedVendorCard(item: _items[index]),
                     childCount: _items.length,
                   ),
                 ),

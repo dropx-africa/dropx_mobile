@@ -13,7 +13,7 @@ int _parseInt(dynamic value) {
 @JsonSerializable()
 class OrderItem {
   @JsonKey(name: 'order_item_id')
-  final String orderItemId;
+  final String? orderItemId;
 
   @JsonKey(name: 'order_id')
   final String? orderId;
@@ -33,7 +33,7 @@ class OrderItem {
   final String? createdAt;
 
   const OrderItem({
-    required this.orderItemId,
+    this.orderItemId,
     this.orderId,
     this.itemId,
     this.name,

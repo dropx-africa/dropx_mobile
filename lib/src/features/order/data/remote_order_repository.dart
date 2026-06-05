@@ -53,11 +53,17 @@ class RemoteOrderRepository implements OrderRepository {
     debugPrint(
       '🔵 [ORDER-API] GET ${ApiEndpoints.baseUrl}${ApiEndpoints.orderById(id)}',
     );
-    // ApiClient already unwraps json['data'], so fromJson receives the order
-    // object directly — parse it without any further unwrapping.
+    // The order detail endpoint returns {"ok":true,"order":{...}}, not {"data":{...}}.
+    // ApiResponse falls back to the full body when "data" is absent, so we must
+    // manually unwrap "order" before parsing.
     final response = await _apiClient.get<Order>(
       ApiEndpoints.orderById(id),
-      fromJson: (json) => Order.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) {
+        final body = json as Map<String, dynamic>;
+        final orderJson =
+            body['order'] as Map<String, dynamic>? ?? body;
+        return Order.fromJson(orderJson);
+      },
     );
     debugPrint(
       '✅ [ORDER-API] GET /orders/$id → orderId=${response.data.orderId}',

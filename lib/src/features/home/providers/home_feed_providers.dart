@@ -17,6 +17,8 @@ class FeedParams {
   final double? lat;
   final double? lng;
   final double? radiusKm;
+  final int? maxEtaMinutes;
+  final int? limit;
   final String? cursor;
 
   const FeedParams({
@@ -25,6 +27,8 @@ class FeedParams {
     this.lat,
     this.lng,
     this.radiusKm,
+    this.maxEtaMinutes,
+    this.limit,
     this.cursor,
   });
 
@@ -38,6 +42,8 @@ class FeedParams {
           lat == other.lat &&
           lng == other.lng &&
           radiusKm == other.radiusKm &&
+          maxEtaMinutes == other.maxEtaMinutes &&
+          limit == other.limit &&
           cursor == other.cursor;
 
   @override
@@ -47,6 +53,8 @@ class FeedParams {
       lat.hashCode ^
       lng.hashCode ^
       radiusKm.hashCode ^
+      maxEtaMinutes.hashCode ^
+      limit.hashCode ^
       cursor.hashCode;
 }
 
@@ -65,6 +73,8 @@ final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
         lat: params.lat,
         lng: params.lng,
         radiusKm: params.radiusKm,
+        maxEtaMinutes: params.maxEtaMinutes,
+        limit: params.limit,
         cursor: params.cursor,
       );
 });

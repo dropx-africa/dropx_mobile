@@ -19,12 +19,42 @@ class FastestFoodScreen extends ConsumerStatefulWidget {
 }
 
 class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
-  final List<FeedItem> _items = [];
+  final List<FeedItem> _allItems = [];
   String? _nextCursor;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
   String _searchQuery = '';
+
+  List<FeedItem> get _displayItems {
+    final source = _searchQuery.isEmpty
+        ? _allItems
+        : _allItems
+            .where((v) => v.displayName
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()))
+            .toList();
+
+    final filtered =
+        source.where((v) => v.etaMinutes != null && v.etaMinutes! > 0).toList()
+          ..sort((a, b) {
+            final etaCompare = a.etaMinutes!.compareTo(b.etaMinutes!);
+            if (etaCompare != 0) return etaCompare;
+            final aDist = a.distanceKm ?? double.infinity;
+            final bDist = b.distanceKm ?? double.infinity;
+            return aDist.compareTo(bDist);
+          });
+
+    return filtered.isEmpty ? source : filtered;
+  }
+
+  /// Title matches home section: "Fastest Food" when most have eta, else "Nearby Food".
+  String get _screenTitle {
+    if (_allItems.isEmpty) return 'Nearby Food';
+    final withEta = _allItems.where((v) => v.etaMinutes != null && v.etaMinutes! > 0).length;
+    final mostHaveEta = withEta >= (_allItems.length * 0.5);
+    return mostHaveEta ? 'Fastest Food' : 'Nearby Food';
+  }
 
   @override
   void initState() {
@@ -41,14 +71,14 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
           vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
-          radiusKm: 10,
+          maxEtaMinutes: 35,
           q: _searchQuery.isNotEmpty ? _searchQuery : null,
         ),
       ).future,
     );
     if (!mounted) return;
     setState(() {
-      _items
+      _allItems
         ..clear()
         ..addAll(feedData.items);
       _nextCursor = feedData.nextCursor;
@@ -67,7 +97,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
           vertical: VendorCategory.food.name,
           lat: session.savedLat,
           lng: session.savedLng,
-          radiusKm: 10,
+          maxEtaMinutes: 35,
           cursor: _nextCursor,
           q: _searchQuery.isNotEmpty ? _searchQuery : null,
         ),
@@ -75,7 +105,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
     );
     if (!mounted) return;
     setState(() {
-      _items.addAll(feedData.items);
+      _allItems.addAll(feedData.items);
       _nextCursor = feedData.nextCursor;
       _hasMore = _nextCursor != null;
       _isLoadingMore = false;
@@ -89,6 +119,8 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final items = _displayItems;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: NotificationListener<ScrollNotification>(
@@ -103,7 +135,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
         },
         child: CustomScrollView(
           slivers: [
-            const AppAppBar(title: 'Fastest Food'),
+            AppAppBar(title: _screenTitle),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -117,7 +149,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
               const SliverFillRemaining(
                 child: Center(child: AppLoading()),
               )
-            else if (_items.isEmpty)
+            else if (items.isEmpty)
               SliverFillRemaining(
                 child: Center(
                   child: Column(
@@ -135,7 +167,7 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
                       AppText(
                         _searchQuery.isNotEmpty
                             ? 'Try a different search term'
-                            : 'No fastest food available right now',
+                            : 'No fast-delivery vendors near you right now',
                         color: AppColors.slate400,
                       ),
                     ],
@@ -149,15 +181,13 @@ class _FastestFoodScreenState extends ConsumerState<FastestFoodScreen> {
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.75,
+                        mainAxisExtent: 240,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
                       ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => FeedVendorCard(
-                      item: _items[index],
-                    ),
-                    childCount: _items.length,
+                    (context, index) => FeedVendorCard(item: items[index]),
+                    childCount: items.length,
                   ),
                 ),
               ),

@@ -23,6 +23,7 @@ class FeaturedSection extends ConsumerWidget {
       vertical: category.apiValue,
       lat: session.savedLat,
       lng: session.savedLng,
+      limit: 10,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));
 

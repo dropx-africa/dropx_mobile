@@ -14,7 +14,6 @@ import '../../../common_widgets/app_toast.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/services/session_service.dart';
 import '../../../utils/currency_utils.dart';
-import '../../cart/presentation/cart_screen.dart';
 import '../../order/data/dto/generate_payment_link_dto.dart';
 import '../../order/data/dto/initialize_payment_dto.dart';
 import '../../order/data/dto/place_order_dto.dart';
@@ -214,6 +213,14 @@ class _RoomBody extends ConsumerWidget {
 
                 const SizedBox(height: 20),
 
+                // ── Group discount progress card ──────────────────────────
+                if (room.groupDiscount != null &&
+                    room.groupDiscount!.enabled)
+                  _GroupDiscountCard(discount: room.groupDiscount!),
+
+                if (room.groupDiscount != null && room.groupDiscount!.enabled)
+                  const SizedBox(height: 20),
+
                 // ── Participants ──────────────────────────────────────────
                 const AppText(
                   'People',
@@ -381,6 +388,115 @@ class _RoomBody extends ConsumerWidget {
         ],
       );
     }).toList();
+  }
+}
+
+// ── Group Discount Progress Card ─────────────────────────────────────────────
+
+class _GroupDiscountCard extends StatelessWidget {
+  final GroupDiscount discount;
+
+  const _GroupDiscountCard({required this.discount});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnlocked = discount.eligible && discount.currentTier != null;
+    final cardColor = hasUnlocked
+        ? AppColors.secondaryGreen.withValues(alpha: 0.08)
+        : AppColors.primaryOrange.withValues(alpha: 0.06);
+    final borderColor = hasUnlocked
+        ? AppColors.secondaryGreen.withValues(alpha: 0.3)
+        : AppColors.primaryOrange.withValues(alpha: 0.2);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasUnlocked ? Icons.local_offer : Icons.group_outlined,
+                size: 16,
+                color: hasUnlocked
+                    ? AppColors.secondaryGreen
+                    : AppColors.primaryOrange,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AppText(
+                  hasUnlocked ? 'Group discount unlocked!' : 'Group discount',
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: hasUnlocked
+                      ? AppColors.secondaryGreen
+                      : AppColors.primaryOrange,
+                ),
+              ),
+              if (discount.currentTier != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryGreen,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: AppText(
+                    discount.currentTier!.label,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          AppText(
+            discount.message,
+            fontSize: 12,
+            color: AppColors.slate400,
+          ),
+          if (discount.nextTier != null) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: discount.progressPercent / 100,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  hasUnlocked
+                      ? AppColors.secondaryGreen
+                      : AppColors.primaryOrange,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                AppText(
+                  '${discount.peopleWithItems} ${discount.peopleWithItems == 1 ? 'person' : 'people'} with items',
+                  fontSize: 11,
+                  color: AppColors.slate400,
+                ),
+                AppText(
+                  'Next: ${discount.nextTier!.label} at ${discount.nextTier!.peopleWithItems} people',
+                  fontSize: 11,
+                  color: AppColors.slate400,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -641,25 +757,6 @@ class _BottomActions extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: OutlinedButton(
-                onPressed: () => AppNavigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.grey.shade300),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
-                child: AppText(
-                  'Go Back',
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
           ],
 
           // Add items button — available to everyone while room is open
@@ -913,7 +1010,7 @@ class _BottomActions extends ConsumerWidget {
     }
 
     // Show the order summary with payment method
-    final confirmed = await _showOrderSummarySheet(context, ref, estimate);
+    final confirmed = await _showOrderSummarySheet(context, ref, estimate, paymentMethod);
     if (confirmed != true || !context.mounted) return;
 
     // Show loading indicator
@@ -1177,7 +1274,6 @@ class _BottomActions extends ConsumerWidget {
         result.orderId,
         GeneratePaymentLinkDto(ttlMinutes: 30),
       );
-
       if (!context.mounted) return;
 
       final shareableLink = 'https://dropxwebapp.vercel.app/pay-link/${linkResponse.token}';
@@ -1282,7 +1378,8 @@ class _BottomActions extends ConsumerWidget {
   Future<bool?> _showOrderSummarySheet(
       BuildContext context,
       WidgetRef ref,
-      GroupOrderEstimate estimate
+      GroupOrderEstimate estimate,
+      String paymentMethod,
       ) async {
     final sessionService = ref.read(sessionServiceProvider);
 
@@ -1299,8 +1396,8 @@ class _BottomActions extends ConsumerWidget {
             return _CheckoutSheetContent(
               estimate: estimate,
               sessionService: sessionService,
+              paymentMethod: paymentMethod,
               onLocationChange: () async {
-                // Location picker logic...
                 return null;
               },
               onConfirm: () {
@@ -1401,7 +1498,9 @@ class _GroupPaymentBottomSheetState extends State<_GroupPaymentBottomSheet> {
                 ),
               ),
               child: AppText(
-                'Continue to Review (₦${widget.totalAmount.toInt()})',
+                _selectedPaymentMethod == 'GENERATE_LINK'
+                    ? 'Get Payment Link'
+                    : 'Continue to Review (₦${widget.totalAmount.toInt()})',
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -1470,12 +1569,14 @@ class _GroupPaymentBottomSheetState extends State<_GroupPaymentBottomSheet> {
 class _CheckoutSheetContent extends StatefulWidget {
   final GroupOrderEstimate estimate;
   final SessionService sessionService;
+  final String paymentMethod;
   final Future<GroupOrderEstimate?> Function() onLocationChange;
   final VoidCallback onConfirm;
 
   const _CheckoutSheetContent({
     required this.estimate,
     required this.sessionService,
+    required this.paymentMethod,
     required this.onLocationChange,
     required this.onConfirm,
   });
@@ -1622,70 +1723,8 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
 
                 const SizedBox(height: 16),
 
-                // Price breakdown
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      _SummaryRow(
-                        label: 'Subtotal',
-                        value: '₦${_currentEstimate!.subtotal.toInt()}',
-                      ),
-                      const Divider(height: 1),
-                      _SummaryRow(
-                        label: 'Delivery fee',
-                        value: '₦${_currentEstimate!.deliveryFee.toInt()}',
-                        subtitle: _currentEstimate!.distanceKm != null
-                            ? '${_currentEstimate!.distanceKm!.toStringAsFixed(1)} km away'
-                            : null,
-                      ),
-                      if (_currentEstimate!.serviceFee > 0) ...[
-                        const Divider(height: 1),
-                        _SummaryRow(
-                          label: 'Service fee',
-                          value: '₦${_currentEstimate!.serviceFee.toInt()}',
-                        ),
-                      ],
-                      const Divider(height: 1),
-                      Container(
-                        color: AppColors.primaryOrange.withValues(alpha: 0.05),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _SummaryRow(
-                              label: 'Total',
-                              value: '₦${_currentEstimate!.total.toInt()}',
-                              bold: true,
-                              largeText: true,
-                            ),
-                            if (_currentEstimate!.etaMinutes != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.access_time,
-                                        size: 14,
-                                        color: AppColors.primaryOrange),
-                                    const SizedBox(width: 4),
-                                    AppText(
-                                      'Est. delivery: ${_currentEstimate!.etaMinutes} minutes',
-                                      fontSize: 12,
-                                      color: AppColors.primaryOrange,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Price breakdown — use cost_breakdown.lines[] when available
+                _PriceBreakdownCard(estimate: _currentEstimate!),
 
                 const SizedBox(height: 16),
 
@@ -1788,8 +1827,10 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
                         ),
                         elevation: 0,
                       ),
-                      child: const AppText(
-                        'Confirm and pay',
+                      child: AppText(
+                        widget.paymentMethod == 'GENERATE_LINK'
+                            ? 'Get Payment Link'
+                            : 'Confirm and pay',
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -1828,12 +1869,166 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
   }
 }
 
+// ── Price Breakdown Card ─────────────────────────────────────────────────────
+// Uses cost_breakdown.lines[] from backend. Falls back to scalar fields when
+// cost_breakdown is absent (e.g. older API versions).
+
+class _PriceBreakdownCard extends StatelessWidget {
+  final GroupOrderEstimate estimate;
+
+  const _PriceBreakdownCard({required this.estimate});
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = estimate.costBreakdown?.lines ?? [];
+    final useLines = lines.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          if (useLines) ...[
+            ...lines.asMap().entries.map((entry) {
+              final i = entry.key;
+              final line = entry.value;
+              final isTotal = line.type == 'total';
+              final isDiscount = line.type == 'discount';
+              final isLast = i == lines.length - 1;
+              final amountNaira = line.amountKobo / 100;
+              final amountStr = isDiscount
+                  ? '−₦${amountNaira.abs().toInt()}'
+                  : '₦${amountNaira.toInt()}';
+
+              if (isTotal) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryOrange.withValues(alpha: 0.05),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(12)),
+                  ),
+                  child: Column(
+                    children: [
+                      _SummaryRow(
+                        label: line.label,
+                        value: amountStr,
+                        bold: true,
+                        largeText: true,
+                      ),
+                      if (estimate.etaMinutes != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.access_time,
+                                  size: 14, color: AppColors.primaryOrange),
+                              const SizedBox(width: 4),
+                              AppText(
+                                'Est. delivery: ${estimate.etaMinutes} minutes',
+                                fontSize: 12,
+                                color: AppColors.primaryOrange,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  _SummaryRow(
+                    label: line.label,
+                    value: amountStr,
+                    valueColor: isDiscount ? AppColors.secondaryGreen : null,
+                  ),
+                  if (!isLast) const Divider(height: 1),
+                ],
+              );
+            }),
+          ] else ...[
+            // Fallback scalar rows
+            _SummaryRow(
+              label: 'Subtotal',
+              value: '₦${estimate.subtotal.toInt()}',
+            ),
+            const Divider(height: 1),
+            if (estimate.hasDiscount) ...[
+              _SummaryRow(
+                label: 'Group discount',
+                value: '−₦${estimate.discount.toInt()}',
+                valueColor: AppColors.secondaryGreen,
+              ),
+              const Divider(height: 1),
+            ],
+            _SummaryRow(
+              label: 'Delivery fee',
+              value: '₦${estimate.deliveryFee.toInt()}',
+              subtitle: estimate.distanceKm != null
+                  ? '${estimate.distanceKm!.toStringAsFixed(1)} km away'
+                  : null,
+            ),
+            if (estimate.serviceFee > 0) ...[
+              const Divider(height: 1),
+              _SummaryRow(
+                label: 'Service fee',
+                value: '₦${estimate.serviceFee.toInt()}',
+              ),
+            ],
+            const Divider(height: 1),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.primaryOrange.withValues(alpha: 0.05),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: Column(
+                children: [
+                  _SummaryRow(
+                    label: 'Total',
+                    value: '₦${estimate.total.toInt()}',
+                    bold: true,
+                    largeText: true,
+                  ),
+                  if (estimate.etaMinutes != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.access_time,
+                              size: 14, color: AppColors.primaryOrange),
+                          const SizedBox(width: 4),
+                          AppText(
+                            'Est. delivery: ${estimate.etaMinutes} minutes',
+                            fontSize: 12,
+                            color: AppColors.primaryOrange,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final bool bold;
   final bool largeText;
   final String? subtitle;
+  final Color? valueColor;
 
   const _SummaryRow({
     required this.label,
@@ -1841,6 +2036,7 @@ class _SummaryRow extends StatelessWidget {
     this.bold = false,
     this.largeText = false,
     this.subtitle,
+    this.valueColor,
   });
 
   @override
@@ -1862,7 +2058,8 @@ class _SummaryRow extends StatelessWidget {
                 value,
                 fontSize: largeText ? 18 : (bold ? 16 : 14),
                 fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-                color: bold ? AppColors.primaryOrange : AppColors.darkBackground,
+                color: valueColor ??
+                    (bold ? AppColors.primaryOrange : AppColors.darkBackground),
               ),
             ],
           ),
