@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -153,7 +154,7 @@ class _RoomBody extends ConsumerWidget {
                       AppText(
                         '${room.vendorName} • '
                             '${room.itemCount} ${room.itemCount == 1 ? 'item' : 'items'} • '
-                            '₦${room.total.toInt()}',
+                            '${Formatters.formatNaira(room.total)}',
                         color: Colors.white60,
                         fontSize: 13,
                       ),
@@ -459,8 +460,8 @@ class _GroupDiscountCard extends StatelessWidget {
           const SizedBox(height: 8),
           AppText(
             discount.message,
-            fontSize: 12,
-            color: AppColors.slate400,
+            fontSize: 13,
+            color: AppColors.darkBackground,
           ),
           if (discount.nextTier != null) ...[
             const SizedBox(height: 10),
@@ -483,13 +484,15 @@ class _GroupDiscountCard extends StatelessWidget {
               children: [
                 AppText(
                   '${discount.peopleWithItems} ${discount.peopleWithItems == 1 ? 'person' : 'people'} with items',
-                  fontSize: 11,
-                  color: AppColors.slate400,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkBackground,
                 ),
                 AppText(
                   'Next: ${discount.nextTier!.label} at ${discount.nextTier!.peopleWithItems} people',
-                  fontSize: 11,
-                  color: AppColors.slate400,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.darkBackground,
                 ),
               ],
             ),
@@ -534,7 +537,7 @@ class _GroupItemTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     AppText(
-                      '${item.quantity}× ₦${item.unitPrice.toInt()}',
+                      '${item.quantity}× ${Formatters.formatNaira(item.unitPrice)}',
                       fontSize: 12,
                       color: AppColors.slate400,
                     ),
@@ -550,7 +553,7 @@ class _GroupItemTile extends StatelessWidget {
                 ),
               ),
               AppText(
-                '₦${item.totalPrice.toInt()}',
+                Formatters.formatNaira(item.totalPrice),
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -1098,18 +1101,18 @@ class _BottomActions extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AppText(
-              'Your wallet balance is ₦${currentBalance.toInt()}',
+              'Your wallet balance is ${Formatters.formatNaira(currentBalance)}',
               fontSize: 14,
             ),
             const SizedBox(height: 8),
             AppText(
-              'Order total is ₦${totalAmount.toInt()}',
+              'Order total is ${Formatters.formatNaira(totalAmount)}',
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
             const SizedBox(height: 8),
             AppText(
-              'You need additional ₦${(totalAmount - currentBalance).toInt()}',
+              'You need additional ${Formatters.formatNaira(totalAmount - currentBalance)}',
               fontSize: 14,
               color: AppColors.primaryOrange,
             ),
@@ -1500,7 +1503,7 @@ class _GroupPaymentBottomSheetState extends State<_GroupPaymentBottomSheet> {
               child: AppText(
                 _selectedPaymentMethod == 'GENERATE_LINK'
                     ? 'Get Payment Link'
-                    : 'Continue to Review (₦${widget.totalAmount.toInt()})',
+                    : 'Continue to Review (${Formatters.formatNaira(widget.totalAmount)})',
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -1693,7 +1696,7 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
                                 ),
                               ),
                               AppText(
-                                '₦${item.unitPrice.toInt()}',
+                                Formatters.formatNaira(item.unitPrice),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
@@ -1711,7 +1714,7 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
                                 fontWeight: FontWeight.w600,
                               ),
                               AppText(
-                                '₦${_currentEstimate!.subtotal.toInt()}',
+                                Formatters.formatNaira(_currentEstimate!.subtotal),
                                 fontWeight: FontWeight.bold,
                               ),
                             ],
@@ -1900,8 +1903,8 @@ class _PriceBreakdownCard extends StatelessWidget {
               final isLast = i == lines.length - 1;
               final amountNaira = line.amountKobo / 100;
               final amountStr = isDiscount
-                  ? '−₦${amountNaira.abs().toInt()}'
-                  : '₦${amountNaira.toInt()}';
+                  ? '−${Formatters.formatNaira(amountNaira.abs())}'
+                  : Formatters.formatNaira(amountNaira);
 
               if (isTotal) {
                 return Container(
@@ -1955,20 +1958,20 @@ class _PriceBreakdownCard extends StatelessWidget {
             // Fallback scalar rows
             _SummaryRow(
               label: 'Subtotal',
-              value: '₦${estimate.subtotal.toInt()}',
+              value: Formatters.formatNaira(estimate.subtotal),
             ),
             const Divider(height: 1),
             if (estimate.hasDiscount) ...[
               _SummaryRow(
                 label: 'Group discount',
-                value: '−₦${estimate.discount.toInt()}',
+                value: '−${Formatters.formatNaira(estimate.discount)}',
                 valueColor: AppColors.secondaryGreen,
               ),
               const Divider(height: 1),
             ],
             _SummaryRow(
               label: 'Delivery fee',
-              value: '₦${estimate.deliveryFee.toInt()}',
+              value: Formatters.formatNaira(estimate.deliveryFee),
               subtitle: estimate.distanceKm != null
                   ? '${estimate.distanceKm!.toStringAsFixed(1)} km away'
                   : null,
@@ -1977,7 +1980,7 @@ class _PriceBreakdownCard extends StatelessWidget {
               const Divider(height: 1),
               _SummaryRow(
                 label: 'Service fee',
-                value: '₦${estimate.serviceFee.toInt()}',
+                value: Formatters.formatNaira(estimate.serviceFee),
               ),
             ],
             const Divider(height: 1),
@@ -1991,7 +1994,7 @@ class _PriceBreakdownCard extends StatelessWidget {
                 children: [
                   _SummaryRow(
                     label: 'Total',
-                    value: '₦${estimate.total.toInt()}',
+                    value: Formatters.formatNaira(estimate.total),
                     bold: true,
                     largeText: true,
                   ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/vendor_grid_card.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 
 class VendorCard extends StatelessWidget {
@@ -17,7 +18,7 @@ class VendorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final feeText = vendor.deliveryFeeKobo != null
         ? CurrencyUtils.formatKoboAsNaira(vendor.deliveryFeeKobo)
-        : '₦${(vendor.deliveryFee ?? 0).toInt()}';
+        : Formatters.formatNaira(vendor.deliveryFee ?? 0);
 
     return VendorGridCard(
       name: vendor.name,

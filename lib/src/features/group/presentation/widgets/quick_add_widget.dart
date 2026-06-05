@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -263,8 +264,8 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                     if (variant.priceDelta != 0)
                                       AppText(
                                         variant.priceDelta > 0
-                                            ? '+₦${variant.priceDelta.toInt()}'
-                                            : '-₦${variant.priceDelta.abs().toInt()}',
+                                            ? '+${Formatters.formatNaira(variant.priceDelta)}'
+                                            : '-${Formatters.formatNaira(variant.priceDelta.abs())}',
                                         fontSize: 11,
                                         color: isSelected
                                             ? Colors.white60
@@ -340,7 +341,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                             ),
                                           ),
                                           AppText(
-                                            '+₦${addon.price.toInt()}',
+                                            '+${Formatters.formatNaira(addon.price)}',
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.slate400,
@@ -393,7 +394,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               AppText(
-                                '₦${_total.toInt()}',
+                                Formatters.formatNaira(_total),
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primaryOrange,
@@ -457,7 +458,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                             color: Colors.white, size: 18),
                         const SizedBox(width: 8),
                         AppText(
-                          'Add to Group Cart • ₦${_total.toInt()}',
+                          'Add to Group Cart • ${Formatters.formatNaira(_total)}',
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -522,7 +523,7 @@ class _ItemHero extends StatelessWidget {
               ],
               const SizedBox(height: 8),
               AppText(
-                '₦${item.price.toInt()}',
+                Formatters.formatNaira(item.price),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primaryOrange,

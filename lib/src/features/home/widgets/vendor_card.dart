@@ -1,4 +1,5 @@
 import 'package:dropx_mobile/src/constants/app_icons.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
@@ -168,7 +169,7 @@ class VendorCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       AppSubText(
-                        "₦${(vendor.deliveryFee ?? 0).toInt()}",
+                        Formatters.formatNaira(vendor.deliveryFee ?? 0),
                         fontSize: 12,
                       ),
                     ],

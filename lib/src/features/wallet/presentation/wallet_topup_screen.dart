@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,7 +96,7 @@ class _WalletTopupScreenState extends ConsumerState<WalletTopupScreen> {
         final balanceNaira = CurrencyUtils.koboToNaira(balanceKobo);
         AppToast.showSuccess(
           context,
-          'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
+          'Wallet topped up! New balance: ${Formatters.formatNaira(balanceNaira)}',
         );
         AppNavigator.pop(context, true);
       }

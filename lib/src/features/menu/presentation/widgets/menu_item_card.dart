@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_image.dart';
@@ -68,7 +69,7 @@ class MenuItemCard extends StatelessWidget {
                           ),
                         ),
                         AppText(
-                          '₦${item.price.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                          Formatters.formatNaira(item.price),
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),

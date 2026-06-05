@@ -428,7 +428,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       if (!mounted) return;
       AppToast.showSuccess(
         context,
-        'Wallet topped up! New balance: ₦${balanceNaira.toStringAsFixed(0)}',
+        'Wallet topped up! New balance: ${Formatters.formatNaira(balanceNaira)}',
       );
       _showPaymentSheet(totalAmount);
     }

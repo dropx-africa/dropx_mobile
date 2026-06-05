@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
@@ -147,7 +148,7 @@ class VendorHeader extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   AppText(
-                    "₦${(vendor.deliveryFee ?? 0).toInt()}",
+                    Formatters.formatNaira(vendor.deliveryFee ?? 0),
                     fontSize: 14,
                     color: Colors.grey.shade700,
                   ),

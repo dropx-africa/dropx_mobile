@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
@@ -434,7 +435,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       ),
                     ),
                     AppText(
-                      '₦${item.price.toInt()}',
+                      Formatters.formatNaira(item.price),
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primaryOrange,

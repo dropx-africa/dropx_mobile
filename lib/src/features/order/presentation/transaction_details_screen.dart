@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/custom_button.dart';
@@ -117,7 +118,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                               ),
                               AppSpaces.v4,
                               AppText(
-                                "Qty: ${item['qty']} × ₦${(item['price'] as double).toInt()}",
+                                "Qty: ${item['qty']} × ${Formatters.formatNaira(item['price'] as double)}",
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
                               ),
@@ -129,7 +130,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                             ],
                           ),
                           AppText(
-                            "₦${((item['price'] as double) * (item['qty'] as int)).toInt()}",
+                            Formatters.formatNaira((item['price'] as double) * (item['qty'] as int)),
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -139,16 +140,16 @@ class TransactionDetailsScreen extends StatelessWidget {
                   ),
                   const Divider(),
                   AppSpaces.v16,
-                  _buildRow("Subtotal", "₦${subtotal.toInt()}"),
+                  _buildRow("Subtotal", Formatters.formatNaira(subtotal)),
                   AppSpaces.v8,
-                  _buildRow("Delivery Fee", "₦${deliveryFee.toInt()}"),
+                  _buildRow("Delivery Fee", Formatters.formatNaira(deliveryFee)),
                   AppSpaces.v8,
-                  _buildRow("Service Fee", "₦${serviceFee.toInt()}"),
+                  _buildRow("Service Fee", Formatters.formatNaira(serviceFee)),
                   if (discount > 0) ...[
                     AppSpaces.v8,
                     _buildRow(
                       "Discount",
-                      "-₦${discount.toInt()}",
+                      "-${Formatters.formatNaira(discount)}",
                       color: Colors.green,
                     ),
                   ],
@@ -164,7 +165,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                         fontSize: 16,
                       ),
                       AppText(
-                        "₦${total.toInt()}",
+                        Formatters.formatNaira(total),
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                         color: AppColors.primaryOrange,

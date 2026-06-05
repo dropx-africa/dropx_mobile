@@ -1,3 +1,4 @@
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:dropx_mobile/src/common_widgets/vendor_grid_card.dart';
 import 'package:dropx_mobile/src/features/home/data/feed_item.dart';
@@ -21,7 +22,7 @@ class FeedVendorCard extends StatelessWidget {
       tags: item.categories,
       distanceKm: item.distanceKm,
       etaMinutes: item.etaMinutes,
-      deliveryFeeText: '₦${item.deliveryFeeNaira.toInt()}',
+      deliveryFeeText: Formatters.formatNaira(item.deliveryFeeNaira),
       isOpen: item.isOpen,
       width: width,
       onTap: () => AppNavigator.push(
