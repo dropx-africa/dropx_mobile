@@ -53,6 +53,18 @@ abstract class GroupOrderRepository {
       String participantToken,
       );
 
+  /// Host unlocks the room — reopens it for editing.
+  Future<void> unlockGroupOrder(
+      String groupOrderId,
+      String participantToken,
+      );
+
+  /// Host cancels the group order.
+  Future<void> cancelGroupOrder(
+      String groupOrderId,
+      String participantToken,
+      );
+
   /// Estimate total before checkout.
   Future<GroupOrderEstimate> estimate(
       String groupOrderId,

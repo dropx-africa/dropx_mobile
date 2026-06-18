@@ -43,6 +43,20 @@ import 'package:dropx_mobile/src/utils/app_log.dart';
       return (title: 'Parcel On the Way', body: 'Your parcel is heading to the recipient.');
     case 'customer.parcel.delivered':
       return (title: 'Parcel Delivered', body: 'Your parcel has been delivered successfully!');
+    case 'customer.group_order.participant_joined':
+      return (title: 'Someone joined your group!', body: 'A new participant has joined the group order.');
+    case 'customer.group_order.item_updated':
+      return (title: 'Group cart updated', body: 'A participant updated their items in the group order.');
+    case 'customer.group_order.locked':
+      return (title: 'Group order locked', body: 'The host has locked the group order for checkout.');
+    case 'customer.group_order.unlocked':
+      return (title: 'Group order reopened', body: 'The host has reopened the group order for editing.');
+    case 'customer.group_order.cancelled':
+      return (title: 'Group order cancelled', body: 'The group order has been cancelled by the host.');
+    case 'customer.group_order.checkout_created':
+      return (title: 'Group checkout ready!', body: 'Your group order checkout has been created. Tap to pay.');
+    case 'customer.group_order.checkout_failed':
+      return (title: 'Group checkout failed', body: 'The checkout attempt failed. The host will need to try again.');
     default:
       return null;
   }
@@ -344,6 +358,11 @@ class AppFirebaseService implements IAppFirebaseService {
       navigator.pushNamed(AppRoute.orderTracking, arguments: {'orderId': aggregateId});
       return;
     }
+    if (eventKey.startsWith('customer.group_order.')) {
+      AppLog.d('[Push] routing → groupOrder via event_key "$eventKey"');
+      navigator.pushNamed(AppRoute.groupOrder);
+      return;
+    }
 
     // 3. aggregate_type fallback.
     if (aggregateType == 'order_complete') {
@@ -363,6 +382,11 @@ class AppFirebaseService implements IAppFirebaseService {
     if (aggregateType == 'parcel' && aggregateId.isNotEmpty) {
       AppLog.d('[Push] routing → parcelTracking ($aggregateId) via aggregate_type');
       navigator.pushNamed(AppRoute.parcelTracking, arguments: {'parcelId': aggregateId});
+      return;
+    }
+    if (aggregateType == 'group_order') {
+      AppLog.d('[Push] routing → groupOrder via aggregate_type');
+      navigator.pushNamed(AppRoute.groupOrder);
       return;
     }
 

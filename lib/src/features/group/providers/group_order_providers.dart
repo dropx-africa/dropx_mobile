@@ -184,6 +184,28 @@ class GroupOrderNotifier extends AsyncNotifier<GroupOrder?> with WidgetsBindingO
     await refresh();
   }
 
+  /// Unlock room (host only) — reopens for editing.
+  Future<void> unlock() async {
+    final session = ref.read(groupOrderSessionProvider);
+    if (session == null) return;
+    await ref.read(groupOrderRepositoryProvider).unlockGroupOrder(
+      session.groupOrderId,
+      session.participantToken,
+    );
+    await refresh();
+  }
+
+  /// Cancel group order (host only).
+  Future<void> cancel() async {
+    final session = ref.read(groupOrderSessionProvider);
+    if (session == null) return;
+    await ref.read(groupOrderRepositoryProvider).cancelGroupOrder(
+      session.groupOrderId,
+      session.participantToken,
+    );
+    await refresh();
+  }
+
   /// Estimate — returns result directly, does not mutate room state.
   /// Estimate — returns result directly, does not mutate room state.
   Future<GroupOrderEstimate> estimate() async {

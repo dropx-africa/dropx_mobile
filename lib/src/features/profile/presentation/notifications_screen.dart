@@ -196,6 +196,8 @@ class _NotificationTile extends ConsumerWidget {
           AppRoute.parcelTracking,
           arguments: {'parcelId': aggregateId},
         );
+      case 'group_order':
+        Navigator.pushNamed(context, AppRoute.groupOrder);
     }
   }
 
@@ -213,6 +215,7 @@ class _NotificationTile extends ConsumerWidget {
     if (type.startsWith('customer.order')) return Icons.local_shipping_rounded;
     if (type.startsWith('customer.parcel')) return Icons.inventory_2_outlined;
     if (type.startsWith('customer.wallet')) return Icons.account_balance_wallet_outlined;
+    if (type.startsWith('customer.group_order')) return Icons.group_rounded;
 
     return Icons.notifications_rounded;
   }

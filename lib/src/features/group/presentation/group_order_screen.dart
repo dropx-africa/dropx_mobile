@@ -872,6 +872,42 @@ class _BottomActions extends ConsumerWidget {
                       ],
                     ),
                   ],
+                  // Unlock — visible only when locked
+                  if (room.isLocked) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _onUnlock(context, ref),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.slate200),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        icon: Icon(Icons.lock_open_outlined,
+                            size: 16, color: AppColors.slate500),
+                        label: AppText(
+                          'Reopen for editing',
+                          color: AppColors.slate500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // Cancel — visible for any non-terminal state
+                  if (!room.isTerminal) ...[
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () => _onCancelGroupOrder(context, ref),
+                      child: const AppText(
+                        'Cancel group order',
+                        color: AppColors.errorRed,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ],
               );
             }),
@@ -903,6 +939,54 @@ class _BottomActions extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _onUnlock(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(groupOrderProvider.notifier).unlock();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unlock: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _onCancelGroupOrder(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const AppText('Cancel group order?', fontWeight: FontWeight.bold),
+        content: const AppText(
+          'This will cancel the group order for all participants. This cannot be undone.',
+          color: AppColors.slate500,
+          fontSize: 14,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const AppText('Keep order', color: AppColors.slate500),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const AppText('Yes, cancel',
+                color: AppColors.errorRed, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(groupOrderProvider.notifier).cancel();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _onLockOrCheckout(

@@ -185,6 +185,38 @@ class RemoteGroupOrderRepository implements GroupOrderRepository {
   }
 
   @override
+  Future<void> unlockGroupOrder(
+      String groupOrderId,
+      String participantToken,
+      ) async {
+    await _apiClient.post<Map>(
+      ApiEndpoints.groupOrderUnlock(groupOrderId),
+      data: {},
+      headers: {
+        _participantHeader: participantToken,
+        ...ApiClient.traceHeaders(),
+      },
+      fromJson: (json) => json as Map,
+    );
+  }
+
+  @override
+  Future<void> cancelGroupOrder(
+      String groupOrderId,
+      String participantToken,
+      ) async {
+    await _apiClient.post<Map>(
+      ApiEndpoints.groupOrderCancel(groupOrderId),
+      data: {},
+      headers: {
+        _participantHeader: participantToken,
+        ...ApiClient.traceHeaders(),
+      },
+      fromJson: (json) => json as Map,
+    );
+  }
+
+  @override
   Future<GroupOrderEstimate> estimate(
       String groupOrderId,
       String participantToken, {

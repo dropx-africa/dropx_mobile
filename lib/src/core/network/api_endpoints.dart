@@ -92,6 +92,8 @@ class ApiEndpoints {
   static String groupOrderItem(String id, String itemId) =>
       '/group-orders/$id/items/$itemId';
   static String groupOrderLock(String id) => '/group-orders/$id/lock';
+  static String groupOrderUnlock(String id) => '/group-orders/$id/unlock';
+  static String groupOrderCancel(String id) => '/group-orders/$id/cancel';
   static String groupOrderEstimate(String id) => '/group-orders/$id/estimate';
   static String groupOrderCheckout(String id) => '/group-orders/$id/checkout';
   static String groupOrderEvents(String id) => '/group-orders/$id/events';
