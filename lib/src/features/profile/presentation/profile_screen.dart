@@ -224,75 +224,113 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   void _showLogoutConfirmation(BuildContext context, WidgetRef ref) {
+    // isLoading lives in the outer scope so StatefulBuilder sees its updates.
+    bool isLoading = false;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const AppText(
-          "Log Out",
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
-        content: const AppText(
-          "Are you sure you want to log out of your account?",
-          fontSize: 15,
-          color: AppColors.slate500,
-        ),
-        actionsPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => AppNavigator.pop(ctx),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const AppText(
-              "Cancel",
-              color: AppColors.slate500,
-              fontWeight: FontWeight.bold,
-            ),
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const AppText(
+            "Log Out",
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
-          ElevatedButton(
-            onPressed: () async {
-              AppNavigator.pop(ctx);
-              final session = ref.read(sessionServiceProvider);
-              final refreshToken = session.refreshToken;
-
-              if (refreshToken != null) {
-                try {
-                  await ref
-                      .read(authRepositoryProvider)
-                      .logout(refreshToken, allDevices: false);
-                } catch (e) {
-                  debugPrint('Logout API failed: $e');
-                }
-              }
-
-              await ref.read(pushTokenServiceProvider).revokeCurrentToken();
-              await session.clearSession();
-              ApiClient().clearAuthToken();
-              if (context.mounted) {
-                AppNavigator.pushAndRemoveAll(context, AppRoute.login);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.errorRed,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const AppText(
-              "Log Out",
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+          content: isLoading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.errorRed,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      AppText(
+                        'Logging you out…',
+                        fontSize: 15,
+                        color: AppColors.slate500,
+                      ),
+                    ],
+                  ),
+                )
+              : const AppText(
+                  "Are you sure you want to log out of your account?",
+                  fontSize: 15,
+                  color: AppColors.slate500,
+                ),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
           ),
-        ],
+          actions: isLoading
+              ? const []
+              : [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                    ),
+                    child: const AppText(
+                      "Cancel",
+                      color: AppColors.slate500,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      setDialogState(() => isLoading = true);
+
+                      final session = ref.read(sessionServiceProvider);
+                      final refreshToken = session.refreshToken;
+
+                      if (refreshToken != null) {
+                        try {
+                          await ref
+                              .read(authRepositoryProvider)
+                              .logout(refreshToken, allDevices: false);
+                        } catch (e) {
+                          debugPrint('Logout API failed: $e');
+                        }
+                      }
+
+                      await ref
+                          .read(pushTokenServiceProvider)
+                          .revokeCurrentToken();
+                      await session.clearSession();
+                      ApiClient().clearAuthToken();
+
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        AppNavigator.pushAndRemoveAll(
+                            context, AppRoute.login);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.errorRed,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const AppText(
+                      "Log Out",
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+        ),
       ),
     );
   }

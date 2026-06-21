@@ -60,6 +60,42 @@ class AppNotifications {
     );
   }
 
+  // ── Group orders ───────────────────────────────────────────────────────────
+
+  /// Called from the SSE listener for significant room events.
+  /// [sseEventType] is the raw type string from the SSE payload, e.g.
+  /// `group_order.locked.v1`.
+  static void groupOrderEvent(String sseEventType, String groupOrderId) {
+    final msg = _groupOrderEventMessage(sseEventType);
+    if (msg == null) return;
+    debugPrint('🔔 [Notif] groupOrderEvent — type=$sseEventType groupOrderId=$groupOrderId');
+    _show(
+      title: msg.$1,
+      body: msg.$2,
+      aggregateType: 'group_order',
+      aggregateId: groupOrderId,
+    );
+  }
+
+  static (String, String)? _groupOrderEventMessage(String sseEventType) {
+    switch (sseEventType) {
+      case 'group_order.participant_joined.v1':
+        return ('Someone joined your group!', 'A new participant joined the group order.');
+      case 'group_order.locked.v1':
+        return ('Group order locked', 'The host has locked the group for checkout.');
+      case 'group_order.unlocked.v1':
+        return ('Group reopened', 'The host reopened the group for editing.');
+      case 'group_order.cancelled.v1':
+        return ('Group order cancelled', 'The group order has been cancelled.');
+      case 'group_order.checkout_created.v1':
+        return ('Group checkout ready!', 'Your group checkout has been created. Tap to pay.');
+      case 'group_order.checkout_failed.v1':
+        return ('Checkout failed', 'The group checkout attempt failed. The host will retry.');
+      default:
+        return null; // item_upserted, heartbeat, etc. — no notification
+    }
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   static (String, String)? _orderStateMessage(String state) {

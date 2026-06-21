@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
+import 'package:dropx_mobile/src/core/services/app_notifications.dart';
 import 'package:dropx_mobile/src/features/group/data/group_order_repository.dart';
 import 'package:dropx_mobile/src/features/group/data/remote_group_order_repository.dart';
 import 'package:dropx_mobile/src/features/group/data/dto/group_order_models.dart';
@@ -81,7 +82,10 @@ class GroupOrderNotifier extends AsyncNotifier<GroupOrder?> with WidgetsBindingO
         .listen((eventData) {
       try {
         final json = jsonDecode(eventData) as Map<String, dynamic>;
-        if (json['type'] == 'heartbeat') return;
+        final type = json['type'] as String? ?? '';
+        if (type == 'heartbeat') return;
+        // Show a local notification for significant room events.
+        AppNotifications.groupOrderEvent(type, session.groupOrderId);
       } catch (_) {}
       _silentRefresh(session);
     },
