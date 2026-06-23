@@ -27,6 +27,7 @@ import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/utils/direction_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:dropx_mobile/src/core/utils/cloudinary_upload.dart';
 
@@ -1027,6 +1028,46 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       ],
                     ),
                   },
+
+                  // Share button — delivered only
+                  if (_orderStage >= 3) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final orderId = widget.orderId ?? '';
+                          Share.share(
+                            'Just got my order delivered with DropX! 🚀🍕\n'
+                            'Fast, reliable delivery in Lagos.\n'
+                            'Order: #$orderId\n'
+                            'Get it on DropX 👉 https://dropxwebapp.vercel.app',
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: AppColors.primaryOrange.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(
+                          Icons.share_outlined,
+                          color: AppColors.primaryOrange,
+                          size: 18,
+                        ),
+                        label: const AppText(
+                          'Share with friends',
+                          color: AppColors.primaryOrange,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // ── Cancel / Dispute quick actions ──────────────────────
                   if (_canCancel || _canDispute) ...[
