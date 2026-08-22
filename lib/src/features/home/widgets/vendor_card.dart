@@ -1,7 +1,6 @@
 import 'package:dropx_mobile/src/constants/app_icons.dart';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
@@ -22,12 +21,6 @@ class VendorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
-      print(
-        'VendorCard build: ${vendor.name}, id: ${vendor.id}, '
-        'rating: ${vendor.rating}, deliveryFee: ${vendor.deliveryFee}',
-      );
-    }
     return GestureDetector(
       onTap: () {
         AppNavigator.push(
@@ -145,23 +138,27 @@ class VendorCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  AppSubText(
-                    (vendor.tags ?? ['rice']).join(" • "),
-                    fontSize: 12,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (vendor.tags != null && vendor.tags!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    AppSubText(
+                      vendor.tags!.join(" • "),
+                      fontSize: 12,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.access_time_filled,
-                        size: 14,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      AppSubText(vendor.deliveryTime ?? '9:00AM', fontSize: 12),
-                      const SizedBox(width: 12),
+                      if (vendor.deliveryTime != null) ...[
+                        const Icon(
+                          Icons.access_time_filled,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        AppSubText(vendor.deliveryTime!, fontSize: 12),
+                        const SizedBox(width: 12),
+                      ],
                       const Icon(
                         Icons.delivery_dining,
                         size: 14,

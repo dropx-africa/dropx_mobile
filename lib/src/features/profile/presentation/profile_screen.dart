@@ -10,6 +10,7 @@ import 'package:dropx_mobile/src/core/providers/core_providers.dart';
 import 'package:dropx_mobile/src/core/network/api_client.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 import 'package:dropx_mobile/src/features/profile/providers/profile_provider.dart';
+import 'package:dropx_mobile/src/core/services/session_reset.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 
@@ -33,6 +34,7 @@ class ProfileScreen extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(profileNotifierProvider);
       },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         // User Header
         Container(
@@ -67,10 +69,9 @@ class ProfileScreen extends ConsumerWidget {
                       ? NetworkImage(userProfile!.avatarUrl!)
                       : null,
                   child: userProfile?.avatarUrl == null
-                      ? AppText(
-                          _getInitials(displayName),
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                      ? const Icon(
+                          Icons.person,
+                          size: 36,
                           color: Colors.white,
                         )
                       : null,
@@ -134,6 +135,7 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.groups_rounded,
                   title: "Connect with Friends",
                   subtitle: "Sync contacts & invite",
+                  disabled: true,
                   onTap: () => AppNavigator.push(context, AppRoute.contactSync),
                 ),
               if (showSocialFeed)
@@ -157,6 +159,14 @@ class ProfileScreen extends ConsumerWidget {
         ),
 
         const SizedBox(height: 12),
+        _buildProfileOption(
+          icon: Icons.location_on_rounded,
+          title: "Saved Addresses",
+          subtitle: "Manage your delivery locations",
+          onTap: () {
+            AppNavigator.push(context, AppRoute.addressBook);
+          },
+        ),
         _buildProfileOption(
           icon: Icons.settings_rounded,
           title: "Preferences",
@@ -306,6 +316,7 @@ class ProfileScreen extends ConsumerWidget {
                           .revokeCurrentToken();
                       await session.clearSession();
                       ApiClient().clearAuthToken();
+                      clearUserScopedProviders(ref);
 
                       if (context.mounted) {
                         Navigator.pop(ctx);
@@ -340,7 +351,9 @@ class ProfileScreen extends ConsumerWidget {
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    bool disabled = false,
   }) {
+    final iconColor = disabled ? AppColors.slate400 : AppColors.primaryOrange;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -355,18 +368,23 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
       child: ListTile(
-        onTap: onTap,
+        onTap: disabled ? null : onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.primaryOrange.withValues(alpha: 0.1),
+            color: iconColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.primaryOrange, size: 22),
+          child: Icon(icon, color: iconColor, size: 22),
         ),
-        title: AppText(title, fontWeight: FontWeight.w600, fontSize: 16),
+        title: AppText(
+          title,
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+          color: disabled ? AppColors.slate400 : null,
+        ),
         subtitle: subtitle != null
             ? Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -377,32 +395,34 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               )
             : null,
-        trailing: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.slate50,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.arrow_forward_ios,
-            size: 14,
-            color: AppColors.slate400,
-          ),
-        ),
+        trailing: disabled
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.slate50,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const AppText(
+                  'Coming soon',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.slate400,
+                ),
+              )
+            : Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.slate50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: AppColors.slate400,
+                ),
+              ),
       ),
     );
   }
 
-  String _getInitials(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed == 'DropX customer') return 'D';
-    final parts = trimmed.split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    } else if (parts[0].length >= 2) {
-      return parts[0].substring(0, 2).toUpperCase();
-    } else {
-      return parts[0][0].toUpperCase();
-    }
-  }
 }

@@ -19,11 +19,15 @@ class FastestSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
+    // Same params as FeaturedSection's fetch — Riverpod dedupes both
+    // sections onto a single /home/feed request. The 35-min eta cap that
+    // used to be a server-side filter is now applied client-side in
+    // _buildFastestList instead, since the shared fetch can't filter for
+    // both sections at once.
     final feedParams = FeedParams(
       vertical: category.apiValue,
       lat: session.savedLat,
       lng: session.savedLng,
-      maxEtaMinutes: 35,
       limit: 20,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));
@@ -88,7 +92,10 @@ class FastestSection extends ConsumerWidget {
 
   List<FeedItem> _buildFastestList(List<FeedItem> items) {
     final filtered = items
-        .where((v) => v.etaMinutes != null && v.etaMinutes! > 0)
+        .where(
+          (v) =>
+              v.etaMinutes != null && v.etaMinutes! > 0 && v.etaMinutes! <= 35,
+        )
         .toList()
       ..sort((a, b) {
         final etaCompare = a.etaMinutes!.compareTo(b.etaMinutes!);

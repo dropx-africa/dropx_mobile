@@ -61,7 +61,12 @@ class FeedParams {
 /// ─── Data Providers ───────────────────────────────────────────
 
 /// Home feed, parameterized by filters.
-final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
+///
+/// autoDispose so that a distinct provider instance isn't kept alive
+/// forever for every search query a customer ever typed — without it,
+/// each keystroke's FeedParams permanently caches its own response.
+final homeFeedProvider =
+    FutureProvider.autoDispose.family<HomeFeedData, FeedParams>((
   ref,
   params,
 ) {
@@ -79,8 +84,11 @@ final homeFeedProvider = FutureProvider.family<HomeFeedData, FeedParams>((
       );
 });
 
-/// Global search provider.
-final searchProvider = FutureProvider.family<SearchData, FeedParams>((
+/// Global search provider. autoDispose for the same reason as
+/// [homeFeedProvider] — one instance per keystroke would otherwise never
+/// be released.
+final searchProvider =
+    FutureProvider.autoDispose.family<SearchData, FeedParams>((
   ref,
   params,
 ) {

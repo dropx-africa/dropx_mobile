@@ -41,9 +41,9 @@ class ReviewData {
 
 @JsonSerializable()
 class GetMyReviewData {
-  final ReviewData review;
+  final ReviewData? review;
 
-  const GetMyReviewData({required this.review});
+  const GetMyReviewData({this.review});
 
   factory GetMyReviewData.fromJson(Map<String, dynamic> json) =>
       _$GetMyReviewDataFromJson(json);

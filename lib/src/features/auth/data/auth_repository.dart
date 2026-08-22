@@ -38,12 +38,6 @@ abstract class AuthRepository {
   /// Log out the current user.
   Future<LogoutData> logout(String refreshToken, {bool allDevices = false});
 
-  /// Check if user is currently authenticated.
-  Future<bool> isAuthenticated();
-
-  /// Get current auth token.
-  Future<String?> getToken();
-
   /// Get the current user's profile.
   Future<UserProfileResponse> getProfile();
 
@@ -74,4 +68,11 @@ abstract class AuthRepository {
   Future<PasswordResetChallengeResponse> requestPasswordReset(
     PasswordResetRequestDto dto,
   );
+
+  /// Resend a password-reset OTP for an existing challenge via
+  /// /auth/password/reset/resend.
+  Future<PasswordResetChallengeResponse> resendPasswordReset({
+    required String otpChallengeId,
+    String audience = 'customer',
+  });
 }

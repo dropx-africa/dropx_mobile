@@ -66,8 +66,7 @@ MenuItem _$MenuItemFromJson(Map<String, dynamic> json) => MenuItem(
   addons: (json['addons'] as List<dynamic>?)
       ?.map((e) => MenuItemAddon.fromJson(e as Map<String, dynamic>))
       .toList(),
-  // Accept `stock_quantity` (current API) with `stock_count` as fallback.
-  stockCount: ((json['stock_quantity'] ?? json['stock_count']) as num?)?.toInt(),
+  stockCount: (json['stock_quantity'] as num?)?.toInt(),
   stockStatus: json['stock_status'] as String?,
   lowStockAlert: json['low_stock_alert'] as bool?,
   lowStockThreshold: (json['low_stock_threshold'] as num?)?.toInt(),

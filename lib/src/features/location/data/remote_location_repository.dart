@@ -3,6 +3,7 @@ import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_response.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
 import 'package:dropx_mobile/src/features/location/data/location_repository.dart';
+import 'package:dropx_mobile/src/features/location/data/zone_resolution.dart';
 
 /// Remote implementation of [LocationRepository] using the backend API.
 class RemoteLocationRepository implements LocationRepository {
@@ -22,5 +23,16 @@ class RemoteLocationRepository implements LocationRepository {
     );
 
     return response.data.results;
+  }
+
+  @override
+  Future<ZoneResolution> resolveZone(double lat, double lng) async {
+    final response = await _apiClient.get<ZoneResolution>(
+      ApiEndpoints.zonesResolve,
+      queryParams: {'lat': '$lat', 'lng': '$lng'},
+      fromJson: (json) =>
+          ZoneResolution.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data;
   }
 }

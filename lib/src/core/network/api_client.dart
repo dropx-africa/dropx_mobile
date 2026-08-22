@@ -101,6 +101,61 @@ class ApiClient {
     }, fromJson);
   }
 
+  /// POST for payment-initialize style endpoints that use the
+  /// `PAYMENT_INITIALIZATION_IN_PROGRESS` / `PAYMENT_INITIALIZATION_FAILED`
+  /// 409 conflict contract documented on `/payments/initialize` and
+  /// `/parcels/:id/payments/initialize`:
+  /// - IN_PROGRESS: wait `retry_after_seconds`, retry with the SAME
+  ///   Idempotency-Key (the pending attempt will resolve).
+  /// - FAILED: retry immediately with a NEW Idempotency-Key.
+  Future<ApiResponse<T>> postWithInitRetry<T>(
+    String path, {
+    dynamic data,
+    required T Function(dynamic) fromJson,
+    int maxAttempts = 8,
+  }) async {
+    var headers = traceHeaders();
+    for (var attempt = 1; ; attempt++) {
+      try {
+        debugPrint('🔁 [INIT-RETRY] attempt $attempt/$maxAttempts → POST $path');
+        return await post<T>(path, data: data, headers: headers, fromJson: fromJson);
+      } on ApiException catch (e) {
+        if (e.statusCode != 409 || attempt >= maxAttempts) {
+          debugPrint(
+            '🔁 [INIT-RETRY] giving up after $attempt attempt(s): ${e.message}',
+          );
+          rethrow;
+        }
+
+        final errorBody = e.data is Map ? (e.data as Map)['error'] : null;
+        final code = errorBody is Map ? errorBody['code'] as String? : null;
+        final details = errorBody is Map ? errorBody['details'] : null;
+
+        if (code == 'PAYMENT_INITIALIZATION_IN_PROGRESS') {
+          final retryAfterSeconds =
+              (details is Map ? details['retry_after_seconds'] as num? : null)
+                  ?.toInt() ??
+              2;
+          debugPrint(
+            '🔁 [INIT-RETRY] in progress — waiting ${retryAfterSeconds}s before retry $attempt',
+          );
+          await Future.delayed(Duration(seconds: retryAfterSeconds));
+          // Same headers — same Idempotency-Key — per backend contract.
+          continue;
+        }
+
+        if (code == 'PAYMENT_INITIALIZATION_FAILED') {
+          debugPrint('🔁 [INIT-RETRY] prior attempt failed — retrying with a new key');
+          headers = traceHeaders(); // fresh Idempotency-Key.
+          continue;
+        }
+
+        debugPrint('🔁 [INIT-RETRY] non-retryable 409 (code=$code) — giving up');
+        rethrow;
+      }
+    }
+  }
+
   /// PUT request with typed response.
   Future<ApiResponse<T>> put<T>(
     String path, {
@@ -209,9 +264,11 @@ class ApiClient {
     try {
       var response = await requestFunc();
 
-      debugPrint('[API] Request to ${response.request?.url}');
-      debugPrint('[API] Response status: ${response.statusCode}');
-      debugPrint(wrapWidth: 1024, '[API] Response body: ${response.body}');
+      if (kDebugMode) {
+        debugPrint('[API] Request to ${response.request?.url}');
+        debugPrint('[API] Response status: ${response.statusCode}');
+        debugPrint(wrapWidth: 1024, '[API] Response body: ${response.body}');
+      }
 
       if (response.statusCode == 401) {
         if (_refreshToken != null) {

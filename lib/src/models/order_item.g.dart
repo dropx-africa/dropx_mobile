@@ -9,7 +9,7 @@ part of 'order_item.dart';
 OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
   orderItemId: json['order_item_id'] as String?,
   orderId: json['order_id'] as String?,
-  itemId: json['item_id'] as String? ?? json['catalog_item_id'] as String?,
+  itemId: json['catalog_item_id'] as String?,
   name: json['name'] as String?,
   qty: _parseInt(json['qty']),
   unitPriceKobo: _parseInt(json['unit_price_kobo']),
@@ -19,7 +19,7 @@ OrderItem _$OrderItemFromJson(Map<String, dynamic> json) => OrderItem(
 Map<String, dynamic> _$OrderItemToJson(OrderItem instance) => <String, dynamic>{
   'order_item_id': instance.orderItemId,
   'order_id': instance.orderId,
-  'item_id': instance.itemId,
+  'catalog_item_id': instance.itemId,
   'name': instance.name,
   'qty': instance.qty,
   'unit_price_kobo': instance.unitPriceKobo,

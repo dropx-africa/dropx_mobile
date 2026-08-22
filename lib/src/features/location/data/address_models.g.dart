@@ -18,6 +18,7 @@ AddressData _$AddressDataFromJson(Map<String, dynamic> json) => AddressData(
   lng: (json['lng'] as num).toDouble(),
   landmark: json['landmark'] as String?,
   instructions: json['instructions'] as String?,
+  isDefault: json['is_default'] as bool? ?? false,
   createdAt: json['created_at'] as String?,
   updatedAt: json['updated_at'] as String?,
 );
@@ -35,6 +36,7 @@ Map<String, dynamic> _$AddressDataToJson(AddressData instance) =>
       'lng': instance.lng,
       'landmark': instance.landmark,
       'instructions': instance.instructions,
+      'is_default': instance.isDefault,
       'created_at': instance.createdAt,
       'updated_at': instance.updatedAt,
     };

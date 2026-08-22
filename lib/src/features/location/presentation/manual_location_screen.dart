@@ -490,7 +490,8 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen>
   );
 
   /// Shown when a GPS/searched address exists.
-  /// The subtitle is tappable and shows the location dialog when in GPS-only mode.
+  /// The subtitle is tappable and retries reverse-geocoding when in GPS-only
+  /// mode (i.e. reverse-geocoding hasn't resolved a real address yet).
   Widget _buildConfirmCard(String displayAddress) {
     final bool isGpsOnly = _selectedAddress == null;
     return Container(
@@ -527,12 +528,14 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     // ── Tappable subtitle ──────────────────────────────────
-                    // When GPS-only: tapping opens the location service dialog
+                    // When GPS-only: tapping retries reverse-geocoding for
+                    // the current pin (permission is already granted here,
+                    // so re-requesting it would be a no-op).
                     GestureDetector(
-                      onTap: isGpsOnly ? _requestLocationPermission : null,
+                      onTap: isGpsOnly ? _moveToCurrentLocation : null,
                       child: AppSubText(
                         isGpsOnly
-                            ? 'Or search for a specific address above'
+                            ? "Couldn't get an exact address — tap to retry, or search above"
                             : 'Tap confirm to use this address',
                         fontSize: 12,
                         color: isGpsOnly
@@ -545,30 +548,28 @@ class _ManualLocationScreenState extends ConsumerState<ManualLocationScreen>
               ),
             ],
           ),
-          if (!isGpsOnly) ...[
-            AppSpaces.v16,
-            CustomButton(
-              text: 'Confirm Location',
-              backgroundColor: AppColors.primaryOrange,
-              onPressed: () async {
-                await ref
-                    .read(sessionServiceProvider)
-                    .confirmLocation(
-                      address: _selectedAddress ?? '',
-                      lat: _pinPosition.latitude,
-                      lng: _pinPosition.longitude,
-                      city: _resolvedCity,
-                      state: _resolvedState,
-                    );
-                debugPrint(
-                  '📍 [LOCATION] Confirmed → city=$_resolvedCity, state=$_resolvedState',
-                );
-                if (!mounted) return;
+          AppSpaces.v16,
+          CustomButton(
+            text: 'Confirm Location',
+            backgroundColor: AppColors.primaryOrange,
+            onPressed: () async {
+              await ref
+                  .read(sessionServiceProvider)
+                  .confirmLocation(
+                    address: _selectedAddress ?? displayAddress,
+                    lat: _pinPosition.latitude,
+                    lng: _pinPosition.longitude,
+                    city: _resolvedCity,
+                    state: _resolvedState,
+                  );
+              debugPrint(
+                '📍 [LOCATION] Confirmed → city=$_resolvedCity, state=$_resolvedState',
+              );
+              if (!mounted) return;
 
-                AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
-              },
-            ),
-          ],
+              AppNavigator.pushAndRemoveAll(context, AppRoute.dashboard);
+            },
+          ),
         ],
       ),
     );

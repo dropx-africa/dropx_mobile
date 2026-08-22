@@ -30,4 +30,15 @@ class RemoteSupportRepository implements SupportRepository {
     );
     return response.data;
   }
+
+  @override
+  Future<SupportRecordSummary> resolveSupportRecord(String supportId) async {
+    final response = await _apiClient.get<SupportRecordSummary>(
+      ApiEndpoints.supportResolveRecord(supportId),
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) =>
+          SupportRecordSummary.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data;
+  }
 }

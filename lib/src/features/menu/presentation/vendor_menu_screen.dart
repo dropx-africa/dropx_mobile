@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/constants/app_icons.dart';
-import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_loading_widget.dart';
 import 'package:dropx_mobile/src/common_widgets/app_error_widget.dart';
 import 'package:dropx_mobile/src/common_widgets/app_search_bar.dart';
 import 'package:dropx_mobile/src/common_widgets/app_back_button.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
+import 'package:dropx_mobile/src/common_widgets/delivery_zone_notice.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 import 'package:dropx_mobile/src/features/menu/presentation/widgets/menu_item_card.dart';
@@ -48,6 +48,30 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
   String _selectedCategory = 'All';
   String _searchQuery = '';
   bool _isSearching = false;
+  bool _crossZoneChecked = false;
+
+  /// Checks whether this vendor is outside the customer's delivery zone and,
+  /// if so, shows a one-off warning modal before they've added anything to
+  /// cart — so a higher delivery fee is never a surprise later at checkout.
+  /// Best-effort: any failure here is silently ignored since the real,
+  /// numbers-backed notice still shows on the cart screen regardless.
+  Future<void> _maybeShowCrossZoneNotice(Map<String, dynamic> store) async {
+    final vendorZoneId = store['zone_id'] as String?;
+    if (vendorZoneId == null) return;
+
+    final session = ref.read(sessionServiceProvider);
+    try {
+      final resolution = await ref
+          .read(locationRepositoryProvider)
+          .resolveZone(session.savedLat, session.savedLng);
+      if (!mounted) return;
+      if (resolution.zoneId != null && resolution.zoneId != vendorZoneId) {
+        DeliveryZoneNotice.showPreviewModal(context);
+      }
+    } catch (_) {
+      // Ignore — this is only a preview, not the source of truth.
+    }
+  }
 
   List<String> _buildCategories(List<MenuItem> items) {
     final cats = items.map((item) => item.category ?? 'Other').toSet().toList();
@@ -89,6 +113,8 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
       children: [
         AppScaffold(
           useSafeArea: false,
+          onRefresh: () =>
+              ref.refresh(storeCatalogProvider(catalogParams).future),
           slivers: [
             catalogAsync.when(
               loading: () => const SliverFillRemaining(child: AppLoading()),
@@ -105,15 +131,19 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                 final categories = _buildCategories(allItems);
                 final filteredItems = _filterItems(allItems);
 
+                if (!_crossZoneChecked) {
+                  _crossZoneChecked = true;
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _maybeShowCrossZoneNotice(store),
+                  );
+                }
+
                 final storeName =
                     store['display_name'] as String? ?? 'Store';
                 final storeImage = store['image_url'] as String?;
                 final storeTags =
                     (store['tags'] as List?)?.cast<String>() ?? [];
                 final storeRating = store['rating'];
-                final deliveryFeeKobo = store['delivery_fee_kobo'];
-                final distanceKm =
-                (store['distance_km'] as num?)?.toDouble();
                 final etaMinutes = store['eta_minutes'] as int?;
                 final isOpen = store['is_open'] as bool? ?? true;
                 final isAcceptingOrders =
@@ -265,19 +295,15 @@ class _VendorMenuScreenState extends ConsumerState<VendorMenuScreen> {
                                     '${storeRating is double ? storeRating.toStringAsFixed(1) : storeRating}',
                                     color: AppColors.primaryOrange,
                                   ),
-                                if (distanceKm != null)
-                                  _metaItem(
-                                    Icons.place_outlined,
-                                    '${distanceKm.toStringAsFixed(1)} km',
-                                  ),
                                 if (etaMinutes != null)
                                   _metaItem(
                                       Icons.access_time, '$etaMinutes min'),
-                                _metaItem(
-                                  Icons.delivery_dining,
-                                  CurrencyUtils.formatKoboAsNaira(
-                                      deliveryFeeKobo),
-                                ),
+                                // Delivery fee and distance are omitted here —
+                                // this endpoint doesn't have the customer's
+                                // real location, so both would be fabricated
+                                // per-vendor placeholder numbers rather than
+                                // an actual estimate. The real delivery fee
+                                // is shown at checkout (POST /orders/estimate).
                               ],
                             ),
                           ],

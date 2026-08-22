@@ -562,10 +562,19 @@ class _ItemAddSheetState extends ConsumerState<ItemAddSheet> {
             ),
           ),
         ),
-        _qtyButton(icon: Icons.add, onTap: () => setState(() => _qty++)),
+        _qtyButton(
+          icon: Icons.add,
+          onTap: _canIncreaseQty ? () => setState(() => _qty++) : null,
+        ),
       ],
     ),
   );
+
+  // Retail items with tracked stock can't be added past what's available.
+  bool get _canIncreaseQty {
+    final stock = widget.item.stockCount;
+    return stock == null || _qty < stock;
+  }
 
   Widget _qtyButton({required IconData icon, VoidCallback? onTap}) =>
       GestureDetector(

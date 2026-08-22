@@ -17,6 +17,8 @@ class AddressData {
   final double lng;
   final String? landmark;
   final String? instructions;
+  @JsonKey(name: 'is_default', defaultValue: false)
+  final bool isDefault;
   @JsonKey(name: 'created_at')
   final String? createdAt;
   @JsonKey(name: 'updated_at')
@@ -34,6 +36,7 @@ class AddressData {
     required this.lng,
     this.landmark,
     this.instructions,
+    this.isDefault = false,
     this.createdAt,
     this.updatedAt,
   });

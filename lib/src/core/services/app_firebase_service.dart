@@ -389,6 +389,19 @@ class AppFirebaseService implements IAppFirebaseService {
       navigator.pushNamed(AppRoute.groupOrder);
       return;
     }
+    if (aggregateType == 'support') {
+      if (aggregateId.isNotEmpty) {
+        AppLog.d('[Push] routing → supportTicketDetail ($aggregateId) via aggregate_type');
+        navigator.pushNamed(
+          AppRoute.supportTicketDetail,
+          arguments: {'ticketId': aggregateId},
+        );
+      } else {
+        AppLog.d('[Push] routing → supportTickets via aggregate_type');
+        navigator.pushNamed(AppRoute.supportTickets);
+      }
+      return;
+    }
 
     AppLog.d('[Push] no route matched — falling back to notifications screen');
     navigator.pushNamed(AppRoute.notifications);

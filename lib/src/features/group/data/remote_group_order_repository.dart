@@ -39,6 +39,23 @@ class RemoteGroupOrderRepository implements GroupOrderRepository {
   }
 
   @override
+  Future<GroupOrder> rotateInvite(
+      String groupOrderId,
+      String participantToken,
+      ) async {
+    final response = await _apiClient.post<GroupOrder>(
+      ApiEndpoints.groupOrderRotateInvite(groupOrderId),
+      data: {},
+      headers: {
+        _participantHeader: participantToken,
+        ...ApiClient.traceHeaders(),
+      },
+      fromJson: (json) => GroupOrder.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data;
+  }
+
+  @override
   Future<GroupOrderInvitePreview> previewInvite(String token) async {
     final response = await _apiClient.get<GroupOrderInvitePreview>(
       ApiEndpoints.groupOrderInvite(token),
@@ -232,26 +249,8 @@ class RemoteGroupOrderRepository implements GroupOrderRepository {
       fromJson: (json) => json as Map,
     );
 
-    // Print the FULL response
-    print('📊 Complete estimate response: ${apiResponse.data}');
-    print('📊 Response keys: ${(apiResponse.data).keys}');
-
-    // Try to find where the estimate data is
     final responseData = apiResponse.data as Map<String, dynamic>;
-
-    // Check if the estimate data is nested
-    if (responseData.containsKey('estimate')) {
-      print('📊 Found estimate field');
-      return GroupOrderEstimate.fromJson(responseData['estimate'] as Map<String, dynamic>);
-    } else if (responseData.containsKey('group_order') &&
-        responseData['group_order'].containsKey('estimate')) {
-      print('📊 Found estimate inside group_order');
-      return GroupOrderEstimate.fromJson(responseData['group_order']['estimate'] as Map<String, dynamic>);
-    } else {
-      // Maybe the response IS the estimate
-      print('📊 Using response as estimate');
-      return GroupOrderEstimate.fromJson(responseData);
-    }
+    return GroupOrderEstimate.fromJson(responseData);
   }
 
   @override

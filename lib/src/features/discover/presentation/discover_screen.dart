@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dropx_mobile/src/core/utils/formatters.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,11 +34,21 @@ class DiscoverScreen extends ConsumerStatefulWidget {
 
 class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   String _selectedCategory = 'All';
-  String _searchQuery = '';
+  // The query that actually drives the search request — updated only after
+  // typing pauses, so each keystroke doesn't fire its own network call and
+  // permanently cache a new provider instance.
+  String _debouncedQuery = '';
+  Timer? _searchDebounce;
 
   // When non-null, menu items section shows all items from this vendor
   String? _expandedVendorId;
   String? _expandedVendorName;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
 
   // Launch categories only: Food, Grocery & Retail, Parcel.
   // Pharmacy is intentionally excluded per launch rules.
@@ -75,8 +86,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         AppScaffold(
           appBar: const AppAppBar(title: 'Discover', showBack: false),
           onRefresh: () async {
-            ref.invalidate(homeFeedProvider);
-            ref.invalidate(menuItemsProvider);
+            if (_debouncedQuery.isEmpty) {
+              ref.invalidate(vendorsProvider(_activeCategory));
+            } else {
+              ref.invalidate(searchProvider);
+            }
+            if (_expandedVendorId != null) {
+              ref.invalidate(menuItemsProvider(_expandedVendorId!));
+            }
           },
           slivers: [
             SliverToBoxAdapter(
@@ -84,11 +101,19 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: AppSearchBar(
                   hintText: 'Search for anything',
-                  onChanged: (value) => setState(() {
-                    _searchQuery = value;
-                    _expandedVendorId = null;
-                    _expandedVendorName = null;
-                  }),
+                  onChanged: (value) {
+                    setState(() {
+                      _expandedVendorId = null;
+                      _expandedVendorName = null;
+                    });
+                    _searchDebounce?.cancel();
+                    _searchDebounce = Timer(
+                      const Duration(milliseconds: 400),
+                      () {
+                        if (mounted) setState(() => _debouncedQuery = value);
+                      },
+                    );
+                  },
                 ),
               ),
             ),
@@ -122,7 +147,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   }
 
   List<Widget> _buildContent(CartState cartState, bool isGuest) {
-    if (_searchQuery.isEmpty) {
+    if (_debouncedQuery.isEmpty) {
       return [
         ref
             .watch(vendorsProvider(_activeCategory))
@@ -145,7 +170,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           .watch(
         searchProvider(
           FeedParams(
-            q: _searchQuery,
+            q: _debouncedQuery,
             vertical: _activeCategory?.apiValue,
           ),
         ),
@@ -174,9 +199,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     if (vendors.isEmpty && items.isEmpty) {
       return SliverFillRemaining(
         child: _buildEmpty(
-          _searchQuery.isEmpty ? Icons.store_outlined : Icons.search_off,
-          _searchQuery.isEmpty ? 'No vendors found' : 'No results found',
-          _searchQuery.isEmpty
+          _debouncedQuery.isEmpty ? Icons.store_outlined : Icons.search_off,
+          _debouncedQuery.isEmpty ? 'No vendors found' : 'No results found',
+          _debouncedQuery.isEmpty
               ? 'No vendors in this category yet'
               : 'Try a different search term',
         ),

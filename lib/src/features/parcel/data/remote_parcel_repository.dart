@@ -12,6 +12,9 @@ import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initial
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_detail_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_tracking_live_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_paystack_payment_request.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_paystack_payment_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_recipient_confirmation_response.dart';
 
 class RemoteParcelRepository implements ParcelRepository {
   final ApiClient _apiClient;
@@ -71,14 +74,35 @@ class RemoteParcelRepository implements ParcelRepository {
     final body = dto.toJson();
     debugPrint('🟡 [PARCEL-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.parcelPaymentInitialize(parcelId)}');
     debugPrint('   📦 Body: $body');
-    final response = await _apiClient.post<ParcelPaymentInitializeData>(
+    final response = await _apiClient.postWithInitRetry<ParcelPaymentInitializeData>(
       ApiEndpoints.parcelPaymentInitialize(parcelId),
       data: body,
-      headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           ParcelPaymentInitializeData.fromJson(json as Map<String, dynamic>),
     );
     debugPrint('✅ [PARCEL-API] payment init → ref=${response.data.reference}');
+    return response.data;
+  }
+
+  @override
+  Future<VerifyParcelPaystackPaymentData> verifyPaystackPayment(
+    VerifyParcelPaystackPaymentRequest request,
+  ) async {
+    final body = request.toJson();
+    final endpoint = ApiEndpoints.parcelPaymentVerify(request.parcelId);
+    debugPrint('🟡 [PARCEL-API] POST ${ApiEndpoints.baseUrl}$endpoint');
+    debugPrint('   📦 Body: $body');
+    final response = await _apiClient.post<VerifyParcelPaystackPaymentData>(
+      endpoint,
+      data: body,
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => VerifyParcelPaystackPaymentData.fromJson(
+        json as Map<String, dynamic>,
+      ),
+    );
+    debugPrint(
+      '✅ [PARCEL-API] payment verify → verified=${response.data.verified}, parcelState=${response.data.parcelState}',
+    );
     return response.data;
   }
 
@@ -119,6 +143,29 @@ class RemoteParcelRepository implements ParcelRepository {
       },
     );
     debugPrint('✅ [PARCEL-API] parcelTrackingLive → state=${response.data.state}, tracking=${response.data.trackingAvailable}');
+    return response.data;
+  }
+
+  @override
+  Future<VerifyParcelRecipientConfirmationData> verifyRecipientConfirmation(
+    String parcelId,
+    String confirmationCode,
+  ) async {
+    final body = {'confirmation_code': confirmationCode};
+    final endpoint = ApiEndpoints.parcelRecipientConfirm(parcelId);
+    debugPrint('🟡 [PARCEL-API] POST ${ApiEndpoints.baseUrl}$endpoint');
+    final response =
+        await _apiClient.post<VerifyParcelRecipientConfirmationData>(
+          endpoint,
+          data: body,
+          headers: ApiClient.traceHeaders(),
+          fromJson: (json) => VerifyParcelRecipientConfirmationData.fromJson(
+            json as Map<String, dynamic>,
+          ),
+        );
+    debugPrint(
+      '✅ [PARCEL-API] recipient confirmation → status=${response.data.recipientConfirmationStatus}',
+    );
     return response.data;
   }
 

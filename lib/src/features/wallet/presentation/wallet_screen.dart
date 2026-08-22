@@ -278,6 +278,7 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
         ref.invalidate(walletBalanceProvider);
         ref.invalidate(walletLedgerProvider);
       },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         // Balance Card
         Container(

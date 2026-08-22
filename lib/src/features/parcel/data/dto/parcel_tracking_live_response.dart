@@ -25,6 +25,7 @@ class ParcelTrackingLiveData {
   final List<dynamic>? timeline;
   final int? staleAfterSeconds;
   final bool isStale;
+  final int? ageSeconds;
   final String? source;
   final num? accuracyM;
   final int? lastEventSeq;
@@ -42,6 +43,7 @@ class ParcelTrackingLiveData {
     this.timeline,
     this.staleAfterSeconds,
     this.isStale = false,
+    this.ageSeconds,
     this.source,
     this.accuracyM,
     this.lastEventSeq,
@@ -67,6 +69,7 @@ class ParcelTrackingLiveData {
       timeline: json['timeline'] as List<dynamic>?,
       staleAfterSeconds: json['stale_after_seconds'] as int?,
       isStale: json['is_stale'] as bool? ?? false,
+      ageSeconds: (json['age_seconds'] as num?)?.toInt(),
       source: json['source'] as String?,
       accuracyM: json['accuracy_m'] as num?,
       lastEventSeq: json['last_event_seq'] as int?,

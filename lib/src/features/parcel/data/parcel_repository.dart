@@ -8,6 +8,9 @@ import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initial
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_payment_initialize_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_detail_response.dart';
 import 'package:dropx_mobile/src/features/parcel/data/dto/parcel_tracking_live_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_paystack_payment_request.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_paystack_payment_response.dart';
+import 'package:dropx_mobile/src/features/parcel/data/dto/verify_parcel_recipient_confirmation_response.dart';
 
 abstract class ParcelRepository {
   Future<ParcelQuoteData> getQuote(ParcelQuoteRequest request);
@@ -24,6 +27,13 @@ abstract class ParcelRepository {
     ParcelPaymentInitializeDto dto,
   );
 
+  /// Verify a Paystack browser return for a parcel payment. Must be called
+  /// before treating a parcel as paid — the redirect URL alone is not proof
+  /// of payment.
+  Future<VerifyParcelPaystackPaymentData> verifyPaystackPayment(
+    VerifyParcelPaystackPaymentRequest request,
+  );
+
   Future<ParcelDetail> getParcel(String parcelId);
 
   /// GET /parcels — returns the user's parcel list.
@@ -34,4 +44,11 @@ abstract class ParcelRepository {
 
   /// GET /parcels/:id/tracking-live — live rider position and ETA.
   Future<ParcelTrackingLiveData> getParcelTrackingLive(String parcelId);
+
+  /// POST /parcels/:id/recipient-confirmation/verify — confirms handoff
+  /// using the code the recipient shares with the customer during delivery.
+  Future<VerifyParcelRecipientConfirmationData> verifyRecipientConfirmation(
+    String parcelId,
+    String confirmationCode,
+  );
 }

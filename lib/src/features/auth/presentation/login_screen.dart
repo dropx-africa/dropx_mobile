@@ -17,6 +17,7 @@ import 'package:dropx_mobile/src/features/auth/data/dto/login_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
+import 'package:dropx_mobile/src/core/services/session_reset.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -219,7 +220,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
         AppSpaces.v48,
-        const AppHeader('Welcome Back'),
+        const AppHeader('Welcome!'),
         AppSpaces.v8,
         const AppSubText(
           'Login to your account to continue.',
@@ -385,6 +386,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               final session = ref.read(sessionServiceProvider);
               final nav = Navigator.of(context);
               await session.saveGuestMode();
+              clearUserScopedProviders(ref);
               if (mounted) {
                 nav.pushReplacementNamed(AppRoute.manualLocation);
               }

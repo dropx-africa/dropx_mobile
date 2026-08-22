@@ -51,5 +51,16 @@
 	<string>DropX needs your location to track orders.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>DropX needs access to your contacts to allow you to invite friends.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.dropx.dropxMobile</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dropxmobile</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -14,7 +14,6 @@ import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/create_order_item_dto.dart';
-import 'package:dropx_mobile/src/features/order/data/dto/initialize_payment_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/place_order_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/generate_payment_link_dto.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/estimate_order_request.dart';
@@ -24,6 +23,7 @@ import 'package:dropx_mobile/src/utils/currency_utils.dart';
 import 'package:dropx_mobile/src/features/vendor/providers/vendor_providers.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/features/location/data/address_models.dart';
+import 'package:dropx_mobile/src/features/location/widget/location_sheet.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_empty_state.dart';
 import 'package:dropx_mobile/src/features/auth/presentation/sign_up_to_order_sheet.dart';
@@ -42,6 +42,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   bool _estimateFailed = false;
   String _selectedPaymentMethod = 'PAYSTACK';
   EstimateOrderData? _estimateData;
+
+  // The exact delivery-address id/lat/lng used to generate the current
+  // quote. POST /orders validates that the order's delivery endpoint
+  // matches what the quote was priced against (address_id + coordinate
+  // hash) — sending anything else (e.g. just a free-text address string)
+  // fails with 409 QUOTE_CONTEXT_MISMATCH, so these must be threaded
+  // through unchanged into _placeOrder()'s CreateOrderDto.
+  String? _quotedDeliveryAddressId;
+  double? _quotedDeliveryLat;
+  double? _quotedDeliveryLng;
+
+  // Caches the address-book record created for the current delivery
+  // lat/lng, so re-estimating (pull-to-refresh, expired-quote retry) reuses
+  // it instead of creating a fresh "Delivery" entry every single time.
+  // Invalidated only when the delivery location actually changes.
+  String? _cachedDeliveryAddressId;
+  double? _cachedDeliveryAddressLat;
+  double? _cachedDeliveryAddressLng;
 
   double get _deliveryFee {
     if (_estimateData == null) return 0.0;
@@ -101,20 +119,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final savedAddress = session.savedAddress;
 
       String? deliveryAddressId;
-      try {
-        final createdAddress = await addressRepo.createAddress(
-          CreateAddressRequest(
-            label: 'Delivery',
-            line1: savedAddress.isNotEmpty ? savedAddress : 'My Location',
-            city: session.savedCity.isNotEmpty ? session.savedCity : 'Lagos',
-            state: session.savedState.isNotEmpty ? session.savedState : 'Lagos',
-            lat: deliveryLat,
-            lng: deliveryLng,
-          ),
-        );
-        deliveryAddressId = createdAddress.addressId;
-      } catch (e) {
-        debugPrint('❌ [CART] Address save FAILED (using fallback): $e');
+      final cachedAddressStillValid = _cachedDeliveryAddressId != null &&
+          _cachedDeliveryAddressLat == deliveryLat &&
+          _cachedDeliveryAddressLng == deliveryLng;
+      if (cachedAddressStillValid) {
+        deliveryAddressId = _cachedDeliveryAddressId;
+      } else {
+        try {
+          final createdAddress = await addressRepo.createAddress(
+            CreateAddressRequest(
+              label: 'Delivery',
+              line1: savedAddress.isNotEmpty ? savedAddress : 'My Location',
+              city: session.savedCity.isNotEmpty ? session.savedCity : 'Lagos',
+              state: session.savedState.isNotEmpty ? session.savedState : 'Lagos',
+              lat: deliveryLat,
+              lng: deliveryLng,
+            ),
+          );
+          deliveryAddressId = createdAddress.addressId;
+          _cachedDeliveryAddressId = deliveryAddressId;
+          _cachedDeliveryAddressLat = deliveryLat;
+          _cachedDeliveryAddressLng = deliveryLng;
+        } catch (e) {
+          debugPrint('❌ [CART] Address save FAILED (using fallback): $e');
+        }
       }
 
       final orderItems = cartState.items.values.map((cartItem) {
@@ -126,17 +154,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }).toList();
 
+      final resolvedAddressId = deliveryAddressId ?? 'address-1';
+
       final dto = EstimateOrderRequest(
         zoneId: cartState.zoneId!,
         vendorId: cartState.vendorId!,
         items: orderItems,
-        deliveryAddressId: deliveryAddressId ?? 'address-1',
+        deliveryAddressId: resolvedAddressId,
         deliveryLat: deliveryLat,
         deliveryLng: deliveryLng,
         serviceTier: 'STANDARD',
       );
 
       final response = await orderRepo.estimateOrder(dto);
+
+      // Keep exactly what was quoted so _placeOrder() can send the same
+      // delivery endpoint — the backend rejects POST /orders with
+      // QUOTE_CONTEXT_MISMATCH if it doesn't match address_id/lat/lng
+      // bit-for-bit with what generated this quote.
+      _quotedDeliveryAddressId = resolvedAddressId;
+      _quotedDeliveryLat = deliveryLat;
+      _quotedDeliveryLng = deliveryLng;
 
       if (mounted) {
         setState(() => _estimateData = response.data);
@@ -148,6 +186,185 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoadingEstimate = false);
+    }
+  }
+
+  /// Lets the customer pick a saved address (or search for a new one)
+  /// without leaving the cart screen — replaces the old behaviour of
+  /// pushing to the full-screen manual location picker.
+  Future<void> _showAddressPicker() async {
+    List<AddressData> addresses;
+    try {
+      addresses = await ref.read(addressRepositoryProvider).getAddresses();
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Could not load your saved addresses.');
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    Future<void> applyAddress({
+      required String address,
+      required double lat,
+      required double lng,
+      required String city,
+      required String state,
+    }) async {
+      await ref.read(sessionServiceProvider).confirmLocation(
+            address: address,
+            lat: lat,
+            lng: lng,
+            city: city,
+            state: state,
+          );
+    }
+
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppText(
+                    'Deliver to',
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: addresses.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: AppText(
+                            "You don't have any saved addresses yet.",
+                            textAlign: TextAlign.center,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: addresses.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final a = addresses[i];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(
+                              Icons.location_on,
+                              color: a.isDefault
+                                  ? AppColors.primaryOrange
+                                  : Colors.grey.shade400,
+                            ),
+                            title: AppText(
+                              a.label,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                            subtitle: AppText(
+                              '${a.line1}, ${a.city}',
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () async {
+                              await applyAddress(
+                                address: a.line1,
+                                lat: a.lat,
+                                lng: a.lng,
+                                city: a.city,
+                                state: a.state,
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx, true);
+                            },
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final session = ref.read(sessionServiceProvider);
+                      final result = await showModalBottomSheet<
+                          Map<String, dynamic>>(
+                        context: ctx,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => LocationPickerSheet(
+                          currentAddress: session.savedAddress,
+                          currentLat: session.savedLat,
+                          currentLng: session.savedLng,
+                        ),
+                      );
+                      if (result == null) return;
+                      await applyAddress(
+                        address: result['address'] as String,
+                        lat: result['lat'] as double,
+                        lng: result['lng'] as double,
+                        city: (result['city'] as String?) ?? '',
+                        state: (result['state'] as String?) ?? '',
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx, true);
+                    },
+                    icon: const Icon(
+                      Icons.add_location_alt_outlined,
+                      color: AppColors.primaryOrange,
+                    ),
+                    label: const AppText(
+                      'Search for a new address',
+                      color: AppColors.primaryOrange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primaryOrange),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (changed == true && mounted) {
+      setState(() {});
+      _loadEstimate();
     }
   }
 
@@ -221,6 +438,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     try {
+      // The quote binds this order to the price/zone terms the customer
+      // just reviewed — re-estimate if it expired while they were on this
+      // screen rather than checking out against a stale quote.
+      if (_estimateData == null || _estimateData!.isExpired) {
+        await _loadEstimate();
+        if (_estimateData == null) {
+          throw Exception('Could not refresh delivery quote. Please try again.');
+        }
+      }
+
+      // Cross-zone quotes may require an explicit accept before the
+      // backend will let the draft order bind to them.
+      if (_estimateData!.requiresAcceptance) {
+        await orderRepo.acceptDeliveryQuote(_estimateData!.quoteId);
+      }
+
       final orderItems = cartState.items.values.map((cartItem) {
         final variantDelta = cartItem.selectedVariant?.priceDelta ?? 0.0;
         final addonTotal = cartItem.selectedAddons.fold<double>(
@@ -241,7 +474,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         vendorId: vendorId,
         zoneId: zoneId,
         deliveryAddress: deliveryAddress,
+        deliveryAddressId: _quotedDeliveryAddressId,
+        deliveryLat: _quotedDeliveryLat,
+        deliveryLng: _quotedDeliveryLng,
         items: orderItems,
+        quoteId: _estimateData?.quoteId,
       );
 
       final orderResponse = await orderRepo.createOrder(createDto);
@@ -266,8 +503,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
         if (!mounted) return;
 
-        final shareableLink =
-            'https://dropxwebapp.vercel.app/pay-link/${linkResponse.token}';
+        // Use the backend's own share_url rather than reconstructing one —
+        // it was previously hardcoded to a wrong domain/path here, which
+        // meant this "share this link" dialog never actually pointed
+        // anywhere real.
+        final shareableLink = linkResponse.shareUrl;
 
         await showDialog(
           context: context,
@@ -343,23 +583,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           arguments: {'initialTab': 2},
         );
       } else {
-        // PAYSTACK: place the order first (DRAFT → PAYMENT_PENDING),
-        // then initialize Paystack to get the checkout URL.
-        await orderRepo.placeOrder(
+        // PAYSTACK: placing the order already initializes the Paystack
+        // checkout server-side — the response carries the authorization
+        // URL directly. Calling /payments/initialize again here would
+        // collide with the attempt /place already created for this order.
+        final placeResponse = await orderRepo.placeOrder(
           orderId,
           PlaceOrderDto(paymentMethod: 'PAYSTACK'),
         );
-        final paymentResponse = await orderRepo.initializePayment(
-          InitializePaymentDto(orderId: orderId),
-        );
+        final payment = placeResponse.payment;
+        if (payment?.authorizationUrl == null) {
+          throw Exception('Order was placed but no payment link was returned.');
+        }
         if (!mounted) return;
         AppNavigator.push(
           context,
           AppRoute.paystackCheckout,
           arguments: {
-            'authorizationUrl': paymentResponse.authorizationUrl,
-            'reference': paymentResponse.reference,
+            'authorizationUrl': payment!.authorizationUrl,
+            'reference': payment.reference,
             'orderId': orderId,
+            'paymentAttemptId': payment.paymentAttemptId,
+            'verifyKind': 'order',
           },
         );
       }
@@ -496,8 +741,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => AppNavigator.pop(context),
         ),
-        floating: true,
-        snap: true,
+        pinned: true,
       ),
       slivers: [
         if (cartItemsList.isEmpty)
@@ -535,8 +779,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         color: Colors.grey.shade600,
                       ),
                       GestureDetector(
-                        onTap: () =>
-                            AppNavigator.push(context, AppRoute.manualLocation),
+                        onTap: _showAddressPicker,
                         child: const AppText(
                           "Change",
                           fontSize: 12,

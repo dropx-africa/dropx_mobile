@@ -32,6 +32,8 @@ class AppRoute {
   static const preferences = "/preferences";
   static const notificationSettings = "/notification-settings";
   static const supportTickets = "/support-tickets";
+  static const addressBook = "/address-book";
+  static const supportTicketDetail = "/support-ticket-detail";
   static const parcel = "/parcel";
   static const parcelTracking = "/parcel-tracking";
   static const groupOrder = "/group-order";

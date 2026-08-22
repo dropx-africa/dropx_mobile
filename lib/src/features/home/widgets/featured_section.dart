@@ -19,11 +19,15 @@ class FeaturedSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionServiceProvider);
+    // Same params as FastestSection's fetch (limit 20, no eta cap) so
+    // Riverpod dedupes both sections onto a single /home/feed request
+    // instead of firing it twice for the same vertical every time the
+    // home tab loads.
     final feedParams = FeedParams(
       vertical: category.apiValue,
       lat: session.savedLat,
       lng: session.savedLng,
-      limit: 10,
+      limit: 20,
     );
     final feedAsync = ref.watch(homeFeedProvider(feedParams));
 
@@ -32,7 +36,7 @@ class FeaturedSection extends ConsumerWidget {
       const SizedBox(height: 250, child: Center(child: AppLoading())),
       error: (e, st) => const SizedBox.shrink(),
       data: (feedData) {
-        final items = feedData.items;
+        final items = feedData.items.take(10).toList();
 
         String title;
         switch (category) {

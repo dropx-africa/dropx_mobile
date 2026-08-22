@@ -13,6 +13,13 @@ abstract class GroupOrderRepository {
   /// Preview an invite link before joining.
   Future<GroupOrderInvitePreview> previewInvite(String token);
 
+  /// Host rotates the invite link — revokes the old token and returns a new
+  /// one, e.g. after it was shared too widely.
+  Future<GroupOrder> rotateInvite(
+      String groupOrderId,
+      String participantToken,
+      );
+
   /// Join a group order as a participant (can be guest).
   Future<JoinGroupOrderResponse> joinGroupOrder(
       String token,

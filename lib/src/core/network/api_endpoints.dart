@@ -16,12 +16,18 @@ class ApiEndpoints {
   static const String resendOtp = '/auth/otp/resend';
   static const String verifyOtp = '/auth/otp/verify';
   static const String refreshToken = '/auth/refresh';
-  static const String resetPassword = '/auth/reset-password';
+  static const String sessionPolicy = '/auth/session-policy';
   static const String profile = '/me/profile';
   static const String preferences = '/me/preferences';
 
   // Maps / Geocoding
   static const String geocode = '/maps/geocode';
+  static const String mapsAutocomplete = '/maps/autocomplete';
+  static const String mapsPlaceDetails = '/maps/place-details';
+  static const String mapsReverseGeocode = '/maps/reverse-geocode';
+
+  // Zones
+  static const String zonesResolve = '/zones/resolve';
 
   // Vendors
   static const String vendors = '/vendors';
@@ -34,7 +40,10 @@ class ApiEndpoints {
   // Orders
   static const String orders = '/orders';
   static const String ordersEstimate = '/orders/estimate';
+  static String orderQuoteAccept(String quoteId) =>
+      '/orders/quotes/${Uri.encodeComponent(quoteId)}/accept';
   static String orderById(String id) => '/orders/$id';
+  static String orderReorderPreview(String id) => '/orders/$id/reorder-preview';
   static String placeOrder(String id) => '/orders/$id/place';
   static String generatePaymentLink(String id) => '/orders/$id/payment-link';
   static const String orderTracking = '/orders/tracking';
@@ -46,6 +55,8 @@ class ApiEndpoints {
   static String orderReviews(String id) => '/orders/$id/reviews';
   static String orderMyReview(String id) => '/orders/$id/reviews/me';
   static String orderDeliveryOtp(String id) => '/orders/$id/delivery-otp';
+  static String orderDeliveryOtpVerify(String id) =>
+      '/orders/$id/delivery-otp/verify';
   static String orderPaymentStatus(String id) => '/orders/$id/payment-status';
 
   // Parcels
@@ -69,6 +80,7 @@ class ApiEndpoints {
 
   // Payments
   static const String initializePayment = '/payments/initialize';
+  static const String verifyPaystackPayment = '/payments/verify/paystack';
 
   // Pay Links
   static String payLinkDetails(String token) => '/pay-links/$token';
@@ -78,13 +90,6 @@ class ApiEndpoints {
   // Cart
   static const String cart = '/me/cart';
   static const String cartClear = '/me/cart/clear';
-
-  // Location
-  static const String searchLocation = '/locations/search';
-
-  static const String groups = '/groups';
-  static String groupById(String id) => '/groups/$id';
-  static String groupPoll(String groupId) => '/groups/$groupId/poll';
 
   static const String groupOrders = '/group-orders';
   static String groupOrderById(String id) => '/group-orders/$id';
@@ -101,9 +106,13 @@ class ApiEndpoints {
       '/group-orders/invite/$token';
   static String groupOrderJoin(String token) =>
       '/group-orders/invite/$token/join';
+  static String groupOrderRotateInvite(String id) =>
+      '/group-orders/$id/invite';
 
   // Addresses
   static const String addresses = '/me/addresses';
+  static String addressSetDefault(String id) => '/me/addresses/$id/default';
+  static String addressById(String id) => '/me/addresses/$id';
 
   // Push tokens
   static const String pushTokens = '/me/push-tokens';
@@ -122,6 +131,7 @@ class ApiEndpoints {
   // Support
   static const String supportTickets = '/support/tickets';
   static String supportTicketById(String id) => '/support/tickets/$id';
+  static String supportResolveRecord(String id) => '/support/resolve/$id';
 
   // Social
   static const String socialContactsSync = '/social/contacts/sync';

@@ -9,27 +9,27 @@ part of 'cost_breakdown.dart';
 CostBreakdown _$CostBreakdownFromJson(Map<String, dynamic> json) =>
     CostBreakdown(
       currency: json['currency'] as String?,
-      subtotalKobo: json['subtotal_kobo'] != null
-          ? _parseInt(json['subtotal_kobo'])
-          : 0,
-      deliveryFeeKobo: json['delivery_fee_kobo'] != null
-          ? _parseInt(json['delivery_fee_kobo'])
-          : 0,
-      serviceFeeKobo: json['service_fee_kobo'] != null
-          ? _parseInt(json['service_fee_kobo'])
-          : 0,
-      insuranceFeeKobo: json['insurance_fee_kobo'] != null
-          ? _parseInt(json['insurance_fee_kobo'])
-          : 0,
-      taxKobo: json['tax_kobo'] != null ? _parseInt(json['tax_kobo']) : 0,
-      totalKobo:
-          json['total_kobo'] != null ? _parseInt(json['total_kobo']) : 0,
-      lines: (json['lines'] as List<dynamic>?)
+      subtotalKobo: json['subtotal_kobo'] == null
+          ? 0
+          : _parseInt(json['subtotal_kobo']),
+      deliveryFeeKobo: json['delivery_fee_kobo'] == null
+          ? 0
+          : _parseInt(json['delivery_fee_kobo']),
+      serviceFeeKobo: json['service_fee_kobo'] == null
+          ? 0
+          : _parseInt(json['service_fee_kobo']),
+      insuranceFeeKobo: json['insurance_fee_kobo'] == null
+          ? 0
+          : _parseInt(json['insurance_fee_kobo']),
+      taxKobo: json['tax_kobo'] == null ? 0 : _parseInt(json['tax_kobo']),
+      totalKobo: json['total_kobo'] == null ? 0 : _parseInt(json['total_kobo']),
+      lines:
+          (json['lines'] as List<dynamic>?)
               ?.map(
                 (e) => CostBreakdownLine.fromJson(e as Map<String, dynamic>),
               )
               .toList() ??
-          [],
+          const [],
     );
 
 Map<String, dynamic> _$CostBreakdownToJson(CostBreakdown instance) =>

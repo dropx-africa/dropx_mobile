@@ -69,6 +69,12 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
 
   double get _total => (_basePrice + _addonsTotal) * _quantity;
 
+  // Retail items with tracked stock can't be added past what's available.
+  bool get _canIncreaseQty {
+    final stock = widget.item.stockCount;
+    return stock == null || _quantity < stock;
+  }
+
   void _toggleAddon(MenuItemAddon addon) {
     setState(() {
       if (_selectedAddons.any((a) => a.addonId == addon.addonId)) {
@@ -385,7 +391,9 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                           ),
                           _QuantityButton(
                             icon: Icons.add,
-                            onTap: () => setState(() => _quantity++),
+                            onTap: _canIncreaseQty
+                                ? () => setState(() => _quantity++)
+                                : null,
                             filled: true,
                           ),
                           const Spacer(),

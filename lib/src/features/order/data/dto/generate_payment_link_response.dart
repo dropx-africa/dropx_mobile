@@ -15,12 +15,20 @@ class GeneratePaymentLinkResponse {
   final String token;
   final String note;
 
+  /// The backend's own ready-to-share URL — use this rather than
+  /// reconstructing one client-side, since the domain/path here is the
+  /// single source of truth (also what Paystack's callback_url points back
+  /// to after payment).
+  @JsonKey(name: 'share_url')
+  final String shareUrl;
+
   const GeneratePaymentLinkResponse({
     required this.ok,
     required this.paymentLinkId,
     required this.expiresAt,
     required this.token,
     required this.note,
+    required this.shareUrl,
   });
 
   factory GeneratePaymentLinkResponse.fromJson(Map<String, dynamic> json) =>

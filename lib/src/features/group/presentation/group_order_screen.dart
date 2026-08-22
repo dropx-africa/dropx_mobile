@@ -16,7 +16,6 @@ import '../../../core/providers/core_providers.dart';
 import '../../../core/services/session_service.dart';
 import '../../../utils/currency_utils.dart';
 import '../../order/data/dto/generate_payment_link_dto.dart';
-import '../../order/data/dto/initialize_payment_dto.dart';
 import '../../order/data/dto/place_order_dto.dart';
 import '../../order/providers/order_providers.dart';
 import '../../wallet/providers/wallet_providers.dart';
@@ -210,7 +209,13 @@ class _RoomBody extends ConsumerWidget {
 
                 // ── Invite banner (shown when room is open) ───────────────
                 if (room.isOpen && session.inviteUrl != null)
-                  _InviteBanner(inviteUrl: session.inviteUrl!),
+                  _InviteBanner(
+                    inviteUrl: session.inviteUrl!,
+                    isHost: isHost,
+                    onRotate: isHost
+                        ? () => _rotateInvite(context, ref, session)
+                        : null,
+                  ),
 
                 const SizedBox(height: 20),
 
@@ -578,10 +583,54 @@ class _GroupItemTile extends StatelessWidget {
   }
 }
 
+Future<void> _rotateInvite(
+  BuildContext context,
+  WidgetRef ref,
+  GroupOrderSession session,
+) async {
+  try {
+    final repo = ref.read(groupOrderRepositoryProvider);
+    final updated = await repo.rotateInvite(
+      session.groupOrderId,
+      session.participantToken,
+    );
+    ref.read(groupOrderSessionProvider.notifier).state = GroupOrderSession(
+      groupOrderId: session.groupOrderId,
+      participantToken: session.participantToken,
+      isHost: session.isHost,
+      inviteUrl: updated.inviteUrl,
+      vendorId: session.vendorId,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('New invite link generated — the old one no longer works.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not generate a new link: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+}
+
 class _InviteBanner extends StatelessWidget {
   final String inviteUrl;
+  final bool isHost;
+  final VoidCallback? onRotate;
 
-  const _InviteBanner({required this.inviteUrl});
+  const _InviteBanner({
+    required this.inviteUrl,
+    this.isHost = false,
+    this.onRotate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -630,6 +679,12 @@ class _InviteBanner extends StatelessWidget {
               ],
             ),
           ),
+          if (isHost && onRotate != null)
+            IconButton(
+              tooltip: 'Generate new link',
+              icon: const Icon(Icons.refresh, size: 18, color: AppColors.slate400),
+              onPressed: onRotate,
+            ),
           TextButton(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: inviteUrl));
@@ -1305,16 +1360,17 @@ class _BottomActions extends ConsumerWidget {
     try {
       final orderRepo = ref.read(orderRepositoryProvider);
 
-      // Place the order first (creates DRAFT order)
-      await orderRepo.placeOrder(
+      // Placing the order already initializes the Paystack checkout
+      // server-side for PAYSTACK — a separate /payments/initialize call
+      // would collide with the attempt /place just created.
+      final placeResponse = await orderRepo.placeOrder(
         result.orderId,
         PlaceOrderDto(paymentMethod: 'PAYSTACK'),
       );
-
-      // Initialize Paystack payment
-      final paymentResponse = await orderRepo.initializePayment(
-        InitializePaymentDto(orderId: result.orderId),
-      );
+      final payment = placeResponse.payment;
+      if (payment?.authorizationUrl == null) {
+        throw Exception('Order was placed but no payment link was returned.');
+      }
 
       if (!context.mounted) return;
 
@@ -1328,9 +1384,11 @@ class _BottomActions extends ConsumerWidget {
         context,
         AppRoute.paystackCheckout,
         arguments: {
-          'authorizationUrl': paymentResponse.authorizationUrl,
-          'reference': paymentResponse.reference,
+          'authorizationUrl': payment!.authorizationUrl,
+          'reference': payment.reference,
           'orderId': result.orderId,
+          'paymentAttemptId': payment.paymentAttemptId,
+          'verifyKind': 'order',
         },
       );
     } catch (e) {
@@ -1484,9 +1542,6 @@ class _BottomActions extends ConsumerWidget {
               estimate: estimate,
               sessionService: sessionService,
               paymentMethod: paymentMethod,
-              onLocationChange: () async {
-                return null;
-              },
               onConfirm: () {
                 AppNavigator.pop(modalContext, true);
               },
@@ -1657,14 +1712,12 @@ class _CheckoutSheetContent extends StatefulWidget {
   final GroupOrderEstimate estimate;
   final SessionService sessionService;
   final String paymentMethod;
-  final Future<GroupOrderEstimate?> Function() onLocationChange;
   final VoidCallback onConfirm;
 
   const _CheckoutSheetContent({
     required this.estimate,
     required this.sessionService,
     required this.paymentMethod,
-    required this.onLocationChange,
     required this.onConfirm,
   });
 
@@ -1674,7 +1727,6 @@ class _CheckoutSheetContent extends StatefulWidget {
 
 class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
   GroupOrderEstimate? _currentEstimate;
-  bool _isUpdatingLocation = false;
 
   @override
   void initState() {
@@ -1815,86 +1867,43 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
 
                 const SizedBox(height: 16),
 
-                // Tappable delivery address card
-                GestureDetector(
-                  onTap: _isUpdatingLocation ? null : () async {
-                    setState(() => _isUpdatingLocation = true);
-
-                    // Show loading indicator on the address card
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Opening location picker...'),
-                        duration: Duration(milliseconds: 500),
-                      ),
-                    );
-
-                    final newEstimate = await widget.onLocationChange();
-
-                    if (newEstimate != null && mounted) {
-                      setState(() {
-                        _currentEstimate = newEstimate;
-                        _isUpdatingLocation = false;
-                      });
-                    } else {
-                      setState(() => _isUpdatingLocation = false);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.slate50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on,
-                            color: AppColors.primaryOrange,
-                            size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const AppText(
-                                'Delivery address',
-                                fontSize: 12,
-                                color: AppColors.slate400,
-                              ),
-                              if (_isUpdatingLocation)
-                                const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    AppText(
-                                      'Updating location...',
-                                      fontSize: 13,
-                                    ),
-                                  ],
-                                )
-                              else
-                                AppText(
-                                  widget.sessionService.savedAddress,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          ),
-                        ),
-                        const AppText(
-                          'Change',
+                // Delivery address — informational only. Changing the
+                // address mid-checkout isn't supported for group orders
+                // (the estimate is locked to the address the room was
+                // opened with), so this no longer shows a "Change" action
+                // that didn't do anything.
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.slate50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on,
                           color: AppColors.primaryOrange,
-                          fontWeight: FontWeight.bold,
+                          size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const AppText(
+                              'Delivery address',
+                              fontSize: 12,
+                              color: AppColors.slate400,
+                            ),
+                            AppText(
+                              widget.sessionService.savedAddress,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
 

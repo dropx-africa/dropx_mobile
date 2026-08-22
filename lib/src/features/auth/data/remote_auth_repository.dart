@@ -129,9 +129,6 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<RefreshTokenData> refreshToken(String refreshToken) async {
-    debugPrint(
-      '🔄 [AUTH-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.refreshToken}',
-    );
     final request = RefreshTokenRequest(refreshToken: refreshToken);
     final response = await _apiClient.post<RefreshTokenData>(
       ApiEndpoints.refreshToken,
@@ -139,9 +136,6 @@ class RemoteAuthRepository implements AuthRepository {
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           RefreshTokenData.fromJson(json as Map<String, dynamic>),
-    );
-    debugPrint(
-      '✅ [AUTH-API] POST /auth/refresh → expires_in=${response.data.expiresIn}s',
     );
     return response.data;
   }
@@ -151,9 +145,6 @@ class RemoteAuthRepository implements AuthRepository {
     String refreshToken, {
     bool allDevices = false,
   }) async {
-    debugPrint(
-      '🔴 [AUTH-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.logout}',
-    );
     final request = LogoutRequest(
       refreshToken: refreshToken,
       allDevices: allDevices,
@@ -164,40 +155,22 @@ class RemoteAuthRepository implements AuthRepository {
       headers: ApiClient.traceHeaders(),
       fromJson: (json) => LogoutData.fromJson(json as Map<String, dynamic>),
     );
-    debugPrint(
-      '✅ [AUTH-API] POST /auth/logout → revoked_count=${response.data.revokedCount}',
-    );
     return response.data;
   }
 
   @override
-  Future<bool> isAuthenticated() async {
-    // TODO: Check Token Storage
-    return false;
-  }
-
-  @override
-  Future<String?> getToken() async {
-    // TODO: Get from Storage
-    return null;
-  }
-
-  @override
   Future<UserProfileResponse> getProfile() async {
-    debugPrint('➡ [AUTH-API] GET /me/profile');
     final response = await _apiClient.get<UserProfileResponse>(
       ApiEndpoints.profile,
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           UserProfileResponse.fromJson(json as Map<String, dynamic>),
     );
-    debugPrint('✅ [AUTH-API] GET /me/profile → id=${response.data.userId}');
     return response.data;
   }
 
   @override
   Future<UserProfileResponse> updateProfile(UpdateProfileDto dto) async {
-    debugPrint('➡ [AUTH-API] PATCH /me/profile');
     final response = await _apiClient.patch<UserProfileResponse>(
       ApiEndpoints.profile,
       data: dto.toJson(),
@@ -205,21 +178,16 @@ class RemoteAuthRepository implements AuthRepository {
       fromJson: (json) =>
           UserProfileResponse.fromJson(json as Map<String, dynamic>),
     );
-    debugPrint('✅ [AUTH-API] PATCH /me/profile → id=${response.data.userId}');
     return response.data;
   }
 
   @override
   Future<UserPreferencesResponse> getPreferences() async {
-    debugPrint('➡ [AUTH-API] GET /me/preferences');
     final response = await _apiClient.get<UserPreferencesResponse>(
       ApiEndpoints.preferences,
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           UserPreferencesResponse.fromJson(json as Map<String, dynamic>),
-    );
-    debugPrint(
-      '✅ [AUTH-API] GET /me/preferences → optIn=${response.data.marketingOptIn}',
     );
     return response.data;
   }
@@ -228,16 +196,12 @@ class RemoteAuthRepository implements AuthRepository {
   Future<UserPreferencesResponse> updatePreferences(
     UpdatePreferencesDto dto,
   ) async {
-    debugPrint('➡ [AUTH-API] PATCH /me/preferences');
     final response = await _apiClient.patch<UserPreferencesResponse>(
       ApiEndpoints.preferences,
       data: dto.toJson(),
       headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           UserPreferencesResponse.fromJson(json as Map<String, dynamic>),
-    );
-    debugPrint(
-      '✅ [AUTH-API] PATCH /me/preferences → optIn=${response.data.marketingOptIn}',
     );
     return response.data;
   }
@@ -259,21 +223,28 @@ class RemoteAuthRepository implements AuthRepository {
   Future<PasswordResetChallengeResponse> requestPasswordReset(
     PasswordResetRequestDto dto,
   ) async {
-    debugPrint(
-      '➡ [AUTH-API] POST ${ApiEndpoints.passwordResetRequest} payload=${dto.toJson()}',
-    );
     final response = await _apiClient.post<PasswordResetChallengeResponse>(
       ApiEndpoints.passwordResetRequest,
       data: dto.toJson(),
       headers: ApiClient.traceHeaders(),
-      fromJson: (json) {
-        final map = json as Map<String, dynamic>;
-        debugPrint('[AUTH-API] 📦 /auth/password/reset/request raw: $map');
-        return PasswordResetChallengeResponse.fromJson(map);
-      },
+      fromJson: (json) =>
+          PasswordResetChallengeResponse.fromJson(json as Map<String, dynamic>),
     );
-    debugPrint(
-      '✅ [AUTH-API] /auth/password/reset/request → challengeId=${response.data.otpChallengeId}',
+    return response.data;
+  }
+
+  @override
+  Future<PasswordResetChallengeResponse> resendPasswordReset({
+    required String otpChallengeId,
+    String audience = 'customer',
+  }) async {
+    final body = {'otp_challenge_id': otpChallengeId, 'audience': audience};
+    final response = await _apiClient.post<PasswordResetChallengeResponse>(
+      ApiEndpoints.passwordResetResend,
+      data: body,
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) =>
+          PasswordResetChallengeResponse.fromJson(json as Map<String, dynamic>),
     );
     return response.data;
   }

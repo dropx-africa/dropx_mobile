@@ -6,7 +6,7 @@ import 'package:dropx_mobile/src/features/cart/data/cart_repository.dart';
 import 'package:dropx_mobile/src/features/cart/data/remote_cart_repository.dart';
 import 'package:dropx_mobile/src/features/cart/data/dto/cart_dto.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
-import 'package:dropx_mobile/src/models/order.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/reorder_preview_response.dart';
 import 'package:dropx_mobile/src/utils/currency_utils.dart';
 
 enum AddToCartResult { success, vendorConflict }
@@ -353,37 +353,33 @@ class CartNotifier extends StateNotifier<CartState> {
     _clearOnServer();
   }
 
-  void reorder(Order order) {
-    if (order.items == null || order.items!.isEmpty) return;
-    debugPrint('[REORDER] orderId=${order.orderId} vendorId=${order.vendorId} zoneId=${order.zoneId} itemCount=${order.items!.length}');
-    for (final i in order.items!) {
-      debugPrint('[REORDER]   item: name="${i.name ?? ''}" item_id=${i.itemId} qty=${i.qty} priceKobo=${i.unitPriceKobo}');
-    }
+  /// Populates the cart from a server-resolved reorder preview
+  /// (POST /orders/:id/reorder-preview) — items are already matched against
+  /// the vendor's *current* catalog (real ids, current prices), so there's
+  /// no client-side guessing about which fields the original order response
+  /// happens to carry.
+  void reorderFromPreview(ReorderPreviewResponse preview) {
     final newItems = <String, CartItem>{};
-    for (final orderItem in order.items!) {
-      final realId = orderItem.itemId;
-      // Skip items without a real catalog ID — sending the name as item_id
-      // causes QUOTE_UNAVAILABLE from the backend.
-      if (realId == null || realId.isEmpty) {
-        debugPrint('[REORDER] ⚠️ skipping "${orderItem.name ?? ''}" — item_id is null/empty');
-        continue;
-      }
+    for (final item in preview.availableItems) {
+      final catalogItemId = item.catalogItemId;
+      if (catalogItemId == null || catalogItemId.isEmpty) continue;
       final menuItem = MenuItem(
-        id: realId,
-        vendorId: order.vendorId ?? '',
-        name: orderItem.name ?? '',
-        priceKobo: orderItem.unitPriceKobo,
+        id: catalogItemId,
+        vendorId: preview.vendor.vendorId,
+        name: item.currentName ?? item.previousName ?? '',
+        priceKobo: item.currentUnitPriceKobo,
       );
       newItems[menuItem.id] = CartItem(
         menuItem: menuItem,
-        quantity: orderItem.qty,
+        quantity: item.qty,
       );
     }
     if (newItems.isEmpty) return;
     state = CartState(
       items: newItems,
-      vendorId: order.vendorId,
-      zoneId: order.zoneId,
+      vendorId: preview.vendor.vendorId,
+      vendorName: preview.vendor.displayName,
+      zoneId: preview.vendor.zoneId,
     );
     _syncToServer();
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/core/providers/core_providers.dart';
@@ -26,11 +27,18 @@ class _FastestRetailScreenState extends ConsumerState<FastestRetailScreen> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   String _searchQuery = '';
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -85,7 +93,8 @@ class _FastestRetailScreenState extends ConsumerState<FastestRetailScreen> {
 
   void _onSearchChanged(String query) {
     setState(() => _searchQuery = query);
-    _loadInitialData();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 400), _loadInitialData);
   }
 
   @override

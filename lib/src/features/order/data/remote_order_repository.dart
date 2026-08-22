@@ -23,6 +23,10 @@ import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.d
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/delivery_otp_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_paystack_payment_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_paystack_payment_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_delivery_otp_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/reorder_preview_response.dart';
 import 'package:dropx_mobile/src/features/order/data/order_repository.dart';
 import 'package:dropx_mobile/src/models/order.dart';
 
@@ -72,6 +76,26 @@ class RemoteOrderRepository implements OrderRepository {
   }
 
   @override
+  Future<ReorderPreviewResponse> getReorderPreview(String orderId) async {
+    debugPrint(
+      '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderReorderPreview(orderId)}',
+    );
+    final response = await _apiClient.post<ReorderPreviewResponse>(
+      ApiEndpoints.orderReorderPreview(orderId),
+      data: const {},
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) =>
+          ReorderPreviewResponse.fromJson(json as Map<String, dynamic>),
+    );
+    debugPrint(
+      '✅ [ORDER-API] reorder-preview → canReorder=${response.data.canReorder} '
+      'available=${response.data.availableItems.length} '
+      'unavailable=${response.data.unavailableItems.length}',
+    );
+    return response.data;
+  }
+
+  @override
   Future<CreateOrderResponse> createOrder(CreateOrderDto dto) async {
     final body = dto.toJson();
     debugPrint(
@@ -100,15 +124,36 @@ class RemoteOrderRepository implements OrderRepository {
       '🟡 [PAYMENT-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.initializePayment}',
     );
     debugPrint('   📦 Body: $body');
-    final response = await _apiClient.post<InitializePaymentResponse>(
+    final response = await _apiClient.postWithInitRetry<InitializePaymentResponse>(
       ApiEndpoints.initializePayment,
       data: body,
-      headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           InitializePaymentResponse.fromJson(json as Map<String, dynamic>),
     );
     debugPrint(
       '✅ [PAYMENT-API] POST /payments/initialize → ref=${response.data.reference}',
+    );
+    return response.data;
+  }
+
+  @override
+  Future<VerifyPaystackPaymentData> verifyPaystackPayment(
+    VerifyPaystackPaymentRequest request,
+  ) async {
+    final body = request.toJson();
+    debugPrint(
+      '🟡 [PAYMENT-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.verifyPaystackPayment}',
+    );
+    debugPrint('   📦 Body: $body');
+    final response = await _apiClient.post<VerifyPaystackPaymentData>(
+      ApiEndpoints.verifyPaystackPayment,
+      data: body,
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) =>
+          VerifyPaystackPaymentData.fromJson(json as Map<String, dynamic>),
+    );
+    debugPrint(
+      '✅ [PAYMENT-API] POST /payments/verify/paystack → verified=${response.data.verified}, orderState=${response.data.orderState}',
     );
     return response.data;
   }
@@ -181,8 +226,23 @@ class RemoteOrderRepository implements OrderRepository {
     debugPrint('   total_kobo=${data.totalKobo}');
     debugPrint('   eta_minutes=${data.etaMinutes}');
     debugPrint('   quote_id=${data.quoteId}');
+    debugPrint('   cross_zone=${data.zonePolicy?.crossZone}, requires_acceptance=${data.requiresAcceptance}');
     // Wrap back into EstimateOrderResponse for the interface contract.
     return EstimateOrderResponse(ok: true, data: data);
+  }
+
+  @override
+  Future<void> acceptDeliveryQuote(String quoteId) async {
+    debugPrint(
+      '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderQuoteAccept(quoteId)}',
+    );
+    await _apiClient.post<Map<String, dynamic>>(
+      ApiEndpoints.orderQuoteAccept(quoteId),
+      data: const {},
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+    debugPrint('✅ [ORDER-API] quote accepted → $quoteId');
   }
 
   @override
@@ -322,7 +382,7 @@ class RemoteOrderRepository implements OrderRepository {
             GetMyReviewData.fromJson(json as Map<String, dynamic>),
       );
       debugPrint(
-        '✅ [ORDER-API] GET /orders/$orderId/reviews/me → rating=${response.data.review.ratingOverall}',
+        '✅ [ORDER-API] GET /orders/$orderId/reviews/me → rating=${response.data.review?.ratingOverall ?? "none"}',
       );
       return response.data;
     } on NotFoundException catch (_) {
@@ -354,5 +414,27 @@ class RemoteOrderRepository implements OrderRepository {
       debugPrint('❌ [ORDER-API] getDeliveryOtp failed: $e');
       return null;
     }
+  }
+
+  @override
+  Future<VerifyDeliveryOtpData> verifyDeliveryOtp(
+    String orderId,
+    String deliveryOtp,
+  ) async {
+    final body = {'delivery_otp': deliveryOtp};
+    debugPrint(
+      '🟡 [ORDER-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.orderDeliveryOtpVerify(orderId)}',
+    );
+    final response = await _apiClient.post<VerifyDeliveryOtpData>(
+      ApiEndpoints.orderDeliveryOtpVerify(orderId),
+      data: body,
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) =>
+          VerifyDeliveryOtpData.fromJson(json as Map<String, dynamic>),
+    );
+    debugPrint(
+      '✅ [ORDER-API] POST /orders/$orderId/delivery-otp/verify → state=${response.data.state}',
+    );
+    return response.data;
   }
 }

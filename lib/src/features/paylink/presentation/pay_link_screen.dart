@@ -69,17 +69,25 @@ class _PayLinkScreenState extends ConsumerState<PayLinkScreen> {
 
       if (!mounted) return;
 
-      // Navigate to checkout webview
-      Navigator.pushReplacementNamed(
+      // Open the checkout webview on top of this screen (not a replacement)
+      // so we can come back here and refresh once payment is verified —
+      // verification polls GET /pay-links/:token (see verifyKind: 'payLink'
+      // in PaystackCheckoutScreen), which computes real paid/closed/expired
+      // status server-side rather than trusting the redirect URL.
+      final verified = await Navigator.pushNamed<bool>(
         context,
         AppRoute.paystackCheckout,
         arguments: {
           'authorizationUrl': response.authorizationUrl,
           'reference': response.reference,
-          'orderId': widget
-              .token, // Token logic could vary for orderId callback validation
+          'verifyKind': 'payLink',
+          'payLinkToken': widget.token,
         },
       );
+      if (!mounted) return;
+      if (verified == true) {
+        _fetchLinkDetails();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,6 +144,40 @@ class _PayLinkScreenState extends ConsumerState<PayLinkScreen> {
                 _errorMessage!,
                 textAlign: TextAlign.center,
                 fontSize: 16,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_status == 'PAID') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                size: 64,
+                color: AppColors.secondaryGreen,
+              ),
+              const SizedBox(height: 16),
+              const AppText(
+                "Payment successful!",
+                textAlign: TextAlign.center,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              const SizedBox(height: 8),
+              AppText(
+                _amountNaira != null
+                    ? "₦$_amountNaira has been received. Thank you!"
+                    : "Your payment has been received. Thank you!",
+                textAlign: TextAlign.center,
+                fontSize: 14,
+                color: Colors.grey.shade600,
               ),
             ],
           ),

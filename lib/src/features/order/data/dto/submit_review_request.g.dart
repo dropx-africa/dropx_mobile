@@ -10,6 +10,8 @@ Map<String, dynamic> _$SubmitReviewRequestToJson(
   SubmitReviewRequest instance,
 ) => <String, dynamic>{
   'rating_overall': instance.ratingOverall,
+  'rating_vendor': instance.ratingVendor,
+  'rating_rider': instance.ratingRider,
   'comment': instance.comment,
   'tags': instance.tags,
   'review_target': instance.reviewTarget,

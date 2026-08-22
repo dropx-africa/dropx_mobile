@@ -4,6 +4,8 @@ import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/support/providers/support_providers.dart';
 import 'package:dropx_mobile/src/features/support/data/dto/ticket_dto.dart';
+import 'package:dropx_mobile/src/route/page.dart';
+import 'package:dropx_mobile/src/utils/app_navigator.dart';
 
 class SupportTicketsScreen extends ConsumerStatefulWidget {
   const SupportTicketsScreen({super.key});
@@ -104,7 +106,7 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                 message: _messageController.text,
                                 priority: _selectedPriority,
                               );
-                              await ref
+                              final ticket = await ref
                                   .read(supportRepositoryProvider)
                                   .createTicket(dto);
                               if (context.mounted) {
@@ -115,6 +117,11 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
                                       'Ticket created successfully!',
                                     ),
                                   ),
+                                );
+                                AppNavigator.push(
+                                  context,
+                                  AppRoute.supportTicketDetail,
+                                  arguments: {'ticketId': ticket.ticketId},
                                 );
                               }
                             } catch (e) {

@@ -23,16 +23,17 @@ Map<String, dynamic> _$ReviewDataToJson(ReviewData instance) =>
       'review_id': instance.reviewId,
       'order_id': instance.orderId,
       'rating_overall': instance.ratingOverall,
-      if (instance.comment != null) 'comment': instance.comment,
-      if (instance.tags != null) 'tags': instance.tags,
-      if (instance.reviewTarget != null) 'review_target': instance.reviewTarget,
-      if (instance.createdAt != null)
-        'created_at': instance.createdAt!.toIso8601String(),
+      'comment': instance.comment,
+      'tags': instance.tags,
+      'review_target': instance.reviewTarget,
+      'created_at': instance.createdAt?.toIso8601String(),
     };
 
 GetMyReviewData _$GetMyReviewDataFromJson(Map<String, dynamic> json) =>
     GetMyReviewData(
-      review: ReviewData.fromJson(json['review'] as Map<String, dynamic>),
+      review: json['review'] == null
+          ? null
+          : ReviewData.fromJson(json['review'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$GetMyReviewDataToJson(GetMyReviewData instance) =>

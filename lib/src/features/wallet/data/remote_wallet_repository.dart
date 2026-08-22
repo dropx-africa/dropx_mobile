@@ -56,10 +56,9 @@ class RemoteWalletRepository implements WalletRepository {
       '🟡 [WALLET-API] POST ${ApiEndpoints.baseUrl}${ApiEndpoints.walletTopupInitialize}',
     );
     debugPrint('   📦 Body: $body');
-    final response = await _apiClient.post<WalletTopupInitializeData>(
+    final response = await _apiClient.postWithInitRetry<WalletTopupInitializeData>(
       ApiEndpoints.walletTopupInitialize,
       data: body,
-      headers: ApiClient.traceHeaders(),
       fromJson: (json) =>
           WalletTopupInitializeData.fromJson(json as Map<String, dynamic>),
     );

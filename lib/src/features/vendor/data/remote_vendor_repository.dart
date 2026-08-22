@@ -5,6 +5,7 @@ import 'package:dropx_mobile/src/features/vendor/data/dto/store_catalog_response
 import 'package:dropx_mobile/src/features/vendor/data/dto/vendors_response.dart';
 import 'package:dropx_mobile/src/features/vendor/data/dto/vendor_response.dart';
 import 'package:dropx_mobile/src/features/vendor/data/vendor_repository.dart';
+import 'package:dropx_mobile/src/features/home/data/search_response.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:flutter/foundation.dart';
@@ -104,14 +105,13 @@ class RemoteVendorRepository implements VendorRepository {
 
   @override
   Future<List<Vendor>> searchVendors(String query) async {
-    final vendors = await getVendors();
-    final lowered = query.toLowerCase();
-    return vendors
-        .where(
-          (v) =>
-      v.name.toLowerCase().contains(lowered) ||
-          (v.tags?.any((t) => t.toLowerCase().contains(lowered)) ?? false),
-    )
-        .toList();
+    if (query.trim().isEmpty) return [];
+
+    final response = await _apiClient.get<SearchData>(
+      ApiEndpoints.search,
+      queryParams: {'q': query.trim()},
+      fromJson: (json) => SearchData.fromJson(json as Map<String, dynamic>),
+    );
+    return response.data.vendors;
   }
 }

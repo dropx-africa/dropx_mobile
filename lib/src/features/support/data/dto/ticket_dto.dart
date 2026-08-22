@@ -56,3 +56,35 @@ class TicketResponseData {
 
   Map<String, dynamic> toJson() => _$TicketResponseDataToJson(this);
 }
+
+/// Response for `GET /support/resolve/:support_id` — resolves a legacy
+/// ticket id, support case id, or dispute id to its kind and app route,
+/// without the caller having to guess by id prefix.
+class SupportRecordSummary {
+  final String recordId;
+  final String recordType;
+  final String title;
+  final String status;
+  final String? priority;
+  final String route;
+
+  const SupportRecordSummary({
+    required this.recordId,
+    required this.recordType,
+    required this.title,
+    required this.status,
+    this.priority,
+    required this.route,
+  });
+
+  factory SupportRecordSummary.fromJson(Map<String, dynamic> json) {
+    return SupportRecordSummary(
+      recordId: json['record_id'] as String? ?? '',
+      recordType: json['record_type'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      priority: json['priority'] as String?,
+      route: json['route'] as String? ?? '',
+    );
+  }
+}

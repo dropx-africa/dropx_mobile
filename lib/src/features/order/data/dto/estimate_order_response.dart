@@ -53,6 +53,15 @@ class EstimateOrderData {
   @JsonKey(name: 'cost_breakdown')
   final CostBreakdown? costBreakdown;
 
+  @JsonKey(name: 'zone_policy')
+  final ZonePolicy? zonePolicy;
+
+  @JsonKey(name: 'requires_acceptance')
+  final bool requiresAcceptance;
+
+  @JsonKey(name: 'route_evidence')
+  final RouteEvidence? routeEvidence;
+
   const EstimateOrderData({
     required this.quoteId,
     required this.pricingSignature,
@@ -66,10 +75,89 @@ class EstimateOrderData {
     required this.expiresAt,
     this.unavailableItems,
     this.costBreakdown,
+    this.zonePolicy,
+    this.requiresAcceptance = false,
+    this.routeEvidence,
   });
+
+  bool get isExpired {
+    final expiry = DateTime.tryParse(expiresAt);
+    return expiry != null && !expiry.isAfter(DateTime.now());
+  }
 
   factory EstimateOrderData.fromJson(Map<String, dynamic> json) =>
       _$EstimateOrderDataFromJson(json);
 
   Map<String, dynamic> toJson() => _$EstimateOrderDataToJson(this);
+}
+
+/// Cross-zone delivery policy for a checkout estimate — lets the UI warn
+/// the customer up front when the delivery fee is higher because pickup
+/// and drop-off are in different service zones.
+@JsonSerializable()
+class ZonePolicy {
+  @JsonKey(name: 'pickup_zone_id')
+  final String? pickupZoneId;
+
+  @JsonKey(name: 'dropoff_zone_id')
+  final String? dropoffZoneId;
+
+  @JsonKey(name: 'same_zone')
+  final bool sameZone;
+
+  @JsonKey(name: 'cross_zone')
+  final bool crossZone;
+
+  @JsonKey(name: 'requires_customer_acceptance')
+  final bool requiresCustomerAcceptance;
+
+  @JsonKey(name: 'in_vendor_scope')
+  final bool inVendorScope;
+
+  @JsonKey(name: 'enforcement_mode')
+  final String? enforcementMode;
+
+  final List<String>? warnings;
+
+  const ZonePolicy({
+    this.pickupZoneId,
+    this.dropoffZoneId,
+    this.sameZone = true,
+    this.crossZone = false,
+    this.requiresCustomerAcceptance = false,
+    this.inVendorScope = true,
+    this.enforcementMode,
+    this.warnings,
+  });
+
+  factory ZonePolicy.fromJson(Map<String, dynamic> json) =>
+      _$ZonePolicyFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ZonePolicyToJson(this);
+}
+
+/// Route distance/duration evidence backing an estimate's ETA.
+@JsonSerializable()
+class RouteEvidence {
+  final String? source;
+
+  @JsonKey(name: 'distance_m')
+  final num? distanceM;
+
+  @JsonKey(name: 'duration_seconds')
+  final int? durationSeconds;
+
+  final String? confidence;
+
+  const RouteEvidence({
+    this.source,
+    this.distanceM,
+    this.durationSeconds,
+    this.confidence,
+  });
+
+  factory RouteEvidence.fromJson(Map<String, dynamic> json) =>
+      _$RouteEvidenceFromJson(json);
+
+  Map<String, dynamic> toJson() => _$RouteEvidenceToJson(this);
 }

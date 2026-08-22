@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
 import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/route/page.dart';
 import 'package:dropx_mobile/src/features/cart/providers/cart_provider.dart';
 import 'package:dropx_mobile/src/features/order/providers/order_providers.dart';
 import 'package:dropx_mobile/src/features/order/presentation/widgets/order_history_item.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/reorder_preview_response.dart';
 import 'package:dropx_mobile/src/models/order.dart';
+import 'package:dropx_mobile/src/core/utils/formatters.dart';
+import 'package:dropx_mobile/src/utils/currency_utils.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -85,77 +89,186 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   }
 
   Future<void> _confirmReorder(Order order) async {
-    final address = order.deliveryAddress ?? '';
-    final confirmed = await showDialog<bool>(
+    setState(() => _isReordering = true);
+    ReorderPreviewResponse preview;
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      preview = await repo.getReorderPreview(order.orderId);
+    } catch (e) {
+      if (mounted) AppToast.showError(context, 'Failed to load reorder details: $e');
+      return;
+    } finally {
+      if (mounted) setState(() => _isReordering = false);
+    }
+    if (!mounted) return;
+
+    if (!preview.canReorder) {
+      final reason = preview.blockingReasons.isNotEmpty
+          ? preview.blockingReasons.join(', ')
+          : 'This vendor is not accepting orders right now.';
+      AppToast.showError(context, 'Cannot reorder: $reason');
+      return;
+    }
+    if (preview.availableItems.isEmpty) {
+      AppToast.showError(
+        context,
+        'None of the items in this order are available anymore.',
+      );
+      return;
+    }
+
+    final confirmed = await _showReorderPreviewSheet(preview);
+    if (confirmed != true || !mounted) return;
+
+    ref.read(cartProvider.notifier).reorderFromPreview(preview);
+    AppNavigator.push(context, AppRoute.cart);
+  }
+
+  Future<bool?> _showReorderPreviewSheet(ReorderPreviewResponse preview) {
+    return showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm delivery address'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your order will be delivered to:',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            if (address.isNotEmpty)
-              Text(
-                address,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              )
-            else
-              const Text(
-                'No address saved for this order.',
-                style: TextStyle(color: Colors.grey),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Confirm',
-              style: TextStyle(color: AppColors.primaryOrange),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: AppText(
+                  'Reorder from ${preview.vendor.displayName}',
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    const SizedBox(height: 8),
+                    ...preview.availableItems.map(_reorderAvailableTile),
+                    if (preview.unavailableItems.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      AppText(
+                        'No longer available',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(height: 8),
+                      ...preview.unavailableItems.map(_reorderUnavailableTile),
+                    ],
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryOrange,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: AppText(
+                      'Add ${preview.availableItems.length} '
+                      '${preview.availableItems.length == 1 ? 'item' : 'items'} to cart',
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _reorderAvailableTile(ReorderAvailableItem item) {
+    final name = item.currentName ?? item.previousName ?? 'Item';
+    final currentNaira = CurrencyUtils.koboToNaira(item.currentUnitPriceKobo);
+    final previousNaira = CurrencyUtils.koboToNaira(item.previousUnitPriceKobo);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText(name, fontWeight: FontWeight.w600, fontSize: 14),
+                const SizedBox(height: 2),
+                AppText('Qty ${item.qty}', fontSize: 12, color: Colors.grey.shade600),
+              ],
             ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              AppText(
+                Formatters.formatNaira(currentNaira),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              if (item.priceChanged)
+                AppText(
+                  Formatters.formatNaira(previousNaira),
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                  decoration: TextDecoration.lineThrough,
+                ),
+            ],
           ),
         ],
       ),
     );
+  }
 
-    if (confirmed != true || !mounted) return;
-
-    // Fetch the full order detail so item_id is always populated.
-    // The list endpoint may return items without item_id, which causes
-    // the reorder method to skip all items and leave the cart empty.
-    setState(() => _isReordering = true);
-    try {
-      final repo = ref.read(orderRepositoryProvider);
-      final fullOrder = await repo.getOrderById(order.orderId);
-      if (!mounted) return;
-      ref.read(cartProvider.notifier).reorder(fullOrder);
-      if (ref.read(cartProvider).totalItemCount == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not load items for this order. Please add them manually.'),
+  Widget _reorderUnavailableTile(ReorderUnavailableItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.remove_circle_outline, size: 16, color: Colors.grey.shade400),
+          const SizedBox(width: 8),
+          Expanded(
+            child: AppText(
+              item.previousName ?? 'Item',
+              fontSize: 13,
+              color: Colors.grey.shade500,
+              decoration: TextDecoration.lineThrough,
+            ),
           ),
-        );
-        return;
-      }
-      AppNavigator.push(context, AppRoute.cart);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load order details: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isReordering = false);
-    }
+          AppText('Qty ${item.qty}', fontSize: 12, color: Colors.grey.shade400),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadMore() async {
@@ -294,12 +407,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     if (order.items != null && order.items!.isNotEmpty) {
                       _confirmReorder(order);
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Cannot reorder: No items found in this order.',
-                          ),
-                        ),
+                      AppToast.showError(
+                        context,
+                        'Cannot reorder: No items found in this order.',
                       );
                     }
                   },

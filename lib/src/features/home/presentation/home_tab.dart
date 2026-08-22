@@ -29,79 +29,66 @@ class HomeTab extends ConsumerStatefulWidget {
   ConsumerState<HomeTab> createState() => _HomeTabState();
 }
 
-class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final double safeAreaTop;
+/// A plain, non-sliver header shown above the scrollable body.
+///
+/// This used to be a `SliverPersistentHeader(pinned: true)` — but on some
+/// devices Flutter's pinned-header geometry computation would compute a
+/// `paintExtent` smaller than the declared `maxExtent`
+/// ("SliverGeometry ... layoutExtent exceeds paintExtent"), which aborts
+/// that frame's entire viewport layout and blanks everything below the
+/// header even though the sections underneath build with correct data.
+/// Keeping this out of the sliver protocol entirely sidesteps that class of
+/// bug — it's just a normal fixed-height widget above the scroll view now.
+class _OrangeHeader extends StatelessWidget {
   final String displayAddress;
   final bool isGuest;
   final int unreadCount;
-  final VoidCallback onLocationTap;
   final VoidCallback onNotificationTap;
 
-  const _StickyOrangeHeaderDelegate({
-    required this.safeAreaTop,
+  const _OrangeHeader({
     required this.displayAddress,
     required this.isGuest,
     required this.unreadCount,
-    required this.onLocationTap,
     required this.onNotificationTap,
   });
 
-  double get _height => safeAreaTop + 98;
-
   @override
-  double get maxExtent => _height;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.primaryOrange,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      padding: EdgeInsets.only(
-        top: safeAreaTop + 16,
-        left: 16,
-        right: 16,
-        bottom: 16,
-      ),
-      child: Column(
-        children: [
-          Row(
+      color: AppColors.primaryOrange,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: onLocationTap,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: AppText(
+                        displayAddress,
                         color: Colors.white,
-                        size: 20,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: AppText(
-                          displayAddress,
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               if (!isGuest)
                 IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  visualDensity: VisualDensity.compact,
                   icon: Badge(
                     isLabelVisible: unreadCount > 0,
                     label: Text(
@@ -123,18 +110,10 @@ class _StickyOrangeHeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
-        ],
+        ),
       ),
     );
   }
-
-  @override
-  bool shouldRebuild(covariant _StickyOrangeHeaderDelegate oldDelegate) =>
-      oldDelegate.safeAreaTop != safeAreaTop ||
-      oldDelegate.displayAddress != displayAddress ||
-      oldDelegate.isGuest != isGuest ||
-      oldDelegate.unreadCount != unreadCount;
 }
 
 class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
@@ -144,10 +123,10 @@ class _StickyCategoryDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context,
-      double shrinkOffset,
-      bool overlapsContent,
-      ) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return SizedBox.expand(child: child);
   }
 
@@ -176,155 +155,156 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
     final profileAsync = ref.watch(profileNotifierProvider);
     final profile = profileAsync.value?.profile;
-    final bool showProfileBanner = !isGuest &&
+    final bool showProfileBanner =
+        !isGuest &&
         profileAsync.hasValue &&
-        ((profile?.fullName?.isEmpty ?? true) || (profile?.phone?.isEmpty ?? true));
+        ((profile?.fullName?.isEmpty ?? true) ||
+            (profile?.phone?.isEmpty ?? true));
 
-    final unreadCount = ref.watch(notificationsFutureProvider)
-        .valueOrNull?.unreadCount ?? 0;
+    final unreadCount =
+        ref.watch(notificationsFutureProvider).valueOrNull?.unreadCount ?? 0;
 
-    final safeAreaTop = MediaQuery.of(context).padding.top;
-
-    return AppScaffold(
-      useSafeArea: false,
-      onRefresh: () async {
-        ref.invalidate(ordersProvider);
-        ref.invalidate(parcelsProvider);
-        ref.invalidate(homeFeedProvider);
-      },
-      slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _StickyOrangeHeaderDelegate(
-            safeAreaTop: safeAreaTop,
+    return Scaffold(
+      body: Column(
+        children: [
+          _OrangeHeader(
             displayAddress: displayAddress,
             isGuest: isGuest,
             unreadCount: unreadCount,
-            onLocationTap: () => AppNavigator.push(
-              context,
-              AppRoute.manualLocation,
-            ),
             onNotificationTap: () async {
               await AppNavigator.push(context, AppRoute.notifications);
               // Refresh badge after returning from the notifications screen.
               ref.invalidate(notificationsFutureProvider);
             },
           ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _StickyCategoryDelegate(
-            child: Container(
-              color: Colors.white,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    // Food pill
-                    _VerticalPill(
-                      label: 'Food',
-                      icon: Icons.restaurant,
-                      isSelected: _selectedCategory == VendorCategory.food,
-                      onTap: () => setState(
-                            () => _selectedCategory = VendorCategory.food,
+          Expanded(
+            child: AppScaffold(
+              useSafeArea: false,
+              onRefresh: () async {
+                ref.invalidate(ordersProvider);
+                ref.invalidate(parcelsProvider);
+                ref.invalidate(homeFeedProvider);
+              },
+              slivers: [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyCategoryDelegate(
+                    child: Container(
+                      color: Colors.white,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            // Food pill
+                            _VerticalPill(
+                              label: 'Food',
+                              icon: Icons.restaurant,
+                              isSelected:
+                                  _selectedCategory == VendorCategory.food,
+                              onTap: () => setState(
+                                () => _selectedCategory = VendorCategory.food,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Grocery & Retail pill — uses VendorCategory.retail
+                            // which sends 'shops' to the API
+                            _VerticalPill(
+                              label: 'Grocery & Retail',
+                              icon: Icons.shopping_bag_outlined,
+                              isSelected:
+                                  _selectedCategory == VendorCategory.retail,
+                              onTap: () => setState(
+                                () => _selectedCategory = VendorCategory.retail,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Parcel is a navigation action, not a feed filter
+                            // _VerticalPill(
+                            //   label: 'Send Parcel',
+                            //   icon: Icons.local_shipping_outlined,
+                            //   isSelected: false,
+                            //   isAction: true,
+                            //   onTap: () =>
+                            //       AppNavigator.push(context, AppRoute.parcel),
+                            // ),
+                            _VerticalPill(
+                              label: 'Send Parcel',
+                              icon: Icons.local_shipping_outlined,
+                              isSelected: false,
+                              isAction: true,
+                              onTap: () {
+                                if (isGuest) {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (_) => const SignUpToOrderSheet(),
+                                  );
+                                  return;
+                                }
+                                AppNavigator.push(context, AppRoute.parcel);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    // Grocery & Retail pill — uses VendorCategory.retail
-                    // which sends 'shops' to the API
-                    _VerticalPill(
-                      label: 'Grocery & Retail',
-                      icon: Icons.shopping_bag_outlined,
-                      isSelected: _selectedCategory == VendorCategory.retail,
-                      onTap: () => setState(
-                            () => _selectedCategory = VendorCategory.retail,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Parcel is a navigation action, not a feed filter
-                    // _VerticalPill(
-                    //   label: 'Send Parcel',
-                    //   icon: Icons.local_shipping_outlined,
-                    //   isSelected: false,
-                    //   isAction: true,
-                    //   onTap: () =>
-                    //       AppNavigator.push(context, AppRoute.parcel),
-                    // ),
-                    _VerticalPill(
-                      label: 'Send Parcel',
-                      icon: Icons.local_shipping_outlined,
-                      isSelected: false,
-                      isAction: true,
-                      onTap: () {
-                        if (isGuest) {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => const SignUpToOrderSheet(),
-                          );
-                          return;
-                        }
-                        AppNavigator.push(context, AppRoute.parcel);
-                      },
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                if (showProfileBanner)
+                  SliverToBoxAdapter(
+                    child: _buildProfileBanner(context, profile),
+                  ),
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AppSpaces.v16,
+                      if (!isGuest) ...[
+                        const RecentOrdersSection(),
+                        const RecentParcelsSection(),
+                      ],
+                      FeaturedSection(category: _selectedCategory),
+                      AppSpaces.v24,
+                      FastestSection(category: _selectedCategory),
+                      AppSpaces.v24,
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        if (showProfileBanner)
-          SliverToBoxAdapter(
-            child: _buildProfileBanner(context, profile),
-          ),
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSpaces.v16,
-              if (!isGuest) ...[
-                const RecentOrdersSection(),
-                const RecentParcelsSection(),
-              ],
-              FeaturedSection(category: _selectedCategory),
-              AppSpaces.v24,
-              FastestSection(category: _selectedCategory),
-              AppSpaces.v24,
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
       floatingActionButton: isGuest
           ? null
           : Consumer(
-        builder: (context, ref, child) {
-          final cartState = ref.watch(cartProvider);
-          final int itemCount = cartState.totalItemCount;
+              builder: (context, ref, child) {
+                final cartState = ref.watch(cartProvider);
+                final int itemCount = cartState.totalItemCount;
 
-          return FloatingActionButton(
-            onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
-            backgroundColor: AppColors.primaryOrange,
-            child: Badge(
-              isLabelVisible: itemCount > 0,
-              label: Text(
-                itemCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              backgroundColor: AppColors.errorRed,
-              offset: const Offset(8, -8),
-              child:
-              const Icon(Icons.shopping_cart, color: Colors.white),
+                return FloatingActionButton(
+                  onPressed: () => Navigator.pushNamed(context, AppRoute.cart),
+                  backgroundColor: AppColors.primaryOrange,
+                  child: Badge(
+                    isLabelVisible: itemCount > 0,
+                    label: Text(
+                      itemCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    backgroundColor: AppColors.errorRed,
+                    offset: const Offset(8, -8),
+                    child: const Icon(Icons.shopping_cart, color: Colors.white),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 
@@ -343,7 +323,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: Colors.amber.shade700, size: 22),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.amber.shade700,
+            size: 22,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -417,12 +401,12 @@ class _VerticalPill extends StatelessWidget {
           borderRadius: BorderRadius.circular(50),
           boxShadow: isSelected || isAction
               ? [
-            BoxShadow(
-              color: AppColors.primaryOrange.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ]
+                  BoxShadow(
+                    color: AppColors.primaryOrange.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
               : [],
         ),
         child: Row(

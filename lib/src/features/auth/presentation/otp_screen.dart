@@ -184,15 +184,29 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     setState(() => _isResending = true);
 
     try {
-      final dto = OtpResendDto(otpChallengeId: _otpChallengeId);
+      final repo = ref.read(authRepositoryProvider);
+      String newChallengeId;
+      String? newResendAvailableAt;
 
-      AppLog.d('[OTP] Resending: ${dto.toJson()}');
+      if (widget.purpose == 'PASSWORD_RESET') {
+        final challenge = await repo.resendPasswordReset(
+          otpChallengeId: _otpChallengeId,
+        );
+        newChallengeId = challenge.otpChallengeId;
+        newResendAvailableAt = challenge.resendAvailableAt;
+      } else {
+        final challenge = await repo.resendOtp(
+          OtpResendDto(otpChallengeId: _otpChallengeId),
+        );
+        newChallengeId = challenge.otpChallengeId;
+        newResendAvailableAt = challenge.resendAvailableAt;
+      }
 
-      final challenge = await ref.read(authRepositoryProvider).resendOtp(dto);
+      AppLog.d('[OTP] Resent (purpose=${widget.purpose}) → challengeId=$newChallengeId');
 
-      _otpChallengeId = challenge.otpChallengeId;
+      _otpChallengeId = newChallengeId;
       _pinController.clear();
-      _startResendCountdown(challenge.resendAvailableAt);
+      _startResendCountdown(newResendAvailableAt);
 
       if (mounted) {
         AppToast.showSuccess(context, 'OTP resent successfully!');

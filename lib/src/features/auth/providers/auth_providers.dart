@@ -11,6 +11,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 /// ─── State Providers ───────────────────────────────────────────
 
 /// Whether the user is currently logged in (guest = false).
-final isAuthenticatedProvider = FutureProvider<bool>((ref) {
-  return ref.watch(authRepositoryProvider).isAuthenticated();
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(sessionServiceProvider).isLoggedIn;
 });

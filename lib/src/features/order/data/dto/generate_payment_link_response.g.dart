@@ -14,6 +14,7 @@ GeneratePaymentLinkResponse _$GeneratePaymentLinkResponseFromJson(
   expiresAt: json['expires_at'] as String,
   token: json['token'] as String,
   note: json['note'] as String,
+  shareUrl: json['share_url'] as String,
 );
 
 Map<String, dynamic> _$GeneratePaymentLinkResponseToJson(
@@ -24,4 +25,5 @@ Map<String, dynamic> _$GeneratePaymentLinkResponseToJson(
   'expires_at': instance.expiresAt,
   'token': instance.token,
   'note': instance.note,
+  'share_url': instance.shareUrl,
 };

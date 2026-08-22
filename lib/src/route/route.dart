@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/feature_unavailable_screen.dart';
+import 'package:dropx_mobile/src/common_widgets/require_auth_guard.dart';
 import 'package:dropx_mobile/src/core/models/client_config.dart';
 import 'package:dropx_mobile/src/core/providers/client_config_provider.dart';
 
@@ -39,6 +40,8 @@ import 'package:dropx_mobile/src/features/profile/presentation/social_feed_scree
 import 'package:dropx_mobile/src/features/profile/presentation/preferences_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/notification_settings_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/support_tickets_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/address_book_screen.dart';
+import 'package:dropx_mobile/src/features/profile/presentation/support_ticket_detail_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/about_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/privacy_screen.dart';
 import 'package:dropx_mobile/src/features/profile/presentation/terms_screen.dart';
@@ -143,33 +146,39 @@ abstract class AppRouter {
         final orderId = args['orderId'] as String?;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => OrderTrackingScreen(orderId: orderId),
+          builder: (context) => RequireAuthGuard(
+            child: OrderTrackingScreen(orderId: orderId),
+          ),
         );
 
       case AppRoute.receipt:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => ReceiptScreen(orderDetails: args),
+          builder: (context) => RequireAuthGuard(
+            child: ReceiptScreen(orderDetails: args),
+          ),
         );
 
       case AppRoute.transactionDetails:
         final args = settings.arguments as Map<String, dynamic>? ?? {};
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => TransactionDetailsScreen(orderDetails: args),
+          builder: (context) => RequireAuthGuard(
+            child: TransactionDetailsScreen(orderDetails: args),
+          ),
         );
 
       case AppRoute.parcel:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const ParcelScreen(),
+          builder: (context) => const RequireAuthGuard(child: ParcelScreen()),
         );
 
       case AppRoute.genericOrder:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const ParcelScreen(),
+          builder: (context) => const RequireAuthGuard(child: ParcelScreen()),
         );
 
 
@@ -178,7 +187,9 @@ abstract class AppRouter {
         final parcelId = args['parcelId'] as String;
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => ParcelTrackingScreen(parcelId: parcelId),
+          builder: (context) => RequireAuthGuard(
+            child: ParcelTrackingScreen(parcelId: parcelId),
+          ),
         );
 
       case AppRoute.paystackCheckout:
@@ -186,6 +197,15 @@ abstract class AppRouter {
         final authorizationUrl = args['authorizationUrl'] as String;
         final reference = args['reference'] as String?;
         final orderId = args['orderId'] as String?;
+        final paymentAttemptId = args['paymentAttemptId'] as String?;
+        final verifyKindArg = args['verifyKind'] as String?;
+        final verifyKind = switch (verifyKindArg) {
+          'parcel' => PaystackVerifyKind.parcel,
+          'payLink' => PaystackVerifyKind.payLink,
+          'none' => PaystackVerifyKind.none,
+          _ => PaystackVerifyKind.order,
+        };
+        final payLinkToken = args['payLinkToken'] as String?;
         final successRoute = args['successRoute'] as String?;
         final successArgs = args['successArgs'] as Map<String, dynamic>?;
         return MaterialPageRoute(
@@ -194,6 +214,9 @@ abstract class AppRouter {
             authorizationUrl: authorizationUrl,
             reference: reference,
             orderId: orderId,
+            paymentAttemptId: paymentAttemptId,
+            verifyKind: verifyKind,
+            payLinkToken: payLinkToken,
             successRoute: successRoute,
             successArgs: successArgs,
           ),
@@ -276,13 +299,15 @@ abstract class AppRouter {
       case AppRoute.notifications:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const NotificationsScreen(),
+          builder: (context) =>
+              const RequireAuthGuard(child: NotificationsScreen()),
         );
 
       case AppRoute.walletTopup:
         return MaterialPageRoute<bool>(
           settings: settings,
-          builder: (context) => const WalletTopupScreen(),
+          builder: (context) =>
+              const RequireAuthGuard(child: WalletTopupScreen()),
         );
 
       case AppRoute.walletTopupCheckout:
@@ -292,17 +317,20 @@ abstract class AppRouter {
         final paymentAttemptId = args['paymentAttemptId'] ?? '';
         return MaterialPageRoute<bool>(
           settings: settings,
-          builder: (context) => WalletTopupCheckoutScreen(
-            authorizationUrl: authorizationUrl,
-            reference: reference,
-            paymentAttemptId: paymentAttemptId,
+          builder: (context) => RequireAuthGuard(
+            child: WalletTopupCheckoutScreen(
+              authorizationUrl: authorizationUrl,
+              reference: reference,
+              paymentAttemptId: paymentAttemptId,
+            ),
           ),
         );
 
       case AppRoute.editProfile:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const EditProfileScreen(),
+          builder: (context) =>
+              const RequireAuthGuard(child: EditProfileScreen()),
         );
 
       case AppRoute.contactSync:
@@ -350,7 +378,25 @@ abstract class AppRouter {
       case AppRoute.supportTickets:
         return MaterialPageRoute(
           settings: settings,
-          builder: (context) => const SupportTicketsScreen(),
+          builder: (context) =>
+              const RequireAuthGuard(child: SupportTicketsScreen()),
+        );
+
+      case AppRoute.addressBook:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) =>
+              const RequireAuthGuard(child: AddressBookScreen()),
+        );
+
+      case AppRoute.supportTicketDetail:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final ticketId = args['ticketId'] as String;
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => RequireAuthGuard(
+            child: SupportTicketDetailScreen(ticketId: ticketId),
+          ),
         );
 
       case AppRoute.about:

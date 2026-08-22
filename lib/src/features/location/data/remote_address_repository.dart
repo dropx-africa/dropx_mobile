@@ -30,4 +30,43 @@ class RemoteAddressRepository implements AddressRepository {
     );
     return response.data.address;
   }
+
+  @override
+  Future<void> setDefaultAddress(String addressId) async {
+    await _apiClient.patch<Map<String, dynamic>>(
+      ApiEndpoints.addressSetDefault(addressId),
+      data: const <String, dynamic>{},
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<void> updateAddress(
+    String addressId, {
+    String? label,
+    String? line2,
+    String? landmark,
+    String? instructions,
+  }) async {
+    await _apiClient.patch<Map<String, dynamic>>(
+      ApiEndpoints.addressById(addressId),
+      data: {
+        if (label != null) 'label': label,
+        if (line2 != null) 'line2': line2,
+        if (landmark != null) 'landmark': landmark,
+        if (instructions != null) 'instructions': instructions,
+      },
+      headers: ApiClient.traceHeaders(),
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<void> deleteAddress(String addressId) async {
+    await _apiClient.delete(
+      ApiEndpoints.addressById(addressId),
+      headers: ApiClient.traceHeaders(),
+    );
+  }
 }

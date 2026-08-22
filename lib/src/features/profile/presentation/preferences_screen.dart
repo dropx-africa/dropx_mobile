@@ -37,21 +37,18 @@ class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
             _buildSectionHeader("Localization"),
             _buildPreferenceCard(
               children: [
+                // Only one language/currency is supported today, so these
+                // are shown as plain info rows rather than a tappable
+                // picker that would open onto nothing.
                 _buildActionRow(
                   icon: Icons.language_outlined,
                   title: "Language",
                   value: _selectedLanguage,
-                  onTap: () {
-                    // TODO: Implement language picker
-                  },
                 ),
                 _buildActionRow(
                   icon: Icons.payments_outlined,
                   title: "Currency",
                   value: _selectedCurrency,
-                  onTap: () {
-                    // TODO: Implement currency picker
-                  },
                 ),
               ],
             ),
@@ -95,7 +92,7 @@ class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
     required IconData icon,
     required String title,
     required String value,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
@@ -120,12 +117,14 @@ class _PreferencesScreenState extends ConsumerState<PreferencesScreen> {
               fontWeight: FontWeight.w500,
               fontSize: 14,
             ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: AppColors.slate400,
-              size: 14,
-            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.slate400,
+                size: 14,
+              ),
+            ],
           ],
         ),
       ),

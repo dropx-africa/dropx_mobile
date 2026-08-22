@@ -17,10 +17,8 @@ final walletLedgerProvider = FutureProvider<WalletLedgerData>((ref) {
   return ref.watch(walletRepositoryProvider).getLedger();
 });
 
-final walletBalanceKoboProvider = StateProvider<int>((ref) {
-  final balanceAsync = ref.watch(walletBalanceProvider);
-  return balanceAsync.whenOrNull(
-        data: (balance) => int.tryParse(balance.availableBalanceKobo) ?? 0,
-      ) ??
-      0;
-});
+// Plain state, not derived from [walletBalanceProvider] via `ref.watch` —
+// every writer here already refetches walletBalanceProvider and assigns the
+// result explicitly, so watching it too just means an unrelated rebuild of
+// walletBalanceProvider elsewhere silently resets this back to a stale value.
+final walletBalanceKoboProvider = StateProvider<int>((ref) => 0);

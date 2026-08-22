@@ -27,7 +27,6 @@ import 'package:dropx_mobile/src/utils/app_navigator.dart';
 import 'package:dropx_mobile/src/utils/direction_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:dropx_mobile/src/core/utils/cloudinary_upload.dart';
 
@@ -56,7 +55,8 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
       _OrderTrackingScreenState();
 }
 
-class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
+class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
+    with TickerProviderStateMixin {
   // UI stage index: 0=Placed, 1=Accepted/Picked up, 2=In Transit, 3=Delivered, 4=Completed
   int _orderStage = 0;
   String _status = 'Order Placed';
@@ -78,16 +78,27 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   // Delivery OTP (fetched from dedicated endpoint when rider is in transit)
   DeliveryOtpData? _deliveryOtpData;
 
+  bool _isConfirmingDelivery = false;
+  bool _deliveryConfirmed = false;
+
   GoogleMapController? _mapController;
   StreamSubscription<SseEvent>? _sseSub;
+
+  // The rider position actually rendered on the map — animates smoothly
+  // toward each new fix instead of snapping, so the pin visibly glides
+  // rather than looking static while the camera pans around it.
+  LatLng? _displayedRiderLatLng;
+  AnimationController? _riderAnimController;
+  LatLng? _riderAnimFrom;
+  LatLng? _riderAnimTo;
 
   // Tracks which state we last fired a local notification for, to avoid duplicates on SSE reconnect.
   String? _notifiedState;
 
-  // Existing review for this order (null = not yet reviewed / not yet fetched).
+  // Set locally after a successful submit in this session — the customer
+  // never needs their own past review re-fetched/shown, so this is not
+  // checked against the server on load.
   ReviewData? _existingReview;
-  // True once we've attempted to fetch the review at least once.
-  bool _reviewChecked = false;
 
   // Route polyline drawn from rider → customer delivery address.
   Set<Polyline> _polylines = {};
@@ -106,9 +117,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
     _fetchLiveTracking();
     _subscribeToSse();
-    // Fetch any existing review immediately — covers tapping into an already-
-    // delivered order from order history where no SSE state_change will fire.
-    _fetchMyReview();
   }
 
   void _subscribeToSse() {
@@ -157,17 +165,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       setState(() => _applyState(newState));
       _maybeNotify(newState);
 
-      // Then fetch full tracking data to get rider info, ETA, location etc.
-      _fetchLiveTrackingSilent();
+      // Then fetch full tracking data to get rider info, ETA, location etc —
+      // unless that state transition just stopped tracking entirely.
+      if (_sseSub != null) {
+        _fetchLiveTrackingSilent();
+      }
 
       if (newState == 'IN_TRANSIT' ||
           newState == 'PICKED_UP' ||
           newState == 'ARRIVED_DROPOFF') {
         _fetchDeliveryOtp();
-      }
-
-      if (newState == 'DELIVERED' || newState == 'COMPLETED') {
-        _fetchMyReview();
       }
     } catch (e) {
       debugPrint('📡 [SSE] parse error: $e');
@@ -181,25 +188,20 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       if (mounted) {
         setState(() {
           _liveData = response.data;
-          _locationIsStale = false;
+          _locationIsStale = response.data.isStale ?? false;
           _applyState(_liveData?.state ?? 'PLACED');
-          if (_liveData?.location != null && _mapController != null) {
-            _mapController!.animateCamera(
-              CameraUpdate.newLatLng(
-                LatLng(_liveData!.location!.lat, _liveData!.location!.lng),
-              ),
-            );
-          }
         });
+        if (_liveData?.location != null && _mapController != null) {
+          final newPos = LatLng(_liveData!.location!.lat, _liveData!.location!.lng);
+          _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
+          _moveRiderMarker(newPos);
+        }
         _maybeRefreshRoute();
         final state = _liveData?.state ?? '';
         if (state == 'IN_TRANSIT' ||
             state == 'PICKED_UP' ||
             state == 'ARRIVED_DROPOFF') {
           _fetchDeliveryOtp();
-        }
-        if (state == 'DELIVERED' || state == 'COMPLETED') {
-          _fetchMyReview();
         }
       }
     } catch (e) {
@@ -212,9 +214,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             _applyState(stateFromError);
             _locationIsStale = e.statusCode == 503;
           });
-          if (stateFromError == 'DELIVERED' || stateFromError == 'COMPLETED') {
-            _fetchMyReview();
-          }
         }
       }
       // Silent — no spinner, no snackbar
@@ -229,16 +228,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       if (mounted) {
         setState(() {
           _liveData = response.data;
-          _locationIsStale = false;
+          _locationIsStale = response.data.isStale ?? false;
           _applyState(_liveData?.state ?? 'PLACED');
-          if (_liveData?.location != null && _mapController != null) {
-            _mapController!.animateCamera(
-              CameraUpdate.newLatLng(
-                LatLng(_liveData!.location!.lat, _liveData!.location!.lng),
-              ),
-            );
-          }
         });
+        if (_liveData?.location != null && _mapController != null) {
+          final newPos = LatLng(_liveData!.location!.lat, _liveData!.location!.lng);
+          _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
+          _moveRiderMarker(newPos);
+        }
         _maybeRefreshRoute();
         // Fetch OTP from dedicated endpoint when rider is in transit or arrived
         final state = _liveData?.state ?? '';
@@ -296,22 +293,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       }
     } catch (e) {
       debugPrint('❌ [TRACKING] getDeliveryOtp failed: $e');
-    }
-  }
-
-  Future<void> _fetchMyReview() async {
-    if (widget.orderId == null || _reviewChecked) return;
-    try {
-      final repo = ref.read(orderRepositoryProvider);
-      final data = await repo.getMyReview(widget.orderId!);
-      if (mounted) {
-        setState(() {
-          _existingReview = data?.review;
-          _reviewChecked = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _reviewChecked = true);
     }
   }
 
@@ -397,10 +378,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 72));
   }
 
-  /// The best available OTP string — from the dedicated endpoint, or from
-  /// live tracking data. Returns null when no OTP is available yet.
-  String? get _resolvedOtp =>
-      _deliveryOtpData?.deliveryOtp ?? _liveData?.deliveryOtp;
+  /// The delivery OTP, from the dedicated endpoint — live-summary only
+  /// carries availability metadata, never the raw code. Returns null when
+  /// no OTP is available yet.
+  String? get _resolvedOtp => _deliveryOtpData?.deliveryOtp;
 
   void _maybeNotify(String newState) {
     debugPrint('🔔 [Tracking] _maybeNotify — newState=$newState _notifiedState=$_notifiedState');
@@ -453,18 +434,24 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         _orderStage = 3;
         _status = 'Delivered';
         _statusColor = Colors.green;
+        _stopLiveTracking();
       case 'COMPLETED':
         _orderStage = 4;
         _status = 'Completed';
         _statusColor = Colors.green;
+        _stopLiveTracking();
+        ref.read(sessionServiceProvider).clearLastRoute();
       case 'CANCELLED':
         _orderStage = 0;
         _status = 'Cancelled';
         _statusColor = Colors.red;
+        _stopLiveTracking();
+        ref.read(sessionServiceProvider).clearLastRoute();
       case 'DISPUTED':
         _orderStage = 0;
         _status = 'Disputed';
         _statusColor = Colors.red;
+        _stopLiveTracking();
       default:
         _orderStage = 1;
         _status = 'On the Way';
@@ -472,14 +459,112 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
+  /// Once the order is delivered/completed/cancelled/disputed there's no
+  /// rider left to track — stop polling and drop the SSE subscription
+  /// instead of continuing to fetch and animate a rider position that no
+  /// longer means anything to the customer.
+  void _stopLiveTracking() {
+    _sseSub?.cancel();
+    _sseSub = null;
+    _riderAnimController?.stop();
+  }
+
   @override
   void dispose() {
     _sseSub?.cancel();
     _mapController?.dispose();
+    _riderAnimController?.dispose();
     super.dispose();
   }
 
+  /// Smoothly animates the rendered rider marker from its last position to
+  /// [newPos], instead of the marker snapping instantly while only the
+  /// camera pans — so the customer can actually see the rider moving.
+  void _moveRiderMarker(LatLng newPos) {
+    debugPrint(
+      '🐎 [MARKER] moveRiderMarker called → newPos=(${newPos.latitude}, ${newPos.longitude}) '
+      'current=(${_displayedRiderLatLng?.latitude}, ${_displayedRiderLatLng?.longitude})',
+    );
+    final from = _displayedRiderLatLng;
+    if (from == null) {
+      debugPrint('🐎 [MARKER] first fix — setting directly, no animation');
+      setState(() => _displayedRiderLatLng = newPos);
+      _revealRiderLabel();
+      return;
+    }
+    if (from.latitude == newPos.latitude && from.longitude == newPos.longitude) {
+      debugPrint('🐎 [MARKER] position unchanged — skipping animation');
+      return;
+    }
+
+    debugPrint(
+      '🐎 [MARKER] animating (${from.latitude}, ${from.longitude}) → '
+      '(${newPos.latitude}, ${newPos.longitude})',
+    );
+    _riderAnimController?.dispose();
+    _riderAnimFrom = from;
+    _riderAnimTo = newPos;
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _riderAnimController = controller;
+    final curved = CurvedAnimation(parent: controller, curve: Curves.easeInOut);
+    curved.addListener(() {
+      if (!mounted) return;
+      final t = curved.value;
+      final lat = _riderAnimFrom!.latitude +
+          (_riderAnimTo!.latitude - _riderAnimFrom!.latitude) * t;
+      final lng = _riderAnimFrom!.longitude +
+          (_riderAnimTo!.longitude - _riderAnimFrom!.longitude) * t;
+      debugPrint('🐎 [MARKER] tick t=${t.toStringAsFixed(2)} → ($lat, $lng)');
+      setState(() => _displayedRiderLatLng = LatLng(lat, lng));
+    });
+    controller.forward().whenComplete(() {
+      debugPrint(
+        '🐎 [MARKER] animation complete → displayed=(${_displayedRiderLatLng?.latitude}, ${_displayedRiderLatLng?.longitude})',
+      );
+      _revealRiderLabel();
+    });
+  }
+
+  /// Pops the "Rider" label open after each position update so the customer
+  /// notices the marker just moved, without requiring a tap.
+  void _revealRiderLabel() {
+    if (_mapController == null) return;
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _mapController?.showMarkerInfoWindow(const MarkerId('rider'));
+    });
+  }
+
   // ─── Delivery OTP card ───────────────────────────────────────────────────
+
+  Future<void> _confirmDelivery() async {
+    final otp = _resolvedOtp;
+    if (otp == null || widget.orderId == null || _isConfirmingDelivery) {
+      return;
+    }
+
+    setState(() => _isConfirmingDelivery = true);
+    try {
+      final repo = ref.read(orderRepositoryProvider);
+      final result = await repo.verifyDeliveryOtp(widget.orderId!, otp);
+      if (!mounted) return;
+      setState(() => _deliveryConfirmed = true);
+      AppToast.showSuccess(
+        context,
+        'Delivery confirmed! State: ${result.state}',
+      );
+    } on ApiException catch (e) {
+      if (mounted) AppToast.showError(context, e.message);
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(context, 'Could not confirm delivery. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isConfirmingDelivery = false);
+    }
+  }
 
   Widget _buildDeliveryOtpCard() {
     final otp = _resolvedOtp!;
@@ -545,6 +630,42 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               ),
             ],
           ),
+          if (arrived) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_isConfirmingDelivery || _deliveryConfirmed)
+                    ? null
+                    : _confirmDelivery,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isConfirmingDelivery
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : AppText(
+                        _deliveryConfirmed
+                            ? 'Delivery Confirmed'
+                            : 'Confirm Delivery',
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -554,6 +675,23 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   /// The current authoritative state string — always in sync with _applyState.
   String get _currentState => _rawState;
+
+  /// A short caption breaking the total ETA into vendor prep time vs actual
+  /// delivery time, shown only while the vendor is still preparing —
+  /// otherwise the raw ETA reads as one opaque number and customers assume
+  /// it's all delivery time, which reads as unusually slow.
+  String? get _prepTimeBreakdown {
+    if (_orderStage >= 2) return null; // already picked up — prep is done
+    final prepMinutes = _liveData?.vendorHandoff?.prepEtaMinutes;
+    if (prepMinutes == null || prepMinutes <= 0) return null;
+
+    final totalMinutes = _liveData?.etaMinutes;
+    if (totalMinutes == null) {
+      return 'Includes ~$prepMinutes min for the vendor to prepare your order';
+    }
+    final deliveryMinutes = (totalMinutes - prepMinutes).clamp(0, totalMinutes);
+    return '~$prepMinutes min prep, then ~$deliveryMinutes min delivery';
+  }
 
   bool get _canCancel => _cancelAllowedStates.contains(_currentState);
 
@@ -581,10 +719,23 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         : null;
 
     final displayAddress = session.savedAddress;
+    debugPrint(
+      '🐎 [MARKER] build → rider marker position=(${(_displayedRiderLatLng ?? riderLatLng)?.latitude}, '
+      '${(_displayedRiderLatLng ?? riderLatLng)?.longitude})',
+    );
+
+    // Once delivered/completed/cancelled/disputed there's no rider left to
+    // track — show the summary layout instead of a map with a stale pin.
+    final showMap = riderLatLng != null && _orderStage < 3;
 
     return Scaffold(
-      body: riderLatLng != null
-          ? _buildMapLayout(context, userLatLng, riderLatLng, displayAddress)
+      body: showMap
+          ? _buildMapLayout(
+              context,
+              userLatLng,
+              _displayedRiderLatLng ?? riderLatLng,
+              displayAddress,
+            )
           : _buildFallbackLayout(context),
     );
   }
@@ -610,6 +761,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               _mapController = c;
               // Trigger route draw now that the controller is ready
               _maybeRefreshRoute();
+              _revealRiderLabel();
             },
             polylines: _polylines,
             markers: {
@@ -620,7 +772,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   BitmapDescriptor.hueBlue,
                 ),
                 infoWindow: InfoWindow(
-                  title: 'Delivery Location',
+                  title: 'You',
                   snippet: displayAddress.isNotEmpty
                       ? displayAddress
                       : 'lat: ${userLatLng.latitude}, lng: ${userLatLng.longitude}',
@@ -685,6 +837,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           top: 50,
           right: 16,
           child: _buildRefreshButton(),
+        ),
+
+        // Persistent status card — ETA + live/stale badge, kept at the top
+        // near the map so it's visible alongside the rider pin instead of
+        // only in the bottom sheet.
+        Positioned(
+          top: 104,
+          left: 16,
+          right: 16,
+          child: _buildTopStatusCard(),
         ),
 
         // Map FABs — re-center on rider + fit both points
@@ -828,6 +990,90 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
+  Widget _buildTopStatusCard() {
+    final eta = _liveData?.etaMinutes;
+    final ageSeconds = _liveData?.ageSeconds;
+    final isStale = _locationIsStale;
+    final badgeColor = isStale ? Colors.red : Colors.green;
+    final badgeLabel = isStale
+        ? 'Stale${ageSeconds != null ? ' • ${_formatAge(ageSeconds)}' : ''}'
+        : 'Live';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(
+                _status,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: _statusColor,
+              ),
+              const SizedBox(height: 2),
+              AppText(
+                eta != null ? 'ETA $eta mins' : 'Estimating…',
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: badgeColor.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                AppText(
+                  badgeLabel,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: badgeColor,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAge(int seconds) {
+    if (seconds < 60) return '${seconds}s ago';
+    final minutes = (seconds / 60).round();
+    if (minutes < 60) return '${minutes}m ago';
+    final hours = minutes ~/ 60;
+    final remMinutes = minutes % 60;
+    return remMinutes > 0 ? '${hours}h ${remMinutes}m ago' : '${hours}h ago';
+  }
+
   Widget _buildStatusSheet(BuildContext context, {bool scrollable = false}) {
     return Container(
       width: double.infinity,
@@ -926,6 +1172,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
+                          if (_prepTimeBreakdown != null) ...[
+                            const SizedBox(height: 2),
+                            AppText(
+                              _prepTimeBreakdown!,
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                            ),
+                          ],
                         ],
                       ),
                       Column(
@@ -1029,45 +1283,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     ),
                   },
 
-                  // Share button — delivered only
-                  if (_orderStage >= 3) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          final orderId = widget.orderId ?? '';
-                          Share.share(
-                            'Just got my order delivered with DropX! 🚀🍕\n'
-                            'Fast, reliable delivery in Lagos.\n'
-                            'Order: #$orderId\n'
-                            'Get it on DropX 👉 https://dropxwebapp.vercel.app',
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: AppColors.primaryOrange.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: const Icon(
-                          Icons.share_outlined,
-                          color: AppColors.primaryOrange,
-                          size: 18,
-                        ),
-                        label: const AppText(
-                          'Share with friends',
-                          color: AppColors.primaryOrange,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                  // Share button — hidden for now.
 
                   // ── Cancel / Dispute quick actions ──────────────────────
                   if (_canCancel || _canDispute) ...[
@@ -1156,11 +1372,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   // ─── Cancel bottom sheet ─────────────────────────────────────────────────
 
-  void _showCancelSheet(BuildContext context) {
+  Future<void> _showCancelSheet(BuildContext context) async {
     CancelReasonCode selectedReason = CancelReasonCode.customerChangedMind;
     final noteController = TextEditingController();
 
-    showModalBottomSheet<void>(
+    // Wait for the sheet's own dismiss animation to finish (by awaiting the
+    // showModalBottomSheet future itself) before acting on the result —
+    // calling _submitCancel synchronously off the "Confirm Cancel" tap used
+    // to show the success sheet while this one was still animating closed,
+    // which looked like two modals stacked on top of each other.
+    final result = await showModalBottomSheet<(CancelReasonCode, String)>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1311,13 +1532,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () async {
-                                AppNavigator.pop(sheetCtx);
-                                await _submitCancel(
-                                  selectedReason,
-                                  noteController.text.trim(),
-                                );
-                              },
+                              onPressed: () => Navigator.pop(
+                                sheetCtx,
+                                (selectedReason, noteController.text.trim()),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 shape: RoundedRectangleBorder(
@@ -1345,6 +1563,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         );
       },
     );
+
+    if (result == null || !mounted) return;
+    await _submitCancel(result.$1, result.$2);
   }
 
   Future<void> _submitCancel(CancelReasonCode reason, String note) async {
@@ -1996,12 +2217,19 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
+                      AppText(
+                        'Select a tag, write a comment, or both',
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(height: 16),
 
                       // Comment
                       TextField(
                         controller: commentController,
                         maxLines: 3,
+                        onChanged: (_) => setSheetState(() {}),
                         decoration: InputDecoration(
                           labelText: 'Comment',
                           hintText:
@@ -2020,33 +2248,42 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Submit
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            AppNavigator.pop(sheetCtx);
-                            await _submitReview(
-                              rating,
-                              commentController.text.trim(),
-                              selectedTags,
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryOrange,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      // Submit — requires star + (tag or comment)
+                      Builder(builder: (context) {
+                        final hasContent =
+                            selectedTags.isNotEmpty ||
+                            commentController.text.trim().isNotEmpty;
+                        final canSubmit = rating > 0 && hasContent;
+                        return SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: canSubmit
+                                ? () async {
+                                    AppNavigator.pop(sheetCtx);
+                                    await _submitReview(
+                                      rating,
+                                      commentController.text.trim(),
+                                      selectedTags,
+                                    );
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryOrange,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: AppText(
+                              'Submit Review',
+                              color: canSubmit ? Colors.white : Colors.black38,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          child: const AppText(
-                            'Submit Review',
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -2076,6 +2313,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         widget.orderId!,
         SubmitReviewRequest(
           ratingOverall: rating,
+          ratingVendor: rating,
           comment: comment.isNotEmpty ? comment : null,
           tags: tags.isNotEmpty ? tags : null,
           reviewTarget: 'overall',
@@ -2090,7 +2328,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             comment: comment.isNotEmpty ? comment : null,
             tags: tags.isNotEmpty ? tags : null,
           );
-          _reviewChecked = true;
         });
         AppToast.showSuccess(context, 'Thanks for your review!');
       }

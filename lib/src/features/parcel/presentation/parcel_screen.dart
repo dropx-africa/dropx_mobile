@@ -219,6 +219,8 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
             'authorizationUrl': payData.authorizationUrl,
             'reference': payData.reference,
             'orderId': parcel.parcelId,
+            'paymentAttemptId': payData.paymentAttemptId,
+            'verifyKind': 'parcel',
             'successRoute': AppRoute.parcelTracking,
             'successArgs': {'parcelId': parcel.parcelId},
           },
@@ -496,8 +498,9 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                           _paymentRadio('PAYSTACK', 'Card / Transfer / USSD'),
                           const Divider(height: 1),
                           _paymentRadio('WALLET', 'DropX Wallet'),
-                          const Divider(height: 1),
-                          _paymentRadio('GENERATE_LINK', 'Generate Payment Link'),
+                          // Payment links are disabled for parcels during
+                          // pilot — hidden rather than shown as a broken
+                          // option.
                         ],
                       ),
                     ),

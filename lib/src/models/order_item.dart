@@ -19,7 +19,10 @@ class OrderItem {
   final String? orderId;
 
   /// The real catalog item ID — must be sent back to the backend on reorder.
-  @JsonKey(name: 'item_id')
+  /// The order-detail response names this `catalog_item_id`, not `item_id`
+  /// (that name is only used in the request-side DTOs for placing/estimating
+  /// an order).
+  @JsonKey(name: 'catalog_item_id')
   final String? itemId;
 
   final String? name;

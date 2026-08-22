@@ -20,6 +20,10 @@ import 'package:dropx_mobile/src/features/order/data/dto/submit_review_request.d
 import 'package:dropx_mobile/src/features/order/data/dto/submit_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/get_my_review_response.dart';
 import 'package:dropx_mobile/src/features/order/data/dto/delivery_otp_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_paystack_payment_request.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_paystack_payment_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/verify_delivery_otp_response.dart';
+import 'package:dropx_mobile/src/features/order/data/dto/reorder_preview_response.dart';
 
 /// Abstract repository interface for order & payment operations.
 abstract class OrderRepository {
@@ -29,11 +33,23 @@ abstract class OrderRepository {
   /// Get a single order by ID.
   Future<Order> getOrderById(String id);
 
+  /// Preview a reorder — matches the order's items against the vendor's
+  /// current catalog (by identity or name-fallback) server-side, flagging
+  /// unavailable items and price changes before anything touches the cart.
+  Future<ReorderPreviewResponse> getReorderPreview(String orderId);
+
   /// Create a new order.
   Future<CreateOrderResponse> createOrder(CreateOrderDto dto);
 
   /// Initialize payment for an order (returns Paystack checkout URL).
   Future<InitializePaymentResponse> initializePayment(InitializePaymentDto dto);
+
+  /// Verify a Paystack browser return for an order payment. Must be called
+  /// before treating an order as paid — the redirect URL alone is not proof
+  /// of payment.
+  Future<VerifyPaystackPaymentData> verifyPaystackPayment(
+    VerifyPaystackPaymentRequest request,
+  );
 
   /// Place an order (e.g., using WALLET).
   Future<PlaceOrderResponse> placeOrder(String orderId, PlaceOrderDto dto);
@@ -46,6 +62,10 @@ abstract class OrderRepository {
 
   /// Estimate order fees before checkout.
   Future<EstimateOrderResponse> estimateOrder(EstimateOrderRequest dto);
+
+  /// Accepts a cross-zone delivery quote. Required before creating the
+  /// draft order when the estimate returned requires_acceptance=true.
+  Future<void> acceptDeliveryQuote(String quoteId);
 
   /// Fetch live order tracking data.
   Future<OrderTrackingLiveResponse> trackOrderLive(String orderId);
@@ -76,4 +96,11 @@ abstract class OrderRepository {
 
   /// Fetch the delivery OTP for an in-transit order.
   Future<DeliveryOtpData?> getDeliveryOtp(String orderId);
+
+  /// Confirm the customer delivery OTP. Records handoff confirmation —
+  /// does not close the order; the rider still completes delivery.
+  Future<VerifyDeliveryOtpData> verifyDeliveryOtp(
+    String orderId,
+    String deliveryOtp,
+  );
 }

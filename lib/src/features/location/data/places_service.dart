@@ -1,85 +1,61 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:dropx_mobile/src/core/network/api_client.dart';
+import 'package:dropx_mobile/src/core/network/api_endpoints.dart';
 import 'package:dropx_mobile/src/features/location/data/geocode_result.dart';
-import 'package:dropx_mobile/src/core/app_config.dart';
 
-/// Service for Google Maps geocoding and Places Autocomplete.
+/// Service for address search and geocoding.
 ///
-/// Forward search (autocomplete) and reverse geocoding (coords → address)
-/// both use the Google Maps Platform APIs directly.
+/// Routes through the backend's `/maps/*` proxy rather than calling Google
+/// Maps Platform directly — the client never holds a Google Maps API key,
+/// and the backend can rate-limit / cache these calls server-side.
 class PlacesService {
-  final http.Client _client = http.Client();
-  static const String _apiKey = AppConfig.googleMapsApiKey;
+  final ApiClient _apiClient = ApiClient();
 
   // ── Forward search (autocomplete) ────────────────────────────────────
 
-  /// Search for addresses using Google Places Autocomplete.
-  /// Returns a list of [GeocodeResult] with coordinates resolved via
-  /// the Place Details API.
-  ///
-  /// Pass [locationBias] + [radiusMeters] to bias results toward a location.
+  /// Search for addresses via the backend autocomplete proxy. Returns a
+  /// list of [GeocodeResult] with coordinates resolved via place-details.
   Future<List<GeocodeResult>> autocomplete(
     String query, {
     LatLng? locationBias,
     int radiusMeters = 50000,
   }) async {
-    if (query.trim().isEmpty) return [];
+    final trimmed = query.trim();
+    if (trimmed.length < 3) return [];
 
-    final params = <String, String>{
-      'input': query,
-      'key': _apiKey,
-      'components': 'country:ng',
-      'language': 'en',
-    };
-
-    if (locationBias != null) {
-      params['location'] =
-          '${locationBias.latitude},${locationBias.longitude}';
-      params['radius'] = '$radiusMeters';
-    }
-
-    // 1. Get autocomplete predictions
-    final uri = Uri.https(
-      'maps.googleapis.com',
-      '/maps/api/place/autocomplete/json',
-      params,
-    );
-
-    debugPrint('[PlacesService] autocomplete query: "$query"');
+    debugPrint('[PlacesService] autocomplete query: "$trimmed"');
 
     try {
-      final response = await _client.get(uri);
-      if (response.statusCode != 200) return [];
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiEndpoints.mapsAutocomplete,
+        queryParams: {'query': trimmed},
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') {
-        debugPrint('[PlacesService] autocomplete status: ${data['status']}');
-        return [];
-      }
-
-      final predictions = data['predictions'] as List;
+      final predictions = response.data['results'] as List? ?? [];
       debugPrint(
         '[PlacesService] autocomplete → ${predictions.length} predictions',
       );
 
-      // 2. Resolve each prediction to a GeocodeResult with lat/lng
       final results = <GeocodeResult>[];
       for (final pred in predictions.take(5)) {
-        final placeId = pred['place_id'] as String;
-        final description = pred['description'] as String;
+        final map = pred as Map<String, dynamic>;
+        final placeId = map['place_id'] as String?;
+        final description = map['description'] as String? ?? '';
+        if (placeId == null) continue;
 
-        // Get coordinates via Place Details
-        final coords = await _getPlaceDetails(placeId);
-        if (coords != null) {
+        final details = await _placeDetails(placeId);
+        if (details != null) {
           results.add(
             GeocodeResult(
               placeId: placeId,
-              formattedAddress: description,
-              lat: coords.latitude,
-              lng: coords.longitude,
-              provider: 'google',
+              formattedAddress: details.formattedAddress.isNotEmpty
+                  ? details.formattedAddress
+                  : description,
+              lat: details.lat,
+              lng: details.lng,
+              provider: details.provider,
             ),
           );
         }
@@ -91,26 +67,19 @@ class PlacesService {
     }
   }
 
-  /// Get lat/lng from a Google Place ID.
-  Future<LatLng?> _getPlaceDetails(String placeId) async {
-    final uri = Uri.https(
-      'maps.googleapis.com',
-      '/maps/api/place/details/json',
-      {'place_id': placeId, 'fields': 'geometry', 'key': _apiKey},
-    );
-
+  /// Resolve a place_id (from autocomplete) into a full [GeocodeResult].
+  Future<GeocodeResult?> _placeDetails(String placeId) async {
     try {
-      final response = await _client.get(uri);
-      if (response.statusCode != 200) return null;
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') return null;
-
-      final loc = data['result']['geometry']['location'];
-      return LatLng(
-        (loc['lat'] as num).toDouble(),
-        (loc['lng'] as num).toDouble(),
+      final response = await _apiClient.get<GeocodeResult>(
+        ApiEndpoints.mapsPlaceDetails,
+        queryParams: {'place_id': placeId},
+        fromJson: (json) {
+          final map = json as Map<String, dynamic>;
+          final data = map['data'] as Map<String, dynamic>? ?? map;
+          return GeocodeResult.fromJson(data);
+        },
       );
+      return response.data;
     } catch (e) {
       debugPrint('[PlacesService] ❌ placeDetails error: $e');
       return null;
@@ -122,47 +91,24 @@ class PlacesService {
   /// Reverse geocode a [LatLng] and extract city, state, and formatted address.
   Future<({String city, String state, String formattedAddress})>
   extractAddressComponents(LatLng position) async {
-    final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
-      'latlng': '${position.latitude},${position.longitude}',
-      'key': _apiKey,
-      'language': 'en',
-    });
-
     try {
-      final response = await _client.get(uri);
-      if (response.statusCode != 200) {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiEndpoints.mapsReverseGeocode,
+        queryParams: {
+          'lat': '${position.latitude}',
+          'lng': '${position.longitude}',
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      final result = response.data['result'] as Map<String, dynamic>?;
+      if (result == null) {
         return (city: '', state: '', formattedAddress: '');
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (data['status'] != 'OK') {
-        return (city: '', state: '', formattedAddress: '');
-      }
-
-      final results = data['results'] as List;
-      if (results.isEmpty) {
-        return (city: '', state: '', formattedAddress: '');
-      }
-
-      final first = results.first as Map<String, dynamic>;
-      final formatted = first['formatted_address'] as String? ?? '';
-      final components = first['address_components'] as List? ?? [];
-
-      String city = '';
-      String state = '';
-
-      for (final comp in components) {
-        final types = (comp['types'] as List).cast<String>();
-        if (types.contains('locality')) {
-          city = comp['long_name'] as String;
-        } else if (city.isEmpty &&
-            types.contains('administrative_area_level_2')) {
-          city = comp['long_name'] as String;
-        }
-        if (types.contains('administrative_area_level_1')) {
-          state = comp['long_name'] as String;
-        }
-      }
+      final city = result['city'] as String? ?? '';
+      final state = result['state'] as String? ?? '';
+      final formatted = result['formatted_address'] as String? ?? '';
 
       debugPrint(
         '[PlacesService] extractAddressComponents → city=$city, state=$state',
@@ -178,59 +124,25 @@ class PlacesService {
 
   /// Reverse geocode a [LatLng] to a formatted address string.
   Future<String?> reverseGeocode(LatLng position) async {
-    final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
-      'latlng': '${position.latitude},${position.longitude}',
-      'key': _apiKey,
-      'language': 'en',
-    });
-
-    if (kDebugMode) {
-      print(
-        '[PlacesService] reverseGeocode called for: ${position.latitude}, ${position.longitude}',
-      );
-      print('[PlacesService] Request URL: $uri');
-    }
+    debugPrint(
+      '[PlacesService] reverseGeocode called for: ${position.latitude}, ${position.longitude}',
+    );
     try {
-      final response = await _client.get(uri);
-      if (kDebugMode) {
-        print('[PlacesService] Response status: ${response.statusCode}');
-        print(
-          '[PlacesService] Response body (first 500 chars): ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}',
-        );
-      }
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (kDebugMode) {
-          print('[PlacesService] Geocode API status: ${data['status']}');
-        }
-        if (data['status'] == 'OK') {
-          final results = data['results'] as List;
-          if (results.isNotEmpty) {
-            final address =
-                (results.first as Map<String, dynamic>)['formatted_address']
-                    as String?;
-            if (kDebugMode) {
-              print('[PlacesService] ✅ Resolved address: $address');
-            }
-            return address;
-          } else {
-            if (kDebugMode) {
-              print('[PlacesService] ⚠️ No results returned');
-            }
-          }
-        } else {
-          if (kDebugMode) {
-            print(
-              '[PlacesService] ⚠️ API error: ${data['error_message'] ?? 'unknown'}',
-            );
-          }
-        }
-      }
-      return null;
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        ApiEndpoints.mapsReverseGeocode,
+        queryParams: {
+          'lat': '${position.latitude}',
+          'lng': '${position.longitude}',
+        },
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+      final result = response.data['result'] as Map<String, dynamic>?;
+      final address = result?['formatted_address'] as String?;
+      debugPrint('[PlacesService] ✅ Resolved address: $address');
+      return address;
     } catch (e) {
-      if (kDebugMode) {
-        print('[PlacesService] ❌ Exception during reverse geocoding: $e');
-      }
+      debugPrint('[PlacesService] ❌ Exception during reverse geocoding: $e');
       return null;
     }
   }

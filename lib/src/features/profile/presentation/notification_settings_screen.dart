@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dropx_mobile/src/common_widgets/app_text.dart';
+import 'package:dropx_mobile/src/common_widgets/app_toast.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/features/profile/providers/preferences_provider.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/update_preferences_dto.dart';
@@ -24,8 +25,16 @@ class _NotificationSettingsScreenState
   bool? _optInMarketing;
   bool? _showFriends;
 
-  void _update(UpdatePreferencesDto dto) {
-    ref.read(preferencesNotifierProvider.notifier).updatePreferences(dto);
+  Future<void> _update(UpdatePreferencesDto dto, VoidCallback revert) async {
+    try {
+      await ref
+          .read(preferencesNotifierProvider.notifier)
+          .updatePreferences(dto);
+    } catch (_) {
+      if (!mounted) return;
+      setState(revert);
+      AppToast.showError(context, "Couldn't save that setting. Try again.");
+    }
   }
 
   @override
@@ -72,8 +81,12 @@ class _NotificationSettingsScreenState
                         value: pushEnabled,
                         showDivider: true,
                         onChanged: (val) {
+                          final previous = pushEnabled;
                           setState(() => _pushEnabled = val);
-                          _update(UpdatePreferencesDto(pushEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(pushEnabled: val),
+                            () => _pushEnabled = previous,
+                          );
                         },
                       ),
                       _buildToggleRow(
@@ -83,8 +96,12 @@ class _NotificationSettingsScreenState
                         value: emailEnabled,
                         showDivider: true,
                         onChanged: (val) {
+                          final previous = emailEnabled;
                           setState(() => _emailEnabled = val);
-                          _update(UpdatePreferencesDto(emailEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(emailEnabled: val),
+                            () => _emailEnabled = previous,
+                          );
                         },
                       ),
                       _buildToggleRow(
@@ -93,8 +110,12 @@ class _NotificationSettingsScreenState
                         subtitle: "Receive text message alerts",
                         value: smsEnabled,
                         onChanged: (val) {
+                          final previous = smsEnabled;
                           setState(() => _smsEnabled = val);
-                          _update(UpdatePreferencesDto(smsEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(smsEnabled: val),
+                            () => _smsEnabled = previous,
+                          );
                         },
                       ),
                     ],
@@ -110,8 +131,12 @@ class _NotificationSettingsScreenState
                         value: orderUpdates,
                         showDivider: true,
                         onChanged: (val) {
+                          final previous = orderUpdates;
                           setState(() => _orderUpdates = val);
-                          _update(UpdatePreferencesDto(orderUpdatesEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(orderUpdatesEnabled: val),
+                            () => _orderUpdates = previous,
+                          );
                         },
                       ),
                       _buildToggleRow(
@@ -121,8 +146,12 @@ class _NotificationSettingsScreenState
                         value: promotions,
                         showDivider: true,
                         onChanged: (val) {
+                          final previous = promotions;
                           setState(() => _promotions = val);
-                          _update(UpdatePreferencesDto(promotionsEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(promotionsEnabled: val),
+                            () => _promotions = previous,
+                          );
                         },
                       ),
                       _buildToggleRow(
@@ -131,8 +160,12 @@ class _NotificationSettingsScreenState
                         subtitle: "Service notices and important updates",
                         value: systemAlerts,
                         onChanged: (val) {
+                          final previous = systemAlerts;
                           setState(() => _systemAlerts = val);
-                          _update(UpdatePreferencesDto(systemAlertsEnabled: val));
+                          _update(
+                            UpdatePreferencesDto(systemAlertsEnabled: val),
+                            () => _systemAlerts = previous,
+                          );
                         },
                       ),
                     ],
@@ -147,9 +180,14 @@ class _NotificationSettingsScreenState
                         subtitle: "Personalised offers from DropX",
                         value: marketing,
                         showDivider: true,
+                        disabled: true,
                         onChanged: (val) {
+                          final previous = marketing;
                           setState(() => _optInMarketing = val);
-                          _update(UpdatePreferencesDto(marketingOptIn: val));
+                          _update(
+                            UpdatePreferencesDto(marketingOptIn: val),
+                            () => _optInMarketing = previous,
+                          );
                         },
                       ),
                       _buildToggleRow(
@@ -157,9 +195,14 @@ class _NotificationSettingsScreenState
                         title: "Share Orders with Friends",
                         subtitle: "Let friends see what you're ordering",
                         value: showFriends,
+                        disabled: true,
                         onChanged: (val) {
+                          final previous = showFriends;
                           setState(() => _showFriends = val);
-                          _update(UpdatePreferencesDto(showOrdersToFriends: val));
+                          _update(
+                            UpdatePreferencesDto(showOrdersToFriends: val),
+                            () => _showFriends = previous,
+                          );
                         },
                       ),
                     ],
@@ -207,6 +250,7 @@ class _NotificationSettingsScreenState
     required bool value,
     required Function(bool) onChanged,
     bool showDivider = false,
+    bool disabled = false,
   }) {
     return Column(
       children: [
@@ -220,22 +264,35 @@ class _NotificationSettingsScreenState
                   color: AppColors.slate50,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: AppColors.darkBackground, size: 20),
+                child: Icon(
+                  icon,
+                  color: disabled ? AppColors.slate400 : AppColors.darkBackground,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AppText(title, fontWeight: FontWeight.w600, fontSize: 16),
+                    AppText(
+                      title,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: disabled ? AppColors.slate400 : null,
+                    ),
                     const SizedBox(height: 2),
-                    AppText(subtitle, fontSize: 13, color: AppColors.slate400),
+                    AppText(
+                      disabled ? 'Coming soon' : subtitle,
+                      fontSize: 13,
+                      color: AppColors.slate400,
+                    ),
                   ],
                 ),
               ),
               Switch.adaptive(
-                value: value,
-                onChanged: onChanged,
+                value: disabled ? false : value,
+                onChanged: disabled ? null : onChanged,
                 activeThumbColor: AppColors.primaryOrange,
               ),
             ],
