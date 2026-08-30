@@ -35,6 +35,7 @@ class OrderTrackingLiveData {
   final num? accuracyM;
   final int? lastEventSeq;
   final OrderVendorHandoff? vendorHandoff;
+  final OrderVendorConfirmation? vendorConfirmation;
 
   const OrderTrackingLiveData({
     required this.orderId,
@@ -50,6 +51,7 @@ class OrderTrackingLiveData {
     this.accuracyM,
     this.lastEventSeq,
     this.vendorHandoff,
+    this.vendorConfirmation,
   });
 
   factory OrderTrackingLiveData.fromJson(Map<String, dynamic> json) {
@@ -57,13 +59,13 @@ class OrderTrackingLiveData {
     final tracking = json['tracking'] as Map<String, dynamic>?;
     final locationJson = tracking?['location'] as Map<String, dynamic>?;
     final vendorHandoffJson = json['vendor_handoff'] as Map<String, dynamic>?;
+    final vendorConfirmationJson =
+        json['vendor_confirmation'] as Map<String, dynamic>?;
 
     return OrderTrackingLiveData(
       orderId: json['order_id'] as String? ?? '',
       state: json['state'] as String? ?? '',
-      rider: riderJson != null
-          ? OrderTrackingRider.fromJson(riderJson)
-          : null,
+      rider: riderJson != null ? OrderTrackingRider.fromJson(riderJson) : null,
       etaMinutes: (json['eta_minutes'] as num?)?.toInt(),
       location: locationJson != null
           ? OrderTrackingLocation.fromJson(locationJson)
@@ -78,6 +80,23 @@ class OrderTrackingLiveData {
       vendorHandoff: vendorHandoffJson != null
           ? OrderVendorHandoff.fromJson(vendorHandoffJson)
           : null,
+      vendorConfirmation: vendorConfirmationJson != null
+          ? OrderVendorConfirmation.fromJson(vendorConfirmationJson)
+          : null,
+    );
+  }
+}
+
+class OrderVendorConfirmation {
+  final String? status;
+  final String? vendorOrderState;
+
+  const OrderVendorConfirmation({this.status, this.vendorOrderState});
+
+  factory OrderVendorConfirmation.fromJson(Map<String, dynamic> json) {
+    return OrderVendorConfirmation(
+      status: json['status'] as String?,
+      vendorOrderState: json['vendor_order_state'] as String?,
     );
   }
 }

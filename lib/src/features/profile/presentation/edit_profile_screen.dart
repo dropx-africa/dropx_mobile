@@ -28,7 +28,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String _phoneE164 = '';
   String? _avatarUrl;
   File? _localAvatarFile;
-  bool _isUploadingAvatar = false;
+  final bool _isUploadingAvatar = false;
   bool _isLoading = false;
   bool _controllersPopulated = false;
 
@@ -54,12 +54,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _phoneLocalController.text = stored;
     }
     final session = ref.read(sessionServiceProvider);
-    debugPrint('[EditProfile] _populateControllers → '
-        'api.fullName="${profile.fullName}" '
-        'api.phone="${profile.phone}" '
-        'session.fullName="${session.fullName}" '
-        'session.phone="${session.phone}" '
-        'loginMethod="${session.loginMethod}"');
+    debugPrint(
+      '[EditProfile] _populateControllers → '
+      'api.fullName="${profile.fullName}" '
+      'api.phone="${profile.phone}" '
+      'session.fullName="${session.fullName}" '
+      'session.phone="${session.phone}" '
+      'loginMethod="${session.loginMethod}"',
+    );
     setState(() {
       _controllersPopulated = true;
       _avatarUrl = profile.avatarUrl;
@@ -80,7 +82,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         if (uploadedUrl != null) {
           finalAvatarUrl = uploadedUrl;
         } else {
-          throw Exception('Failed to upload profile picture. Please try again.');
+          throw Exception(
+            'Failed to upload profile picture. Please try again.',
+          );
         }
       }
 
@@ -95,11 +99,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         avatarUrl: finalAvatarUrl,
       );
 
-      debugPrint('[EditProfile] _saveProfile → '
-          'dto.fullName="${dto.fullName}" '
-          'dto.phoneE164="${dto.phoneE164}" '
-          '_phoneE164="$_phoneE164" '
-          'nameController="${_nameController.text}"');
+      debugPrint(
+        '[EditProfile] _saveProfile → '
+        'dto.fullName="${dto.fullName}" '
+        'dto.phoneE164="${dto.phoneE164}" '
+        '_phoneE164="$_phoneE164" '
+        'nameController="${_nameController.text}"',
+      );
 
       await ref.read(profileNotifierProvider.notifier).updateProfile(dto);
 
@@ -112,9 +118,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         phone: saved?.phone,
       );
 
-      debugPrint('[EditProfile] after saveAuthSession → '
-          'session.fullName="${session.fullName}" '
-          'session.phone="${session.phone}"');
+      debugPrint(
+        '[EditProfile] after saveAuthSession → '
+        'session.fullName="${session.fullName}" '
+        'session.phone="${session.phone}"',
+      );
 
       if (mounted) {
         AppToast.showSuccess(context, 'Profile updated successfully');
@@ -182,9 +190,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
       body: isProfileLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primaryOrange,
-              ),
+              child: CircularProgressIndicator(color: AppColors.primaryOrange),
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -209,28 +215,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   color: AppColors.primaryOrange,
                                   width: 2,
                                 ),
-                                image: (_localAvatarFile != null ||
+                                image:
+                                    (_localAvatarFile != null ||
                                         _avatarUrl != null)
                                     ? DecorationImage(
                                         image: _localAvatarFile != null
                                             ? FileImage(_localAvatarFile!)
                                             : NetworkImage(_avatarUrl!)
-                                                as ImageProvider,
+                                                  as ImageProvider,
                                         fit: BoxFit.cover,
                                       )
                                     : null,
                               ),
                               child:
                                   (_localAvatarFile == null &&
-                                          _avatarUrl == null)
-                                      ? const Center(
-                                          child: Icon(
-                                            Icons.person,
-                                            size: 50,
-                                            color: AppColors.slate400,
-                                          ),
-                                        )
-                                      : null,
+                                      _avatarUrl == null)
+                                  ? const Center(
+                                      child: Icon(
+                                        Icons.person,
+                                        size: 50,
+                                        color: AppColors.slate400,
+                                      ),
+                                    )
+                                  : null,
                             ),
                             Positioned(
                               bottom: 0,
@@ -240,8 +247,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: AppColors.primaryOrange,
                                   shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 2),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
                                 child: const Icon(
                                   Icons.camera_alt,
@@ -292,9 +301,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       validator: isEmailLogin
                           ? null
                           : (val) {
-                              if (val == null || val.trim().isEmpty) return null;
-                              final emailRegex =
-                                  RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                              if (val == null || val.trim().isEmpty) {
+                                return null;
+                              }
+                              final emailRegex = RegExp(
+                                r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                              );
                               if (!emailRegex.hasMatch(val.trim())) {
                                 return 'Enter a valid email address';
                               }
@@ -320,8 +332,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       readOnly: isPhoneLogin,
                       onPhoneChanged: isPhoneLogin
                           ? null
-                          : (phone) =>
-                              setState(() => _phoneE164 = phone.completeNumber),
+                          : (phone) => setState(
+                              () => _phoneE164 = phone.completeNumber,
+                            ),
                     ),
                     if (isPhoneLogin) ...[
                       const SizedBox(height: 6),

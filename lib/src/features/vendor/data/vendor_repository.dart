@@ -1,21 +1,21 @@
-import 'package:dropx_mobile/src/models/vendor.dart';
-import 'package:dropx_mobile/src/models/menu_item.dart';
 import 'package:dropx_mobile/src/features/vendor/data/dto/store_catalog_response.dart';
-
+import 'package:dropx_mobile/src/models/menu_item.dart';
+import 'package:dropx_mobile/src/models/vendor.dart';
 import 'package:dropx_mobile/src/models/vendor_category.dart';
 
 /// Abstract repository interface for vendor-related data operations.
 ///
 /// Both mock and API implementations satisfy this contract,
 /// enabling seamless swapping via Riverpod providers.
-import 'package:dropx_mobile/src/features/vendor/data/dto/store_catalog_response.dart';
-import 'package:dropx_mobile/src/models/menu_item.dart';
-import 'package:dropx_mobile/src/models/vendor.dart';
-import 'package:dropx_mobile/src/models/vendor_category.dart';
 
 abstract class VendorRepository {
   /// Get all vendors, optionally filtered by category.
-  Future<List<Vendor>> getVendors({VendorCategory? category, String? zoneId});
+  Future<List<Vendor>> getVendors({
+    VendorCategory? category,
+    String? zoneId,
+    double? lat,
+    double? lng,
+  });
 
   /// Get a single vendor by ID.
   Future<Vendor> getVendorById(String id);
@@ -27,9 +27,9 @@ abstract class VendorRepository {
   /// Pass [category] for retail stores so the API receives ?category=shops.
   /// Leave null for food vendors — no category param will be sent.
   Future<StoreCatalogResponse> getStoreCatalog(
-      String vendorId, {
-        VendorCategory? category,
-      });
+    String vendorId, {
+    VendorCategory? category,
+  });
 
   /// Get full detail for a single store item (includes addons and variants).
   Future<MenuItem> getStoreItem(String vendorId, String itemId);

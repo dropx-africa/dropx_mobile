@@ -8,7 +8,6 @@ import '../../../../models/menu_item.dart';
 import '../../../../route/page.dart';
 import '../../providers/group_order_providers.dart';
 
-
 class GroupItemAddSheet extends ConsumerStatefulWidget {
   final MenuItem item;
   final String vendorName;
@@ -26,13 +25,13 @@ class GroupItemAddSheet extends ConsumerStatefulWidget {
   });
 
   static Future<void> show(
-      BuildContext context, {
-        required MenuItem item,
-        required String vendorName,
-        required String zoneId,
-        required String groupOrderId,
-        required String participantToken,
-      }) {
+    BuildContext context, {
+    required MenuItem item,
+    required String vendorName,
+    required String zoneId,
+    required String groupOrderId,
+    required String participantToken,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -64,8 +63,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
     return widget.item.price;
   }
 
-  double get _addonsTotal =>
-      _selectedAddons.fold(0, (sum, a) => sum + a.price);
+  double get _addonsTotal => _selectedAddons.fold(0, (sum, a) => sum + a.price);
 
   double get _total => (_basePrice + _addonsTotal) * _quantity;
 
@@ -86,37 +84,43 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
   }
 
   Future<void> _addToGroupOrder() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _isLoading = true);
     try {
       final configuration = <String, dynamic>{
         'selected_variant': _selectedVariant == null
             ? null
             : {
-          'variant_id': _selectedVariant!.variantId,
-          'name': _selectedVariant!.name,
-          'price_delta_kobo':
-          (_selectedVariant!.priceDelta * 100).toInt(),
-        },
+                'variant_id': _selectedVariant!.variantId,
+                'name': _selectedVariant!.name,
+                'price_delta_kobo': (_selectedVariant!.priceDelta * 100)
+                    .toInt(),
+              },
         'selected_addons': _selectedAddons
-            .map((a) => {
-          'addon_id': a.addonId,
-          'name': a.name,
-          'price_kobo': (a.price * 100).toInt(),
-        })
+            .map(
+              (a) => {
+                'addon_id': a.addonId,
+                'name': a.name,
+                'price_kobo': (a.price * 100).toInt(),
+              },
+            )
             .toList(),
       };
 
-      await ref.read(groupOrderProvider.notifier).addItem(
-        itemId: widget.item.id,
-        itemName: widget.item.name,
-        unitPriceKobo: widget.item.price * 100,
-        quantity: _quantity,
-        configuration: configuration,
-      );
+      await ref
+          .read(groupOrderProvider.notifier)
+          .addItem(
+            itemId: widget.item.id,
+            itemName: widget.item.name,
+            unitPriceKobo: widget.item.price * 100,
+            quantity: _quantity,
+            configuration: configuration,
+          );
 
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        navigator.pop();
+        messenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -130,14 +134,13 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
             duration: const Duration(seconds: 2),
           ),
         );
-        Navigator.popUntil(
-          context,
-              (route) => route.settings.name == AppRoute.groupOrder,
+        navigator.popUntil(
+          (route) => route.settings.name == AppRoute.groupOrder,
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Failed to add item: $e'),
             backgroundColor: Colors.red,
@@ -200,20 +203,28 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                       // ── Group order context pill ──────────────────────
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryOrange.withValues(alpha: 0.08),
+                          color: AppColors.primaryOrange.withValues(
+                            alpha: 0.08,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color:
-                            AppColors.primaryOrange.withValues(alpha: 0.2),
+                            color: AppColors.primaryOrange.withValues(
+                              alpha: 0.2,
+                            ),
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.group_outlined,
-                                size: 14, color: AppColors.primaryOrange),
+                            const Icon(
+                              Icons.group_outlined,
+                              size: 14,
+                              color: AppColors.primaryOrange,
+                            ),
                             const SizedBox(width: 6),
                             AppText(
                               'Adding to group cart at ${widget.vendorName}',
@@ -236,14 +247,17 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                           runSpacing: 8,
                           children: widget.item.variants!.map((variant) {
                             final isSelected =
-                                _selectedVariant?.variantId == variant.variantId;
+                                _selectedVariant?.variantId ==
+                                variant.variantId;
                             return GestureDetector(
                               onTap: () =>
                                   setState(() => _selectedVariant = variant),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 10),
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.darkBackground
@@ -297,13 +311,15 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                             border: Border.all(color: Colors.grey.shade100),
                           ),
                           child: Column(
-                            children:
-                            widget.item.addons!.asMap().entries.map((e) {
+                            children: widget.item.addons!.asMap().entries.map((
+                              e,
+                            ) {
                               final addon = e.value;
                               final isLast =
                                   e.key == widget.item.addons!.length - 1;
-                              final isSelected = _selectedAddons
-                                  .any((a) => a.addonId == addon.addonId);
+                              final isSelected = _selectedAddons.any(
+                                (a) => a.addonId == addon.addonId,
+                              );
                               return Column(
                                 children: [
                                   InkWell(
@@ -311,12 +327,15 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                     borderRadius: BorderRadius.circular(16),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 14),
+                                        horizontal: 16,
+                                        vertical: 14,
+                                      ),
                                       child: Row(
                                         children: [
                                           AnimatedContainer(
                                             duration: const Duration(
-                                                milliseconds: 150),
+                                              milliseconds: 150,
+                                            ),
                                             width: 22,
                                             height: 22,
                                             decoration: BoxDecoration(
@@ -324,7 +343,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                                   ? AppColors.primaryOrange
                                                   : Colors.white,
                                               borderRadius:
-                                              BorderRadius.circular(6),
+                                                  BorderRadius.circular(6),
                                               border: Border.all(
                                                 color: isSelected
                                                     ? AppColors.primaryOrange
@@ -333,9 +352,11 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                               ),
                                             ),
                                             child: isSelected
-                                                ? const Icon(Icons.check,
-                                                size: 14,
-                                                color: Colors.white)
+                                                ? const Icon(
+                                                    Icons.check,
+                                                    size: 14,
+                                                    color: Colors.white,
+                                                  )
                                                 : null,
                                           ),
                                           const SizedBox(width: 12),
@@ -358,9 +379,10 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                   ),
                                   if (!isLast)
                                     Divider(
-                                        height: 1,
-                                        color: Colors.grey.shade100,
-                                        indent: 16),
+                                      height: 1,
+                                      color: Colors.grey.shade100,
+                                      indent: 16,
+                                    ),
                                 ],
                               );
                             }).toList(),
@@ -381,8 +403,7 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                                 : null,
                           ),
                           Padding(
-                            padding:
-                            const EdgeInsets.symmetric(horizontal: 24),
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: AppText(
                               '$_quantity',
                               fontSize: 20,
@@ -443,8 +464,8 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                     onPressed: _isLoading ? null : _addToGroupOrder,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryOrange,
-                      disabledBackgroundColor:
-                      AppColors.primaryOrange.withValues(alpha: 0.5),
+                      disabledBackgroundColor: AppColors.primaryOrange
+                          .withValues(alpha: 0.5),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -452,27 +473,30 @@ class _GroupItemAddSheetState extends ConsumerState<GroupItemAddSheet> {
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
                         : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.shopping_bag_outlined,
-                            color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        AppText(
-                          'Add to Group Cart • ${Formatters.formatNaira(_total)}',
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ],
-                    ),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.shopping_bag_outlined,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              AppText(
+                                'Add to Group Cart • ${Formatters.formatNaira(_total)}',
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ),
@@ -500,12 +524,12 @@ class _ItemHero extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           child: item.imageUrl != null && item.imageUrl!.isNotEmpty
               ? Image.network(
-            item.imageUrl!,
-            width: 90,
-            height: 90,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _imagePlaceholder(),
-          )
+                  item.imageUrl!,
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                )
               : _imagePlaceholder(),
         ),
         const SizedBox(width: 14),
@@ -513,13 +537,8 @@ class _ItemHero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppText(
-                item.name,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-              if (item.description != null &&
-                  item.description!.isNotEmpty) ...[
+              AppText(item.name, fontSize: 18, fontWeight: FontWeight.bold),
+              if (item.description != null && item.description!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 AppText(
                   item.description!,
@@ -551,8 +570,11 @@ class _ItemHero extends StatelessWidget {
         color: AppColors.slate50,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(Icons.fastfood_outlined,
-          size: 32, color: AppColors.slate200),
+      child: const Icon(
+        Icons.fastfood_outlined,
+        size: 32,
+        color: AppColors.slate200,
+      ),
     );
   }
 }
@@ -577,11 +599,7 @@ class _QuantityButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool filled;
 
-  const _QuantityButton({
-    required this.icon,
-    this.onTap,
-    this.filled = false,
-  });
+  const _QuantityButton({required this.icon, this.onTap, this.filled = false});
 
   @override
   Widget build(BuildContext context) {

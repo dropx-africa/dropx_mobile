@@ -33,6 +33,7 @@ class NotificationsScreen extends ConsumerWidget {
                     .readAllNotifications();
                 ref.invalidate(notificationsFutureProvider);
               } catch (e) {
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Failed to clear notifications'),
@@ -209,12 +210,16 @@ class _NotificationTile extends ConsumerWidget {
     if (cat == 'PARCEL_UPDATE') return Icons.inventory_2_outlined;
     if (cat == 'PROMOTION') return Icons.local_offer_rounded;
     if (cat == 'SYSTEM_ALERT') return Icons.warning_rounded;
-    if (cat == 'WALLET' || cat == 'PAYMENT') return Icons.account_balance_wallet_outlined;
+    if (cat == 'WALLET' || cat == 'PAYMENT') {
+      return Icons.account_balance_wallet_outlined;
+    }
 
     // Fallback: match on type prefix for apps that don't set category.
     if (type.startsWith('customer.order')) return Icons.local_shipping_rounded;
     if (type.startsWith('customer.parcel')) return Icons.inventory_2_outlined;
-    if (type.startsWith('customer.wallet')) return Icons.account_balance_wallet_outlined;
+    if (type.startsWith('customer.wallet')) {
+      return Icons.account_balance_wallet_outlined;
+    }
     if (type.startsWith('customer.group_order')) return Icons.group_rounded;
 
     return Icons.notifications_rounded;

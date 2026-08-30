@@ -36,8 +36,6 @@ class PushTokenService {
 
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        // TODO: remove before release — for local testing only
-        AppLog.d('[Push] *** FCM TOKEN (copy for Firebase Console test) ***\n$token');
         try {
           await _repository.registerToken(token);
           AppLog.d('[Push] token registered with backend successfully');
@@ -45,22 +43,23 @@ class PushTokenService {
           AppLog.e('[Push] registerToken FAILED: $e', '');
         }
       } else {
-        AppLog.e('[Push] getToken() returned null — check google-services.json and Firebase project config', '');
+        AppLog.e(
+          '[Push] getToken() returned null — check google-services.json and Firebase project config',
+          '',
+        );
       }
 
       // Only attach the refresh listener once per app lifecycle.
       if (!_listenerAttached) {
         _listenerAttached = true;
-        FirebaseMessaging.instance.onTokenRefresh.listen(
-          (newToken) async {
-            AppLog.d('[Push] token refreshed — re-registering');
-            try {
-              await _repository.registerToken(newToken);
-            } catch (e) {
-              AppLog.e('[Push] re-register on refresh FAILED: $e', '');
-            }
-          },
-        );
+        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+          AppLog.d('[Push] token refreshed — re-registering');
+          try {
+            await _repository.registerToken(newToken);
+          } catch (e) {
+            AppLog.e('[Push] re-register on refresh FAILED: $e', '');
+          }
+        });
       }
 
       return granted;

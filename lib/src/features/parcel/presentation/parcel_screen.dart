@@ -265,7 +265,11 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.copy, size: 20, color: Colors.grey),
+                        icon: const Icon(
+                          Icons.copy,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: shareableLink));
                           AppToast.showSuccess(ctx, 'Link copied!');
@@ -348,27 +352,34 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
                     // ── Addresses ──────────────────────────────────────────
                     _sectionLabel('Pickup & Dropoff'),
                     _card(
-                      child: Column(
-                        children: [
-                          _addressTile(
-                            label: 'Pickup Location',
-                            icon: Icons.trip_origin,
-                            iconColor: Colors.green,
-                            result: _pickupResult,
-                            onTap: () => _pickAddress(isPickup: true),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(left: 20),
-                            child: Divider(height: 16),
-                          ),
-                          _addressTile(
-                            label: 'Dropoff Location',
-                            icon: Icons.location_on,
-                            iconColor: AppColors.primaryOrange,
-                            result: _dropoffResult,
-                            onTap: () => _pickAddress(isPickup: false),
-                          ),
-                        ],
+                      child: RadioGroup<String>(
+                        groupValue: _paymentMethod,
+                        onChanged: (value) => setState(() {
+                          _paymentMethod = value ?? _paymentMethod;
+                          _quote = null;
+                        }),
+                        child: Column(
+                          children: [
+                            _addressTile(
+                              label: 'Pickup Location',
+                              icon: Icons.trip_origin,
+                              iconColor: Colors.green,
+                              result: _pickupResult,
+                              onTap: () => _pickAddress(isPickup: true),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.only(left: 20),
+                              child: Divider(height: 16),
+                            ),
+                            _addressTile(
+                              label: 'Dropoff Location',
+                              icon: Icons.location_on,
+                              iconColor: AppColors.primaryOrange,
+                              result: _dropoffResult,
+                              onTap: () => _pickAddress(isPickup: false),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -529,49 +540,46 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
     required Color iconColor,
     required GeocodeResult? result,
     required VoidCallback onTap,
-  }) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(
-                    label,
-                    fontSize: 11,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(height: 2),
-                  result != null
-                      ? AppText(
-                          result.formattedAddress,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      : AppText(
-                          'Tap to select on map',
-                          fontSize: 13,
-                          color: Colors.grey.shade400,
-                        ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-          ],
+  }) => GestureDetector(
+    onTap: onTap,
+    child: Row(
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppText(label, fontSize: 11, color: Colors.grey.shade500),
+              const SizedBox(height: 2),
+              result != null
+                  ? AppText(
+                      result.formattedAddress,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : AppText(
+                      'Tap to select on map',
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                    ),
+            ],
+          ),
         ),
-      );
+        const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+      ],
+    ),
+  );
 
   // ─── Quote card ────────────────────────────────────────────────────────────
 
   Widget _buildQuoteCard(ParcelQuoteData q) {
     final delivery = CurrencyUtils.koboToNaira(q.feeBreakdown.deliveryFeeKobo);
-    final insurance = CurrencyUtils.koboToNaira(q.feeBreakdown.insuranceFeeKobo);
+    final insurance = CurrencyUtils.koboToNaira(
+      q.feeBreakdown.insuranceFeeKobo,
+    );
     final total = CurrencyUtils.koboToNaira(q.feeBreakdown.totalKobo);
 
     return Container(
@@ -593,8 +601,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
           const SizedBox(height: 8),
           if (q.distanceKm != null)
             _quoteRow('Distance', '${q.distanceKm!.toStringAsFixed(1)} km'),
-          if (q.etaMinutes != null)
-            _quoteRow('ETA', '${q.etaMinutes} mins'),
+          if (q.etaMinutes != null) _quoteRow('ETA', '${q.etaMinutes} mins'),
           const SizedBox(height: 4),
           CostBreakdownWidget(
             costBreakdown: q.costBreakdown,
@@ -691,9 +698,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: _isLoadingQuote
           ? const SizedBox(
@@ -719,9 +724,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.white,
         side: const BorderSide(color: Colors.white54),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: const AppText('Re-quote', color: Colors.white, fontSize: 13),
     ),
@@ -733,9 +736,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
       onPressed: _isPlacing ? null : _placeOrder,
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryOrange,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: _isPlacing
           ? const SizedBox(
@@ -815,8 +816,7 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
               AppText(
                 label,
                 fontSize: 10,
-                fontWeight:
-                    selected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 color: selected
                     ? AppColors.primaryOrange
                     : Colors.grey.shade600,
@@ -830,11 +830,6 @@ class _ParcelScreenState extends ConsumerState<ParcelScreen> {
 
   Widget _paymentRadio(String value, String label) => RadioListTile<String>(
     value: value,
-    groupValue: _paymentMethod,
-    onChanged: (v) => setState(() {
-      _paymentMethod = v!;
-      _quote = null;
-    }),
     activeColor: AppColors.primaryOrange,
     title: AppText(label, fontSize: 14, fontWeight: FontWeight.w500),
     contentPadding: EdgeInsets.zero,

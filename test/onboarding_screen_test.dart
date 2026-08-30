@@ -9,7 +9,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
 
     // Verify initial page content
-    expect(find.text('Fast & Reliable Delivery'), findsOneWidget);
+    expect(find.text('Order in Seconds'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Get Started'), findsNothing);
 
@@ -17,12 +17,12 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Real-Time Tracking'), findsOneWidget);
+    expect(find.text('Track Your Rider Live'), findsOneWidget);
 
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Secure Payments'), findsOneWidget);
+    expect(find.text('Pay Securely'), findsOneWidget);
     expect(find.text('Get Started'), findsOneWidget);
   });
 }

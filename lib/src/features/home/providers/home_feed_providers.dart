@@ -65,34 +65,33 @@ class FeedParams {
 /// autoDispose so that a distinct provider instance isn't kept alive
 /// forever for every search query a customer ever typed — without it,
 /// each keystroke's FeedParams permanently caches its own response.
-final homeFeedProvider =
-    FutureProvider.autoDispose.family<HomeFeedData, FeedParams>((
-  ref,
-  params,
-) {
-  return ref
-      .watch(homeFeedRepositoryProvider)
-      .getFeed(
-        vertical: params.vertical,
-        q: params.q,
-        lat: params.lat,
-        lng: params.lng,
-        radiusKm: params.radiusKm,
-        maxEtaMinutes: params.maxEtaMinutes,
-        limit: params.limit,
-        cursor: params.cursor,
-      );
-});
+final homeFeedProvider = FutureProvider.autoDispose
+    .family<HomeFeedData, FeedParams>((ref, params) {
+      return ref
+          .watch(homeFeedRepositoryProvider)
+          .getFeed(
+            vertical: params.vertical,
+            q: params.q,
+            lat: params.lat,
+            lng: params.lng,
+            radiusKm: params.radiusKm,
+            maxEtaMinutes: params.maxEtaMinutes,
+            limit: params.limit,
+            cursor: params.cursor,
+          );
+    });
 
 /// Global search provider. autoDispose for the same reason as
 /// [homeFeedProvider] — one instance per keystroke would otherwise never
 /// be released.
-final searchProvider =
-    FutureProvider.autoDispose.family<SearchData, FeedParams>((
-  ref,
-  params,
-) {
-  return ref
-      .watch(homeFeedRepositoryProvider)
-      .search(q: params.q, vertical: params.vertical);
-});
+final searchProvider = FutureProvider.autoDispose
+    .family<SearchData, FeedParams>((ref, params) {
+      return ref
+          .watch(homeFeedRepositoryProvider)
+          .search(
+            q: params.q,
+            vertical: params.vertical,
+            lat: params.lat,
+            lng: params.lng,
+          );
+    });

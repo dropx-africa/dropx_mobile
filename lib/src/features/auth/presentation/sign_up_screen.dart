@@ -11,7 +11,6 @@ import 'package:dropx_mobile/src/common_widgets/app_scaffold.dart';
 import 'package:dropx_mobile/src/common_widgets/app_appbar.dart';
 import 'package:dropx_mobile/src/core/network/api_exceptions.dart';
 import 'package:dropx_mobile/src/core/utils/validators.dart';
-import 'package:dropx_mobile/src/features/auth/data/dto/register_dto.dart';
 import 'package:dropx_mobile/src/features/auth/data/dto/otp_request_dto.dart';
 import 'package:dropx_mobile/src/features/auth/providers/auth_providers.dart';
 import 'package:dropx_mobile/src/route/page.dart';
@@ -39,7 +38,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
 
   // Single phone number for both tabs
   final _phoneController = TextEditingController();
-  bool get _hasValidPhone => _phoneE164.isNotEmpty && _phoneE164.startsWith('+');
+  bool get _hasValidPhone =>
+      _phoneE164.isNotEmpty && _phoneE164.startsWith('+');
   @override
   void initState() {
     super.initState();
@@ -99,7 +99,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
 
       AppLog.d('[SignUp] Requesting OTP: ${otpDto.toJson()}');
 
-      final challenge = await ref.read(authRepositoryProvider).requestOtp(otpDto);
+      final challenge = await ref
+          .read(authRepositoryProvider)
+          .requestOtp(otpDto);
 
       AppLog.d('[SignUp] OTP sent — challengeId: ${challenge.otpChallengeId}');
 
@@ -129,14 +131,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
       AppLog.e('[SignUp] ApiException', e.message);
       if (mounted) {
         if (e.statusCode == 500) {
-          AppToast.showError(context, 'Something went wrong on our side. Please try again.');
+          AppToast.showError(
+            context,
+            'Something went wrong on our side. Please try again.',
+          );
         } else {
           AppToast.showError(context, e.message);
         }
       }
     } catch (e) {
       AppLog.e('[SignUp] Unexpected error', e.toString());
-      if (mounted) AppToast.showError(context, 'Something went wrong. Please try again.');
+      if (mounted) {
+        AppToast.showError(context, 'Something went wrong. Please try again.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -233,14 +240,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen>
                 keyboardType: TextInputType.emailAddress,
               )
             : AppTextField(
-          isPhone: true,
-          label: 'Phone Number',
-          hintText: 'Enter your phone number',
-          controller: _phoneController,
-          onPhoneChanged: (phoneNumber) {
-            setState(() => _phoneE164 = phoneNumber.completeNumber);
-          },
-        ),
+                isPhone: true,
+                label: 'Phone Number',
+                hintText: 'Enter your phone number',
+                controller: _phoneController,
+                onPhoneChanged: (phoneNumber) {
+                  setState(() => _phoneE164 = phoneNumber.completeNumber);
+                },
+              ),
         AppSpaces.v16,
 
         // Password field (shared)

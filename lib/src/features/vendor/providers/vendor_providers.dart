@@ -23,18 +23,15 @@ class StoreCatalogParams {
   /// Leave null for food vendors → no category param sent.
   final VendorCategory? category;
 
-  const StoreCatalogParams({
-    required this.vendorId,
-    this.category,
-  });
+  const StoreCatalogParams({required this.vendorId, this.category});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is StoreCatalogParams &&
-              runtimeType == other.runtimeType &&
-              vendorId == other.vendorId &&
-              category == other.category;
+      other is StoreCatalogParams &&
+          runtimeType == other.runtimeType &&
+          vendorId == other.vendorId &&
+          category == other.category;
 
   @override
   int get hashCode => vendorId.hashCode ^ category.hashCode;
@@ -44,17 +41,24 @@ class StoreCatalogParams {
 
 /// All vendors, optionally filtered by category.
 final vendorsProvider = FutureProvider.family<List<Vendor>, VendorCategory?>((
-    ref,
-    category,
-    ) {
-  return ref.watch(vendorRepositoryProvider).getVendors(category: category);
+  ref,
+  category,
+) {
+  final session = ref.watch(sessionServiceProvider);
+  return ref
+      .watch(vendorRepositoryProvider)
+      .getVendors(
+        category: category,
+        lat: session.savedLat,
+        lng: session.savedLng,
+      );
 });
 
 /// Vendors filtered by zone ID — used in the cart to fetch vendor info.
 final vendorsByZoneProvider = FutureProvider.family<List<Vendor>, String>((
-    ref,
-    zoneId,
-    ) {
+  ref,
+  zoneId,
+) {
   return ref.watch(vendorRepositoryProvider).getVendors(zoneId: zoneId);
 });
 
@@ -65,9 +69,9 @@ final vendorByIdProvider = FutureProvider.family<Vendor, String>((ref, id) {
 
 /// Menu items for a specific vendor.
 final menuItemsProvider = FutureProvider.family<List<MenuItem>, String>((
-    ref,
-    vendorId,
-    ) {
+  ref,
+  vendorId,
+) {
   return ref.watch(vendorRepositoryProvider).getMenuItems(vendorId);
 });
 
@@ -86,19 +90,19 @@ final menuItemsProvider = FutureProvider.family<List<MenuItem>, String>((
 /// )))
 /// ```
 final storeCatalogProvider =
-FutureProvider.family<StoreCatalogResponse, StoreCatalogParams>((
-    ref,
-    params,
+    FutureProvider.family<StoreCatalogResponse, StoreCatalogParams>((
+      ref,
+      params,
     ) {
-  return ref
-      .watch(vendorRepositoryProvider)
-      .getStoreCatalog(params.vendorId, category: params.category);
-});
+      return ref
+          .watch(vendorRepositoryProvider)
+          .getStoreCatalog(params.vendorId, category: params.category);
+    });
 
 /// Search vendors by query.
 final vendorSearchProvider = FutureProvider.family<List<Vendor>, String>((
-    ref,
-    query,
-    ) {
+  ref,
+  query,
+) {
   return ref.watch(vendorRepositoryProvider).searchVendors(query);
 });

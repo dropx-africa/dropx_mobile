@@ -19,9 +19,13 @@ class RemoteVendorRepository implements VendorRepository {
   Future<List<Vendor>> getVendors({
     VendorCategory? category,
     String? zoneId,
+    double? lat,
+    double? lng,
   }) async {
     final queryParams = <String, String>{};
     if (zoneId != null) queryParams['zone_id'] = zoneId;
+    if (lat != null) queryParams['lat'] = lat.toString();
+    if (lng != null) queryParams['lng'] = lng.toString();
 
     // Use apiValue so retail sends 'shops', not 'retail'.
     // food sends 'food', pharmacy sends 'pharmacy', etc.
@@ -38,7 +42,7 @@ class RemoteVendorRepository implements VendorRepository {
     if (kDebugMode) {
       print(
         '[VENDOR] Fetched ${vendors.length} vendors '
-            '(category: ${category?.apiValue ?? 'all'})',
+        '(category: ${category?.apiValue ?? 'all'})',
       );
     }
     return vendors;
@@ -57,9 +61,9 @@ class RemoteVendorRepository implements VendorRepository {
 
   @override
   Future<StoreCatalogResponse> getStoreCatalog(
-      String vendorId, {
-        VendorCategory? category,
-      }) async {
+    String vendorId, {
+    VendorCategory? category,
+  }) async {
     final queryParams = <String, String>{};
 
     // For retail stores, pass ?category=shops so the backend returns
@@ -76,7 +80,7 @@ class RemoteVendorRepository implements VendorRepository {
     if (kDebugMode) {
       print(
         '[VENDOR] Fetched catalog for $vendorId '
-            '(category: ${category?.apiValue ?? 'none'})',
+        '(category: ${category?.apiValue ?? 'none'})',
       );
     }
 
@@ -87,8 +91,7 @@ class RemoteVendorRepository implements VendorRepository {
   Future<Vendor> getVendorById(String id) async {
     final response = await _apiClient.get<VendorResponse>(
       ApiEndpoints.vendorById(id),
-      fromJson: (json) =>
-          VendorResponse.fromJson(json as Map<String, dynamic>),
+      fromJson: (json) => VendorResponse.fromJson(json as Map<String, dynamic>),
     );
 
     return response.data.vendor;

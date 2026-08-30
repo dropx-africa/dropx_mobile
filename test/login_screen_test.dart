@@ -9,20 +9,19 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
     // Verify static texts
-    expect(find.text('Get Started'), findsOneWidget);
-    expect(
-      find.text('Enter your phone number to login or sign up.'),
-      findsOneWidget,
-    );
+    expect(find.text('Welcome!'), findsOneWidget);
+    expect(find.text('Login to your account to continue.'), findsOneWidget);
 
-    // Verify Inputs
-    expect(find.byIcon(Icons.phone_android), findsOneWidget);
+    // Email is the default login tab; phone remains available as a tab.
+    expect(find.text('Email'), findsWidgets);
+    expect(find.text('Phone'), findsOneWidget);
 
     // Verify Buttons
-    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Send OTP Code'), findsOneWidget);
     // expect(find.text('Google'), findsOneWidget); // Removed in this view
     // expect(find.text('Apple'), findsOneWidget); // Removed in this view
     expect(find.text('Continue as Guest'), findsOneWidget);
+    expect(find.text("Don't have an account? Sign Up"), findsOneWidget);
     // expect(find.text('Sign Up'), findsOneWidget); // Removed/Changed
   });
 }

@@ -56,6 +56,8 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
   Future<SearchData> search({
     String? q,
     String? vertical,
+    double? lat,
+    double? lng,
     int? limit,
     String? cursor,
   }) async {
@@ -64,6 +66,8 @@ class RemoteHomeFeedRepository implements HomeFeedRepository {
     if (vertical != null && vertical.isNotEmpty) {
       queryParams['vertical'] = vertical;
     }
+    if (lat != null) queryParams['lat'] = lat.toString();
+    if (lng != null) queryParams['lng'] = lng.toString();
     if (limit != null) queryParams['limit'] = limit.toString();
     if (cursor != null) queryParams['cursor'] = cursor;
 

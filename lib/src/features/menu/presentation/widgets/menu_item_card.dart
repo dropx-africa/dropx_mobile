@@ -5,12 +5,6 @@ import 'package:dropx_mobile/src/common_widgets/app_image.dart';
 import 'package:dropx_mobile/src/constants/app_colors.dart';
 import 'package:dropx_mobile/src/models/menu_item.dart';
 
-import 'package:flutter/material.dart';
-import 'package:dropx_mobile/src/common_widgets/app_image.dart';
-import 'package:dropx_mobile/src/common_widgets/app_text.dart';
-import 'package:dropx_mobile/src/constants/app_colors.dart';
-import 'package:dropx_mobile/src/models/menu_item.dart';
-
 class MenuItemCard extends StatelessWidget {
   final MenuItem item;
   final int quantity;
@@ -104,13 +98,19 @@ class MenuItemCard extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (badge.contains('ordered'))
-                                    Icon(Icons.local_fire_department,
-                                        size: 10, color: textColor),
+                                    Icon(
+                                      Icons.local_fire_department,
+                                      size: 10,
+                                      color: textColor,
+                                    ),
                                   if (badge.contains('ordered'))
                                     const SizedBox(width: 4),
                                   if (badge.contains('Chef'))
-                                    Icon(Icons.restaurant_menu,
-                                        size: 10, color: textColor),
+                                    Icon(
+                                      Icons.restaurant_menu,
+                                      size: 10,
+                                      color: textColor,
+                                    ),
                                   if (badge.contains('Chef'))
                                     const SizedBox(width: 4),
                                   Text(
@@ -130,7 +130,9 @@ class MenuItemCard extends StatelessWidget {
                         if (item.isOutOfStock)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(4),
@@ -149,7 +151,9 @@ class MenuItemCard extends StatelessWidget {
                         if (!item.isOutOfStock && item.isLowStock)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade50,
                               borderRadius: BorderRadius.circular(4),
@@ -157,12 +161,15 @@ class MenuItemCard extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.inventory_2_outlined,
-                                    size: 10,
-                                    color: Colors.orange.shade700),
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 10,
+                                  color: Colors.orange.shade700,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  (item.stockCount != null && item.stockCount! > 0)
+                                  (item.stockCount != null &&
+                                          item.stockCount! > 0)
                                       ? 'Only ${item.stockCount} left'
                                       : 'Low stock',
                                   style: TextStyle(
@@ -191,8 +198,11 @@ class MenuItemCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(Icons.timer_outlined,
-                              size: 12, color: Colors.grey),
+                          const Icon(
+                            Icons.timer_outlined,
+                            size: 12,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 4),
                           AppSubText(item.prepTime!, fontSize: 11),
                         ],
@@ -204,7 +214,9 @@ class MenuItemCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(4),
@@ -233,76 +245,79 @@ class MenuItemCard extends StatelessWidget {
                 ? const SizedBox.shrink()
                 : quantity > 0
                 ? Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: onDecrement,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.remove, size: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
                     ),
-                  ),
-                  Padding(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      '$quantity',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                  InkWell(
-                    onTap: onIncrement,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.add, size: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: onDecrement,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.remove, size: 16),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            '$quantity',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: onIncrement,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.add, size: 16),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            )
+                  )
                 : SizedBox(
-              height: 32,
-              child: ElevatedButton.icon(
-                onPressed: onAdd,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryOrange,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    height: 32,
+                    child: ElevatedButton.icon(
+                      onPressed: onAdd,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Add',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.add,
-                    size: 16, color: Colors.white),
-                label: const Text(
-                  'Add',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
           ),
         ],
       ),

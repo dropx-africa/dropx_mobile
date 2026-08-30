@@ -20,6 +20,8 @@ abstract class HomeFeedRepository {
   Future<SearchData> search({
     String? q,
     String? vertical,
+    double? lat,
+    double? lng,
     int? limit,
     String? cursor,
   });

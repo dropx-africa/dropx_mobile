@@ -127,14 +127,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
         .sseStream(ApiEndpoints.sseOrder(widget.orderId!))
         .listen(
           _onSseEvent,
-          onDone: () => Future.delayed(
-            const Duration(seconds: 3),
-            () { if (mounted) _subscribeToSse(); },
-          ),
-          onError: (_) => Future.delayed(
-            const Duration(seconds: 5),
-            () { if (mounted) _subscribeToSse(); },
-          ),
+          onDone: () => Future.delayed(const Duration(seconds: 3), () {
+            if (mounted) _subscribeToSse();
+          }),
+          onError: (_) => Future.delayed(const Duration(seconds: 5), () {
+            if (mounted) _subscribeToSse();
+          }),
         );
   }
 
@@ -180,6 +178,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       debugPrint('📡 [SSE] parse error: $e');
     }
   }
+
   Future<void> _fetchLiveTrackingSilent() async {
     if (widget.orderId == null) return;
     try {
@@ -192,7 +191,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
           _applyState(_liveData?.state ?? 'PLACED');
         });
         if (_liveData?.location != null && _mapController != null) {
-          final newPos = LatLng(_liveData!.location!.lat, _liveData!.location!.lng);
+          final newPos = LatLng(
+            _liveData!.location!.lat,
+            _liveData!.location!.lng,
+          );
           _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
           _moveRiderMarker(newPos);
         }
@@ -207,7 +209,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
     } catch (e) {
       if (e is ApiException && (e.statusCode == 409 || e.statusCode == 503)) {
         final errorBody = e.data as Map<String, dynamic>?;
-        final details = errorBody?['error']?['details'] as Map<String, dynamic>?;
+        final details =
+            errorBody?['error']?['details'] as Map<String, dynamic>?;
         final stateFromError = details?['state'] as String?;
         if (mounted && stateFromError != null) {
           setState(() {
@@ -219,6 +222,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       // Silent — no spinner, no snackbar
     }
   }
+
   Future<void> _fetchLiveTracking() async {
     if (widget.orderId == null) return;
     setState(() => _isLoading = true);
@@ -232,7 +236,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
           _applyState(_liveData?.state ?? 'PLACED');
         });
         if (_liveData?.location != null && _mapController != null) {
-          final newPos = LatLng(_liveData!.location!.lat, _liveData!.location!.lng);
+          final newPos = LatLng(
+            _liveData!.location!.lat,
+            _liveData!.location!.lng,
+          );
           _mapController!.animateCamera(CameraUpdate.newLatLng(newPos));
           _moveRiderMarker(newPos);
         }
@@ -250,8 +257,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       // 503 (TRACKING_STALE) both carry the real order state in
       // error.details.state — extract and apply it so the UI always
       // reflects the correct status even when live tracking is unavailable.
-      if (e is ApiException &&
-          (e.statusCode == 409 || e.statusCode == 503)) {
+      if (e is ApiException && (e.statusCode == 409 || e.statusCode == 503)) {
         final errorBody = e.data as Map<String, dynamic>?;
         final details =
             errorBody?['error']?['details'] as Map<String, dynamic>?;
@@ -384,9 +390,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
   String? get _resolvedOtp => _deliveryOtpData?.deliveryOtp;
 
   void _maybeNotify(String newState) {
-    debugPrint('🔔 [Tracking] _maybeNotify — newState=$newState _notifiedState=$_notifiedState');
+    debugPrint(
+      '🔔 [Tracking] _maybeNotify — newState=$newState _notifiedState=$_notifiedState',
+    );
     if (newState == _notifiedState) {
-      debugPrint('🔔 [Tracking] _maybeNotify — skipped (already notified for $newState)');
+      debugPrint(
+        '🔔 [Tracking] _maybeNotify — skipped (already notified for $newState)',
+      );
       return;
     }
     _notifiedState = newState;
@@ -492,7 +502,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       _revealRiderLabel();
       return;
     }
-    if (from.latitude == newPos.latitude && from.longitude == newPos.longitude) {
+    if (from.latitude == newPos.latitude &&
+        from.longitude == newPos.longitude) {
       debugPrint('🐎 [MARKER] position unchanged — skipping animation');
       return;
     }
@@ -513,9 +524,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
     curved.addListener(() {
       if (!mounted) return;
       final t = curved.value;
-      final lat = _riderAnimFrom!.latitude +
+      final lat =
+          _riderAnimFrom!.latitude +
           (_riderAnimTo!.latitude - _riderAnimFrom!.latitude) * t;
-      final lng = _riderAnimFrom!.longitude +
+      final lng =
+          _riderAnimFrom!.longitude +
           (_riderAnimTo!.longitude - _riderAnimFrom!.longitude) * t;
       debugPrint('🐎 [MARKER] tick t=${t.toStringAsFixed(2)} → ($lat, $lng)');
       setState(() => _displayedRiderLatLng = LatLng(lat, lng));
@@ -574,7 +587,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       width: double.infinity,
       decoration: BoxDecoration(
         border: Border.all(
-          color: arrived ? Colors.green.shade200 : AppColors.primaryOrange.withValues(alpha: 0.3),
+          color: arrived
+              ? Colors.green.shade200
+              : AppColors.primaryOrange.withValues(alpha: 0.3),
         ),
         borderRadius: BorderRadius.circular(12),
         color: arrived ? Colors.green.shade50 : Colors.orange.shade50,
@@ -582,7 +597,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
       child: Column(
         children: [
           AppText(
-            arrived ? 'Rider has Arrived — Share your code' : 'Your Delivery Code',
+            arrived
+                ? 'Rider has Arrived — Share your code'
+                : 'Your Delivery Code',
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: arrived ? Colors.green.shade700 : AppColors.primaryOrange,
@@ -676,16 +693,30 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
   /// The current authoritative state string — always in sync with _applyState.
   String get _currentState => _rawState;
 
+  /// The backend's ETA is only meaningful after the vendor accepts the order.
+  bool get _vendorHasConfirmed {
+    final confirmation = _liveData?.vendorConfirmation;
+    final status = confirmation?.status?.toUpperCase();
+    final vendorState = confirmation?.vendorOrderState?.toUpperCase();
+    return const {'CONFIRMED', 'ACCEPTED'}.contains(status) ||
+        const {'CONFIRMED', 'PREPARING', 'READY'}.contains(vendorState) ||
+        _orderStage >= 1;
+  }
+
+  int? get _confirmedEtaMinutes =>
+      _vendorHasConfirmed ? _liveData?.etaMinutes : null;
+
   /// A short caption breaking the total ETA into vendor prep time vs actual
   /// delivery time, shown only while the vendor is still preparing —
   /// otherwise the raw ETA reads as one opaque number and customers assume
   /// it's all delivery time, which reads as unusually slow.
   String? get _prepTimeBreakdown {
+    if (!_vendorHasConfirmed) return null;
     if (_orderStage >= 2) return null; // already picked up — prep is done
     final prepMinutes = _liveData?.vendorHandoff?.prepEtaMinutes;
     if (prepMinutes == null || prepMinutes <= 0) return null;
 
-    final totalMinutes = _liveData?.etaMinutes;
+    final totalMinutes = _confirmedEtaMinutes;
     if (totalMinutes == null) {
       return 'Includes ~$prepMinutes min for the vendor to prepare your order';
     }
@@ -801,7 +832,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
@@ -828,26 +862,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
             ),
           ),
 
-        Positioned(
-          top: 50,
-          left: 16,
-          child: _buildBackButton(context),
-        ),
-        Positioned(
-          top: 50,
-          right: 16,
-          child: _buildRefreshButton(),
-        ),
+        Positioned(top: 50, left: 16, child: _buildBackButton(context)),
+        Positioned(top: 50, right: 16, child: _buildRefreshButton()),
 
         // Persistent status card — ETA + live/stale badge, kept at the top
         // near the map so it's visible alongside the rider pin instead of
         // only in the bottom sheet.
-        Positioned(
-          top: 104,
-          left: 16,
-          right: 16,
-          child: _buildTopStatusCard(),
-        ),
+        Positioned(top: 104, left: 16, right: 16, child: _buildTopStatusCard()),
 
         // Map FABs — re-center on rider + fit both points
         Positioned(
@@ -901,7 +922,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
             color: Colors.white,
             shape: BoxShape.circle,
             boxShadow: const [
-              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
           child: Icon(icon, color: Colors.black87, size: 20),
@@ -991,7 +1016,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
   }
 
   Widget _buildTopStatusCard() {
-    final eta = _liveData?.etaMinutes;
+    final eta = _confirmedEtaMinutes;
     final ageSeconds = _liveData?.ageSeconds;
     final isStale = _locationIsStale;
     final badgeColor = isStale ? Colors.red : Colors.green;
@@ -1026,7 +1051,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
               ),
               const SizedBox(height: 2),
               AppText(
-                eta != null ? 'ETA $eta mins' : 'Estimating…',
+                eta != null
+                    ? 'ETA $eta mins'
+                    : 'Waiting for vendor confirmation',
                 fontSize: 12,
                 color: Colors.grey.shade600,
               ),
@@ -1078,296 +1105,283 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          if (_isLoading) ...[
+            const SizedBox(height: 16),
+            const Center(
+              child: SizedBox(
+                height: 2,
+                child: LinearProgressIndicator(
+                  color: AppColors.primaryOrange,
+                  backgroundColor: Colors.transparent,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, -5),
+              ),
+            ),
+          ],
+          if (_locationIsStale && !_isLoading) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.wifi_tethering_error_rounded,
+                    size: 15,
+                    color: Colors.amber.shade800,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppText(
+                      'Rider location may be slightly outdated. Refreshing…',
+                      fontSize: 11,
+                      color: Colors.amber.shade900,
+                    ),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+                  AppText(
+                    'Estimated Arrival',
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
                   ),
-                  if (_isLoading) ...[
-                    const SizedBox(height: 16),
-                    const Center(
-                      child: SizedBox(
-                        height: 2,
-                        child: LinearProgressIndicator(
-                          color: AppColors.primaryOrange,
-                          backgroundColor: Colors.transparent,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (_locationIsStale && !_isLoading) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.wifi_tethering_error_rounded,
-                            size: 15,
-                            color: Colors.amber.shade800,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: AppText(
-                              'Rider location may be slightly outdated. Refreshing…',
-                              fontSize: 11,
-                              color: Colors.amber.shade900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppText(
-                            'Estimated Arrival',
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(height: 4),
-                          AppText(
-                            _liveData?.etaMinutes != null
-                                ? '${_liveData!.etaMinutes} mins'
-                                : '—',
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          if (_prepTimeBreakdown != null) ...[
-                            const SizedBox(height: 2),
-                            AppText(
-                              _prepTimeBreakdown!,
-                              fontSize: 11,
-                              color: Colors.grey.shade500,
-                            ),
-                          ],
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          AppText(
-                            'Status',
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(height: 4),
-                          AppText(
-                            _status,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _statusColor,
-                          ),
-                        ],
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+                  AppText(
+                    _confirmedEtaMinutes != null
+                        ? '$_confirmedEtaMinutes mins'
+                        : 'Pending confirmation',
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 24),
-
-                  _buildProgressBar(context),
-                  const SizedBox(height: 24),
-
-                  // Hide rider info once delivered — show receipt/review instead.
-                  if (_orderStage < 3) ...[
-                    _buildRiderInfo(),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Stage-based primary actions
-                  if (_orderStage < 2) ...{
-                    // Waiting — nothing actionable yet
-                  } else if (_orderStage == 2) ...{
-                    // IN_TRANSIT / PICKED_UP / ARRIVED_DROPOFF — show delivery OTP
-                    if (_resolvedOtp != null) _buildDeliveryOtpCard(),
-                  } else if (_orderStage >= 3) ...{
-                    // Delivered / Completed — show review banner if already reviewed
-                    if (_existingReview != null)
-                      _buildReviewedBanner(_existingReview!),
-                    if (_existingReview != null) const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: OutlinedButton(
-                              onPressed: () => AppNavigator.push(
-                                context,
-                                AppRoute.receipt,
-                                arguments: {'orderId': widget.orderId},
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                  color: AppColors.primaryOrange,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: const AppText(
-                                'View Receipt',
-                                color: AppColors.primaryOrange,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _existingReview != null
-                                  ? null
-                                  : () => _showReviewSheet(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _existingReview != null
-                                    ? Colors.grey.shade300
-                                    : AppColors.primaryOrange,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: AppText(
-                                _existingReview != null
-                                    ? 'Reviewed ✓'
-                                    : 'Leave a Review',
-                                color: _existingReview != null
-                                    ? Colors.black54
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  },
-
-                  // Share button — hidden for now.
-
-                  // ── Cancel / Dispute quick actions ──────────────────────
-                  if (_canCancel || _canDispute) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (_canCancel)
-                          TextButton.icon(
-                            onPressed: () => _showCancelSheet(context),
-                            icon: const Icon(
-                              Icons.cancel_outlined,
-                              size: 16,
-                              color: Colors.red,
-                            ),
-                            label: const AppText(
-                              'Cancel Order',
-                              color: Colors.red,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        if (_canCancel && _canDispute)
-                          Container(
-                            width: 1,
-                            height: 20,
-                            color: Colors.grey.shade300,
-                            margin: const EdgeInsets.symmetric(horizontal: 12),
-                          ),
-                        if (_canDispute)
-                          TextButton.icon(
-                            onPressed: () => _showDisputeSheet(context),
-                            icon: const Icon(
-                              Icons.report_problem_outlined,
-                              size: 16,
-                              color: Colors.red,
-                            ),
-                            label: AppText(
-                              _currentState == 'DISPUTED'
-                                  ? 'Add Evidence'
-                                  : 'Dispute Order',
-                              color: Colors.red,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-
-                  // ── Locked actions affordance ─────────────────────────
-                  if (_actionsLocked) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lock_outline,
-                            size: 16,
-                            color: Colors.grey.shade500,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: AppText(
-                              'Cancel & dispute are unavailable while your order is in progress.',
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
+                  if (_prepTimeBreakdown != null) ...[
+                    const SizedBox(height: 2),
+                    AppText(
+                      _prepTimeBreakdown!,
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
                     ),
                   ],
                 ],
               ),
-          );
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  AppText('Status', fontSize: 12, color: Colors.grey.shade600),
+                  const SizedBox(height: 4),
+                  AppText(
+                    _status,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _statusColor,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          _buildProgressBar(context),
+          const SizedBox(height: 24),
+
+          // Hide rider info once delivered — show receipt/review instead.
+          if (_orderStage < 3) ...[
+            _buildRiderInfo(),
+            const SizedBox(height: 24),
+          ],
+
+          // Stage-based primary actions
+          if (_orderStage < 2) ...{
+            // Waiting — nothing actionable yet
+          } else if (_orderStage == 2) ...{
+            // IN_TRANSIT / PICKED_UP / ARRIVED_DROPOFF — show delivery OTP
+            if (_resolvedOtp != null) _buildDeliveryOtpCard(),
+          } else if (_orderStage >= 3) ...{
+            // Delivered / Completed — show review banner if already reviewed
+            if (_existingReview != null) _buildReviewedBanner(_existingReview!),
+            if (_existingReview != null) const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: OutlinedButton(
+                      onPressed: () => AppNavigator.push(
+                        context,
+                        AppRoute.receipt,
+                        arguments: {'orderId': widget.orderId},
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.primaryOrange),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const AppText(
+                        'View Receipt',
+                        color: AppColors.primaryOrange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _existingReview != null
+                          ? null
+                          : () => _showReviewSheet(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _existingReview != null
+                            ? Colors.grey.shade300
+                            : AppColors.primaryOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: AppText(
+                        _existingReview != null
+                            ? 'Reviewed ✓'
+                            : 'Leave a Review',
+                        color: _existingReview != null
+                            ? Colors.black54
+                            : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          },
+
+          // Share button — hidden for now.
+
+          // ── Cancel / Dispute quick actions ──────────────────────
+          if (_canCancel || _canDispute) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_canCancel)
+                  TextButton.icon(
+                    onPressed: () => _showCancelSheet(context),
+                    icon: const Icon(
+                      Icons.cancel_outlined,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                    label: const AppText(
+                      'Cancel Order',
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                if (_canCancel && _canDispute)
+                  Container(
+                    width: 1,
+                    height: 20,
+                    color: Colors.grey.shade300,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                if (_canDispute)
+                  TextButton.icon(
+                    onPressed: () => _showDisputeSheet(context),
+                    icon: const Icon(
+                      Icons.report_problem_outlined,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                    label: AppText(
+                      _currentState == 'DISPUTED'
+                          ? 'Add Evidence'
+                          : 'Dispute Order',
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          // ── Locked actions affordance ─────────────────────────
+          if (_actionsLocked) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppText(
+                      'Cancel & dispute are unavailable while your order is in progress.',
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   // ─── Cancel bottom sheet ─────────────────────────────────────────────────
@@ -1441,9 +1455,18 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.info_outline, size: 14, color: Colors.amber.shade800),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 14,
+                                  color: Colors.amber.shade800,
+                                ),
                                 const SizedBox(width: 6),
-                                AppText('Refund Policy', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                AppText(
+                                  'Refund Policy',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -1532,10 +1555,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () => Navigator.pop(
-                                sheetCtx,
-                                (selectedReason, noteController.text.trim()),
-                              ),
+                              onPressed: () => Navigator.pop(sheetCtx, (
+                                selectedReason,
+                                noteController.text.trim(),
+                              )),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 shape: RoundedRectangleBorder(
@@ -1640,8 +1663,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                     color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.check_circle_outline,
-                      color: Colors.green.shade600, size: 22),
+                  child: Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.green.shade600,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -1673,8 +1699,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.account_balance_wallet_outlined,
-                        color: Colors.green.shade700, size: 18),
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: Colors.green.shade700,
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: AppText(
@@ -1748,8 +1777,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                     color: Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.timer_off_outlined,
-                      color: Colors.orange.shade700, size: 22),
+                  child: Icon(
+                    Icons.timer_off_outlined,
+                    color: Colors.orange.shade700,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -1954,9 +1986,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                                   });
                                   if (context.mounted) {
                                     if (url != null) {
-                                      AppToast.showSuccess(context, 'Evidence uploaded successfully.');
+                                      AppToast.showSuccess(
+                                        context,
+                                        'Evidence uploaded successfully.',
+                                      );
                                     } else {
-                                      AppToast.showError(context, 'Failed to upload evidence.');
+                                      AppToast.showError(
+                                        context,
+                                        'Failed to upload evidence.',
+                                      );
                                     }
                                   }
                                 }
@@ -2249,41 +2287,45 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                       const SizedBox(height: 24),
 
                       // Submit — requires star + (tag or comment)
-                      Builder(builder: (context) {
-                        final hasContent =
-                            selectedTags.isNotEmpty ||
-                            commentController.text.trim().isNotEmpty;
-                        final canSubmit = rating > 0 && hasContent;
-                        return SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: canSubmit
-                                ? () async {
-                                    AppNavigator.pop(sheetCtx);
-                                    await _submitReview(
-                                      rating,
-                                      commentController.text.trim(),
-                                      selectedTags,
-                                    );
-                                  }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primaryOrange,
-                              disabledBackgroundColor: Colors.grey.shade300,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                      Builder(
+                        builder: (context) {
+                          final hasContent =
+                              selectedTags.isNotEmpty ||
+                              commentController.text.trim().isNotEmpty;
+                          final canSubmit = rating > 0 && hasContent;
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: canSubmit
+                                  ? () async {
+                                      AppNavigator.pop(sheetCtx);
+                                      await _submitReview(
+                                        rating,
+                                        commentController.text.trim(),
+                                        selectedTags,
+                                      );
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryOrange,
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: AppText(
+                                'Submit Review',
+                                color: canSubmit
+                                    ? Colors.white
+                                    : Colors.black38,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
-                            child: AppText(
-                              'Submit Review',
-                              color: canSubmit ? Colors.white : Colors.black38,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        );
-                      }),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -2302,7 +2344,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
   ) async {
     if (widget.orderId == null) {
       if (mounted) {
-        AppToast.showSuccess(context, 'Review submitted (simulated): $rating stars.');
+        AppToast.showSuccess(
+          context,
+          'Review submitted (simulated): $rating stars.',
+        );
       }
       return;
     }
@@ -2334,7 +2379,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
     } catch (e) {
       debugPrint('Review submission failed: $e');
       if (mounted) {
-        final errorMessage = (e.toString().contains('409') ||
+        final errorMessage =
+            (e.toString().contains('409') ||
                 e.toString().contains('already exists'))
             ? 'Review already submitted for this order.'
             : 'Failed to submit review: $e';
@@ -2360,7 +2406,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
         child: Row(
           children: [
             Icon(
-              isCancelled ? Icons.cancel_outlined : Icons.report_problem_outlined,
+              isCancelled
+                  ? Icons.cancel_outlined
+                  : Icons.report_problem_outlined,
               color: Colors.red,
               size: 20,
             ),
@@ -2459,11 +2507,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: List.generate(5, (i) => Icon(
-                    i < review.ratingOverall ? Icons.star : Icons.star_border,
-                    size: 16,
-                    color: Colors.amber.shade600,
-                  )),
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < review.ratingOverall ? Icons.star : Icons.star_border,
+                      size: 16,
+                      color: Colors.amber.shade600,
+                    ),
+                  ),
                 ),
                 if (review.comment != null && review.comment!.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -2573,7 +2624,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen>
                 if (phone != null && phone.isNotEmpty) {
                   launchUrl(Uri(scheme: 'tel', path: phone));
                 } else {
-                  AppToast.showError(context, 'Rider phone number not available.');
+                  AppToast.showError(
+                    context,
+                    'Rider phone number not available.',
+                  );
                 }
               },
               child: const CircleAvatar(

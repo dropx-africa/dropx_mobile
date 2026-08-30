@@ -18,7 +18,7 @@ void main() {
     );
 
     // Verify Title
-    expect(find.text('Verify Phone'), findsOneWidget);
+    expect(find.text('Verify Phone'), findsNWidgets(2));
     expect(
       find.text(
         'Enter the 6-digit code we sent to your phone (+2348012345678)',
